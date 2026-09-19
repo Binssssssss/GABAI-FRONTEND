@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { drawerStyles as styles } from './drawer.style';
 
@@ -55,12 +56,25 @@ export default function AppDrawer({
   cardBg,
   borderCol,
 }: AppDrawerProps) {
+  const [currentUser, setCurrentUser] = React.useState<Record<string, string>>({});
   const screenWidth = Dimensions.get('window').width;
   const drawerWidth = screenWidth * 0.78;
 
   const slideAnim = useRef(
     new Animated.Value(-drawerWidth)
   ).current;
+
+  useEffect(() => {
+    AsyncStorage.getItem('gabai_user').then((storedUser) => {
+      if (!storedUser) return;
+
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Failed to load drawer user:', error);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -171,7 +185,7 @@ export default function AppDrawer({
               ]}
             >
               <Text style={styles.avatarText}>
-                RV
+                {currentUser.initials || currentUser.name?.slice(0, 2).toUpperCase() || 'U'}
               </Text>
 
               <View
@@ -195,7 +209,7 @@ export default function AppDrawer({
                 ]}
                 numberOfLines={1}
               >
-                Ruenz Vience
+                {currentUser.name || currentUser.fullName || currentUser.userName || currentUser.email || 'User'}
               </Text>
 
               <Text
@@ -206,7 +220,7 @@ export default function AppDrawer({
                   },
                 ]}
               >
-                BSIT • Year 4
+                {currentUser.course || ''}
               </Text>
 
               <View style={styles.status}>

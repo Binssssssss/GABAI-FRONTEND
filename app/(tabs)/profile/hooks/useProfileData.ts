@@ -2,12 +2,52 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { localDb } from '@/app/services/localDb';
-import { DEFAULT_USER_PROFILE } from '../constants/profileConfig';
 import { UserProfile, ProfileStatItem } from '../types';
+import { useAuth } from '@/app/context/AuthContext';
+
+const EMPTY_USER_PROFILE: UserProfile = {
+  name: '',
+  email: '',
+  course: '',
+  initials: '',
+};
 
 export function useProfileData() {
   const router = useRouter();
-  const [userProfile] = useState<UserProfile>(DEFAULT_USER_PROFILE);
+  const { user, signOut } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfile>(EMPTY_USER_PROFILE);
+
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const currentUser = user || {};
+        const name = String(
+          currentUser.name ||
+          currentUser.fullName ||
+          currentUser.userName ||
+          currentUser.email ||
+          ''
+        );
+        setUserProfile({
+          name,
+          email: String(currentUser.email || ''),
+          course: String(currentUser.course || ''),
+          initials: name
+            .split(' ')
+            .filter(Boolean)
+            .map((part: string) => part[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+        });
+        console.log('CURRENT STORED USER:', currentUser);
+      } catch (error) {
+        console.error('Failed to load stored user:', error);
+      }
+    };
+
+    loadUserProfile();
+  }, [user]);
 
   // Sync state from central database
   const [tasks, setTasks] = useState(() => localDb.getTasks());
@@ -73,14 +113,15 @@ export function useProfileData() {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            await signOut();
             router.replace('/(auth)/login/login');
           },
         },
       ],
       { cancelable: true }
     );
-  }, [router]);
+  }, [router, signOut]);
 
   return {
     userProfile,

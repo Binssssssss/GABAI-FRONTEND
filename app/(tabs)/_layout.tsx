@@ -20,12 +20,14 @@ import {
   DrawerContext,
   useDrawer,
 } from '@/app/context/DrawerContext';
+import { useAuth } from '@/app/context/AuthContext';
 
 export { useDrawer };
 
 export default function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
+  const { signOut } = useAuth();
 
   // Theme
   const colorScheme =
@@ -105,27 +107,33 @@ export default function TabLayout() {
   };
 
   const handleLogout = () => {
-    closeDrawer();
+  closeDrawer();
 
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out of GabAi?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+  Alert.alert(
+    'Log Out',
+    'Are you sure you want to log out of GabAi?',
+    [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+
+            // Navigate back to login
+            router.replace('/(auth)/login/login');
+          } catch (error) {
+            console.error('Logout failed:', error);
+          }
         },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: () =>
-            router.replace(
-              '/(auth)/login/login'
-            ),
-        },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
 
   const isActiveRoute = (route: string) =>
     pathname.includes(route);

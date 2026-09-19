@@ -2,10 +2,25 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import api from '@/app/services/api';
+import { useAuth } from '@/app/context/AuthContext';
 import { validateLoginForm } from '../utils';
+
+function decodeJwtPayload(token: string) {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decodedPayload = atob(normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '='));
+    return JSON.parse(decodedPayload);
+  } catch {
+    return null;
+  }
+}
 
 export function useLogin() {
   const router = useRouter();
+  const { signIn } = useAuth();
 
   // Form States
   const [email, setEmail] = useState('');
@@ -31,11 +46,39 @@ export function useLogin() {
     setIsLoading(true);
     try {
       const response = await api.post('/api/auth/login', {
-  email: email,
-  password: password,
-});
+        email,
+        password,
+      });
 
-console.log('LOGIN RESPONSE:', response.data);
+      const authorizationHeader = response.headers.authorization;
+      const responseToken =
+        response.data?.token ||
+        response.data?.accessToken ||
+        response.data?.access_token;
+      const token = responseToken || authorizationHeader?.replace(/^Bearer\s+/i, '');
+      const loggedInUser = authorizationHeader
+        ? decodeJwtPayload(authorizationHeader.replace(/^Bearer\s+/i, ''))
+        : responseToken
+          ? decodeJwtPayload(responseToken)
+          : response.data?.user;
+      const currentSession = response.data?.session || response.data;
+      const currentUser = response.data?.user || currentSession?.user || loggedInUser || { email };
+
+      if (!token) {
+        throw new Error('Login succeeded without an authentication token.');
+      }
+
+      await signIn({ token, user: currentUser });
+
+      const currentUserName =
+        currentUser?.name ||
+        currentUser?.fullName ||
+        currentUser?.userName ||
+        currentUser?.email ||
+        'Unknown user';
+
+      console.log('CURRENT SESSION:', currentSession);
+      console.log('CURRENT USER NAME:', currentUserName);
 
       setIsLoading(false);
       router.replace('/(tabs)/dashboard/dashboard');
