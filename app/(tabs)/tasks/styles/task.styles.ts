@@ -244,6 +244,7 @@ export const taskStyles = StyleSheet.create({
   },
   bulkActionBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 12,
@@ -319,6 +320,7 @@ export const taskStyles = StyleSheet.create({
   },
   taskCardMain: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 12,
   },
   taskCardHeaderRow: {
@@ -326,14 +328,18 @@ export const taskStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 2,
+    minWidth: 0,
   },
   taskSubject: {
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
+    flex: 1,
+    flexShrink: 1,
   },
   taskControlsRow: {
     flexDirection: 'row',
+    flexShrink: 0,
   },
   iconButton: {
     padding: 4,
@@ -343,6 +349,7 @@ export const taskStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     marginBottom: 4,
+    flexShrink: 1,
   },
   taskDesc: {
     fontSize: 12,
@@ -401,6 +408,7 @@ export const taskStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     marginLeft: 8,
+    flexShrink: 0,
   },
   priorityDot: {
     width: 8,

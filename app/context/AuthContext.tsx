@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { localDb } from '@/app/services/localDb';
 
 type AuthUser = Record<string, unknown>;
 
@@ -13,6 +14,11 @@ type AuthSession = {
   token: string;
   user?: AuthUser;
 };
+
+function getUserId(user?: AuthUser | null) {
+  const id = user?.id || user?.userId || user?.sub;
+  return typeof id === 'string' || typeof id === 'number' ? String(id) : null;
+}
 
 interface AuthContextValue {
   session: AuthSession | null;
@@ -78,7 +84,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (isSessionValid(savedSession)) {
-          setSession(savedSession);
+          const userId = getUserId(savedSession?.user);
+          if (userId) {
+            localDb.activateUser(userId);
+            setSession(savedSession);
+          } else {
+            await AsyncStorage.multiRemove([SESSION_KEY, LEGACY_TOKEN_KEY, LEGACY_USER_KEY]);
+          }
         } else {
           await AsyncStorage.multiRemove([SESSION_KEY, LEGACY_TOKEN_KEY, LEGACY_USER_KEY]);
         }
@@ -104,6 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: { ...tokenUser, ...nextSession.user },
     };
 
+    const userId = getUserId(normalizedSession.user);
+    if (!userId) {
+      throw new Error('Login session does not contain an authenticated user ID.');
+    }
+    localDb.activateUser(userId);
+
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(normalizedSession));
     await AsyncStorage.setItem(LEGACY_TOKEN_KEY, normalizedSession.token);
     if (normalizedSession.user) {
@@ -114,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await AsyncStorage.multiRemove([SESSION_KEY, LEGACY_TOKEN_KEY, LEGACY_USER_KEY]);
+    localDb.clearActiveUser();
     setSession(null);
   };
 
