@@ -4,6 +4,7 @@ import { ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/app/context/ThemeContext';
+import { useAuth } from '@/app/context/AuthContext';
 import { useDrawer } from '@/app/(tabs)/_layout';
 
 import {
@@ -69,6 +70,19 @@ export default function DashboardScreen() {
 
   // Drawer
   const { openDrawer } = useDrawer();
+  const { user } = useAuth();
+  const fullUserName = String(
+    user?.name ||
+    user?.fullName ||
+    user?.userName ||
+    user?.username ||
+    user?.preferred_username ||
+    user?.firstName ||
+    user?.first_name ||
+    user?.email ||
+    'User'
+  );
+  const userName = fullUserName.trim().split(/\s+/)[0] || 'User';
 
   // Dashboard Data
   const {
@@ -104,10 +118,13 @@ export default function DashboardScreen() {
     >
       {/* 1. Header Bar */}
       <DashboardHeader
+        greeting={greeting}
+        userName={userName}
         onOpenDrawer={openDrawer}
         textPrimary={textPrimary}
         textSecondary={textSecondary}
       />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
