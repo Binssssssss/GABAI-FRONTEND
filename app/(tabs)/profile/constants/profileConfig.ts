@@ -1,12 +1,5 @@
 
-import { UserProfile, SettingSection } from '../types';
-
-export const DEFAULT_USER_PROFILE: UserProfile = {
-  name: 'Ruenz Vience B. Baylosis',
-  email: 'vience@gabai.edu.ph',
-  course: 'BS in Computer Science',
-  initials: 'SV',
-};
+import { SettingSection } from '../types';
 
 export const PROFILE_SECTIONS: SettingSection[] = [
   {

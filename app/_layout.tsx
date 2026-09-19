@@ -3,26 +3,44 @@ import {
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useSegments, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { ThemeProvider, useAppTheme } from '@/app/context/ThemeContext';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <AppNavigation />
+      <AuthProvider>
+        <AppNavigation />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
 
 function AppNavigation() {
   const { colorScheme } = useAppTheme();
+  const { session, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const isAuthRoute = segments[0] === '(auth)';
+    const isAppRoute = segments[0] === '(tabs)' || segments[0] === 'assistant' || segments[0] === 'productivity';
+
+    if (!session && isAppRoute) {
+      router.replace('/(auth)/login/login');
+    } else if (session && (segments[0] === undefined || isAuthRoute)) {
+      router.replace('/(tabs)/dashboard/dashboard');
+    }
+  }, [isLoading, router, segments, session]);
+
+  if (isLoading) return null;
 
   return (
     <NavigationThemeProvider
@@ -33,6 +51,8 @@ function AppNavigation() {
       }
     >
       <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen
           name="(tabs)"
           options={{ headerShown: false }}
