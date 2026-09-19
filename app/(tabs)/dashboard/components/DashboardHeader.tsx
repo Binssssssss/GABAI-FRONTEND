@@ -82,7 +82,7 @@ export default function DashboardHeader({
     { color: textPrimary },
   ]}
 >
-  Welcome back, {userName} 👋
+  Welcome back, {userName} 
 </Text>
 
             <View style={styles.dateRow}>

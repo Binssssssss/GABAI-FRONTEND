@@ -478,6 +478,31 @@ class LocalDatabase {
   private events: CalendarEvent[] = [...INITIAL_EVENTS];
   private notes: Note[] = [...INITIAL_NOTES];
   private listeners: (() => void)[] = [];
+  private activeUserId: string | null = null;
+
+  activateUser(userId: string) {
+    if (!userId || this.activeUserId === userId) return;
+
+    this.activeUserId = userId;
+    this.tasks = [];
+    this.transactions = [];
+    this.events = [];
+    this.notes = [];
+    this.notify();
+  }
+
+  clearActiveUser() {
+    this.activeUserId = null;
+    this.tasks = [];
+    this.transactions = [];
+    this.events = [];
+    this.notes = [];
+    this.notify();
+  }
+
+  getActiveUserId() {
+    return this.activeUserId;
+  }
 
   // Subscribe to changes
   subscribe(listener: () => void): () => void {

@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { localDb } from '@/app/services/localDb';
 
 type AuthUser = Record<string, unknown>;
 
@@ -13,6 +14,11 @@ type AuthSession = {
   token: string;
   user?: AuthUser;
 };
+
+function getUserId(user?: AuthUser | null) {
+  const id = user?.id || user?.userId || user?.sub;
+  return typeof id === 'string' || typeof id === 'number' ? String(id) : null;
+}
 
 interface AuthContextValue {
   session: AuthSession | null;
@@ -28,16 +34,25 @@ const LEGACY_USER_KEY = 'gabai_user';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function decodeJwtPayload(token: string): AuthUser | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    return JSON.parse(
+      atob(payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '='))
+    );
+  } catch {
+    return null;
+  }
+}
+
 function isSessionValid(session: AuthSession | null) {
   if (!session?.token) return false;
 
   try {
-    const payload = session.token.split('.')[1];
-    if (!payload) return true;
-
-    const decoded = JSON.parse(
-      atob(payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '='))
-    );
+    const decoded = decodeJwtPayload(session.token);
+    if (!decoded) return true;
 
     return typeof decoded.exp !== 'number' || decoded.exp * 1000 > Date.now();
   } catch {
@@ -63,8 +78,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? { token: storedToken, user: parsedUser }
             : null;
 
+        if (savedSession) {
+          const tokenUser = decodeJwtPayload(savedSession.token);
+          savedSession.user = { ...tokenUser, ...savedSession.user };
+        }
+
         if (isSessionValid(savedSession)) {
-          setSession(savedSession);
+          const userId = getUserId(savedSession?.user);
+          if (userId) {
+            localDb.activateUser(userId);
+            setSession(savedSession);
+          } else {
+            await AsyncStorage.multiRemove([SESSION_KEY, LEGACY_TOKEN_KEY, LEGACY_USER_KEY]);
+          }
         } else {
           await AsyncStorage.multiRemove([SESSION_KEY, LEGACY_TOKEN_KEY, LEGACY_USER_KEY]);
         }
@@ -84,16 +110,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Cannot save an invalid auth session.');
     }
 
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
-    await AsyncStorage.setItem(LEGACY_TOKEN_KEY, nextSession.token);
-    if (nextSession.user) {
-      await AsyncStorage.setItem(LEGACY_USER_KEY, JSON.stringify(nextSession.user));
+    const tokenUser = decodeJwtPayload(nextSession.token);
+    const normalizedSession = {
+      ...nextSession,
+      user: { ...tokenUser, ...nextSession.user },
+    };
+
+    const userId = getUserId(normalizedSession.user);
+    if (!userId) {
+      throw new Error('Login session does not contain an authenticated user ID.');
     }
-    setSession(nextSession);
+    localDb.activateUser(userId);
+
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(normalizedSession));
+    await AsyncStorage.setItem(LEGACY_TOKEN_KEY, normalizedSession.token);
+    if (normalizedSession.user) {
+      await AsyncStorage.setItem(LEGACY_USER_KEY, JSON.stringify(normalizedSession.user));
+    }
+    setSession(normalizedSession);
   };
 
   const signOut = async () => {
     await AsyncStorage.multiRemove([SESSION_KEY, LEGACY_TOKEN_KEY, LEGACY_USER_KEY]);
+    localDb.clearActiveUser();
     setSession(null);
   };
 
