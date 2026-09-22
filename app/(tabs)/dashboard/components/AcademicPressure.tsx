@@ -1,12 +1,10 @@
-import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
+import api from "../../../services/api";
 
 interface AcademicPressureProps {
   cardBg: string;
@@ -15,6 +13,18 @@ interface AcademicPressureProps {
   textSecondary: string;
   errorRed: string;
   primaryBrown: string;
+}
+
+type PressureLevel = "LOW" | "MEDIUM" | "HIGH";
+
+interface AcademicPressureResponse {
+  level: PressureLevel;
+  label: string;
+  score: number;
+  totalTasks: number;
+  pendingTasks: number;
+  overdueTasks: number;
+  urgentTasks: number;
 }
 
 export default function AcademicPressure({
@@ -27,10 +37,57 @@ export default function AcademicPressure({
 }: AcademicPressureProps) {
   const router = useRouter();
 
+  const [pressureLabel, setPressureLabel] = useState("Loading...");
+  const [pressureLevel, setPressureLevel] =
+    useState<PressureLevel>("LOW");
+
+  useEffect(() => {
+    const fetchAcademicPressure = async () => {
+      try {
+        const response = await api.get("/api/academic-pressure");
+
+        const data: AcademicPressureResponse =
+          response.data.data;
+
+        setPressureLabel(data.label);
+        setPressureLevel(data.level);
+      } catch (error) {
+        console.error(
+          "Failed to fetch academic pressure:",
+          error,
+        );
+
+        setPressureLabel("Unable to load");
+      }
+    };
+
+    fetchAcademicPressure();
+  }, []);
+
+  const getPressureColor = () => {
+    switch (pressureLevel) {
+      case "HIGH":
+        return errorRed;
+
+      case "MEDIUM":
+        return primaryBrown;
+
+      case "LOW":
+        return "#4CAF50";
+
+      default:
+        return errorRed;
+    }
+  };
+
+  const pressureColor = getPressureColor();
+
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={() => router.push('/(tabs)/tasks/task' as any)}
+      onPress={() =>
+        router.push("/(tabs)/tasks/task" as any)
+      }
       style={[
         styles.container,
         {
@@ -40,7 +97,14 @@ export default function AcademicPressure({
       ]}
     >
       <View style={styles.left}>
-        <Text style={[styles.title, { color: textPrimary }]}>
+        <Text
+          style={[
+            styles.title,
+            {
+              color: textPrimary,
+            },
+          ]}
+        >
           Academic Pressure
         </Text>
 
@@ -49,7 +113,7 @@ export default function AcademicPressure({
             style={[
               styles.dot,
               {
-                backgroundColor: errorRed,
+                backgroundColor: pressureColor,
               },
             ]}
           />
@@ -58,11 +122,11 @@ export default function AcademicPressure({
             style={[
               styles.statusText,
               {
-                color: errorRed,
+                color: pressureColor,
               },
             ]}
           >
-            High Pressure
+            {pressureLabel}
           </Text>
         </View>
       </View>
@@ -84,26 +148,26 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 
   left: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
 
   title: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     marginRight: 12,
   },
 
   status: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   dot: {
@@ -115,6 +179,6 @@ const styles = StyleSheet.create({
 
   statusText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

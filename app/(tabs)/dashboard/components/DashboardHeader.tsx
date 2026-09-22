@@ -10,10 +10,13 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+
 import {
   getNotifications,
   subscribeToNotifications,
+  markNotificationAsRead,
 } from '@/app/notifications/notificationService';
+
 import { Notification } from '@/app/notifications/types';
 
 interface DashboardHeaderProps {
@@ -32,8 +35,12 @@ export default function DashboardHeader({
   textSecondary,
 }: DashboardHeaderProps) {
   const router = useRouter();
-  const [notificationsVisible, setNotificationsVisible] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const [notificationsVisible, setNotificationsVisible] =
+    useState(false);
+
+  const [notifications, setNotifications] =
+    useState<Notification[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,13 +51,34 @@ export default function DashboardHeader({
       }
     });
 
-    const unsubscribe = subscribeToNotifications(setNotifications);
+    const unsubscribe =
+      subscribeToNotifications(setNotifications);
 
     return () => {
       isMounted = false;
       unsubscribe();
     };
   }, []);
+
+  const handleNotificationPress = async (
+    notification: Notification,
+  ) => {
+    if (!notification.read) {
+      await markNotificationAsRead(notification.id);
+    }
+
+    /*
+     * Optional task navigation.
+     *
+     * If this notification is connected to a task,
+     * you can navigate to that task here later.
+     */
+
+    if (notification.taskId) {
+      // Example:
+      // router.push(`/(tabs)/tasks/${notification.taskId}`);
+    }
+  };
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -76,14 +104,14 @@ export default function DashboardHeader({
           </TouchableOpacity>
 
           <View style={styles.greetingContainer}>
-           <Text
-  style={[
-    styles.welcomeText,
-    { color: textPrimary },
-  ]}
->
-  Welcome back, {userName} 👋
-</Text>
+            <Text
+              style={[
+                styles.welcomeText,
+                { color: textPrimary },
+              ]}
+            >
+              Welcome back, {userName} 👋
+            </Text>
 
             <View style={styles.dateRow}>
               <Feather
@@ -109,7 +137,9 @@ export default function DashboardHeader({
         <View style={styles.rightSection}>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => setNotificationsVisible(true)}
+            onPress={() =>
+              setNotificationsVisible(true)
+            }
             activeOpacity={0.8}
           >
             <Feather
@@ -119,9 +149,9 @@ export default function DashboardHeader({
             />
 
             {/* Notification indicator */}
-            {notifications.some((notification) => !notification.read) && (
-              <View style={styles.notificationDot} />
-            )}
+            {notifications.some(
+              (notification) => !notification.read,
+            ) && <View style={styles.notificationDot} />}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -166,9 +196,11 @@ export default function DashboardHeader({
                     : '#FFFFFF',
               },
             ]}
-            onPress={(event) => event.stopPropagation()}
+            onPress={(event) =>
+              event.stopPropagation()
+            }
           >
-            {/* Header */}
+            {/* HEADER */}
             <View style={styles.notificationHeader}>
               <View>
                 <Text
@@ -179,6 +211,7 @@ export default function DashboardHeader({
                 >
                   Notifications
                 </Text>
+
                 <Text
                   style={[
                     styles.notificationSubtitle,
@@ -203,68 +236,97 @@ export default function DashboardHeader({
               </TouchableOpacity>
             </View>
 
+            {/* NOTIFICATIONS */}
             {notifications.length > 0 ? (
               notifications.map((notification) => (
-                <View
+                <TouchableOpacity
                   key={notification.id}
-                  style={[
-                    styles.notificationItem,
-                    {
-                      backgroundColor:
-                        textPrimary === '#ECEDEE'
-                          ? '#262626'
-                          : '#F8FAFC',
-                      marginBottom: 10,
-                      opacity: notification.read ? 0.65 : 1,
-                    },
-                  ]}
+                  activeOpacity={0.75}
+                  onPress={() =>
+                    handleNotificationPress(notification)
+                  }
                 >
-                  {/* Dynamic Icon */}
                   <View
                     style={[
-                      styles.notificationIcon,
+                      styles.notificationItem,
                       {
-                        backgroundColor: '#F59E0B15',
+                        backgroundColor:
+                          textPrimary === '#ECEDEE'
+                            ? '#262626'
+                            : '#F8FAFC',
+
+                        marginBottom: 10,
+
+                        opacity: notification.read
+                          ? 0.65
+                          : 1,
                       },
                     ]}
                   >
-                    <Feather
-                      name="alert-circle"
-                      size={18}
-                      color="#F59E0B"
-                    />
+                    {/* DYNAMIC ICON */}
+                    <View
+                      style={[
+                        styles.notificationIcon,
+                        {
+                          backgroundColor:
+                            notification.iconColor
+                              ? `${notification.iconColor}15`
+                              : '#F59E0B15',
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name={
+                          notification.icon as any
+                        }
+                        size={18}
+                        color={
+                          notification.iconColor ||
+                          '#F59E0B'
+                        }
+                      />
+                    </View>
+
+                    {/* CONTENT */}
+                    <View
+                      style={styles.notificationContent}
+                    >
+                      <Text
+                        style={[
+                          styles.notificationItemTitle,
+                          { color: textPrimary },
+                        ]}
+                      >
+                        {notification.title}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.notificationMessage,
+                          { color: textSecondary },
+                        ]}
+                      >
+                        {notification.message}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.notificationTime,
+                          { color: textSecondary },
+                        ]}
+                      >
+                        {notification.time}
+                      </Text>
+                    </View>
+
+                    {/* UNREAD INDICATOR */}
+                    {!notification.read && (
+                      <View
+                        style={styles.itemUnreadDot}
+                      />
+                    )}
                   </View>
-
-                  {/* Content */}
-                  <View style={styles.notificationContent}>
-                    <Text
-                      style={[
-                        styles.notificationItemTitle,
-                        { color: textPrimary },
-                      ]}
-                    >
-                      {notification.title}
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.notificationMessage,
-                        { color: textSecondary },
-                      ]}
-                    >
-                      {notification.message}
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.notificationTime,
-                        { color: textSecondary },
-                      ]}
-                    >
-                      {notification.time}
-                    </Text>
-                  </View>
-                </View>
+                </TouchableOpacity>
               ))
             ) : (
               <View style={styles.emptyNotification}>
@@ -280,7 +342,7 @@ export default function DashboardHeader({
                     { color: textPrimary },
                   ]}
                 >
-                  You're all caught up
+                  You&apos;re all caught up
                 </Text>
 
                 <Text
@@ -289,12 +351,13 @@ export default function DashboardHeader({
                     { color: textSecondary },
                   ]}
                 >
-                  No reminders or productivity updates right now.
+                  No reminders or productivity updates
+                  right now.
                 </Text>
               </View>
             )}
 
-            {/* Empty space / future notifications */}
+            {/* FOOTER */}
             {notifications.length > 0 && (
               <View style={styles.footer}>
                 <Feather
@@ -310,7 +373,9 @@ export default function DashboardHeader({
                   ]}
                 >
                   {notifications.length} notification
-                  {notifications.length > 1 ? 's' : ''}
+                  {notifications.length > 1
+                    ? 's'
+                    : ''}
                 </Text>
               </View>
             )}
@@ -323,24 +388,25 @@ export default function DashboardHeader({
 
 const styles = StyleSheet.create({
   emptyNotification: {
-  alignItems: 'center',
-  justifyContent: 'center',
-  paddingVertical: 28,
-  paddingHorizontal: 20,
-},
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+  },
 
-emptyNotificationTitle: {
-  fontSize: 14,
-  fontWeight: '700',
-  marginTop: 10,
-},
+  emptyNotificationTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 10,
+  },
 
-emptyNotificationText: {
-  fontSize: 12,
-  marginTop: 4,
-  textAlign: 'center',
-  lineHeight: 18,
-},
+  emptyNotificationText: {
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+
   container: {
     width: '100%',
     paddingHorizontal: 18,
@@ -513,14 +579,14 @@ emptyNotificationText: {
 
     borderRadius: 14,
     padding: 13,
+
+    position: 'relative',
   },
 
   notificationIcon: {
     width: 34,
     height: 34,
     borderRadius: 10,
-
-    backgroundColor: '#F59E0B15',
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -530,6 +596,7 @@ emptyNotificationText: {
 
   notificationContent: {
     flex: 1,
+    paddingRight: 8,
   },
 
   notificationItemTitle: {
@@ -546,6 +613,18 @@ emptyNotificationText: {
   notificationTime: {
     fontSize: 10,
     marginTop: 6,
+  },
+
+  itemUnreadDot: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+
+    backgroundColor: '#D9534F',
   },
 
   footer: {

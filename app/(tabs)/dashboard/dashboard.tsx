@@ -105,6 +105,8 @@ export default function DashboardScreen() {
       {/* 1. Header Bar */}
       <DashboardHeader
         onOpenDrawer={openDrawer}
+        greeting={greeting}
+        userName="Student"
         textPrimary={textPrimary}
         textSecondary={textSecondary}
       />

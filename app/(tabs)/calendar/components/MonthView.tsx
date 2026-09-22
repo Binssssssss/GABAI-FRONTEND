@@ -2,13 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { CalendarEvent } from '../types';
-import {
-  CATEGORY_COLORS,
-  DAYS_IN_JULY_2026,
-  START_OFFSET_JULY_2026,
-  TOTAL_GRID_CELLS,
-  WEEKDAYS,
-} from '../constants/calendarConfig';
+import { CATEGORY_COLORS, WEEKDAYS } from '../constants/calendarConfig';
 import { calendarStyles as styles } from '../styles/calendar.styles';
 
 interface MonthViewProps {
@@ -36,49 +30,153 @@ export default function MonthView({
   textSubTheme,
   primaryAccent,
 }: MonthViewProps) {
+  const selected = new Date(`${selectedDate}T00:00:00`);
+
+  const currentYear = selected.getFullYear();
+  const currentMonth = selected.getMonth();
+
+  const monthName = selected.toLocaleDateString('en-US', {
+    month: 'long',
+  });
+
+  const firstDayOfMonth = new Date(
+    currentYear,
+    currentMonth,
+    1,
+  ).getDay();
+
+  const daysInMonth = new Date(
+    currentYear,
+    currentMonth + 1,
+    0,
+  ).getDate();
+
+  const totalCells = Math.ceil(
+    (firstDayOfMonth + daysInMonth) / 7,
+  ) * 7;
+
+  const today = new Date();
+
+  const isToday = (dateString: string) => {
+    const date = new Date(`${dateString}T00:00:00`);
+
+    return (
+      date.getFullYear() === today.getFullYear() &&
+      date.getMonth() === today.getMonth() &&
+      date.getDate() === today.getDate()
+    );
+  };
+
+  const formatDate = (day: number) => {
+    return `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
   return (
-    <View style={[styles.calendarCard, { backgroundColor: cardTheme, borderColor: borderTheme }]}>
+    <View
+      style={[
+        styles.calendarCard,
+        {
+          backgroundColor: cardTheme,
+          borderColor: borderTheme,
+        },
+      ]}
+    >
+      {/* Month Header */}
       <View style={styles.calendarMonthHeader}>
-        <Text style={[styles.monthLabel, { color: textTheme }]}>July 2026</Text>
+        <Text style={[styles.monthLabel, { color: textTheme }]}>
+          {monthName} {currentYear}
+        </Text>
+
         <View style={styles.monthHeaderActions}>
-          <TouchableOpacity style={styles.arrowButton}>
-            <Feather name="chevron-left" size={20} color={textTheme} />
+          <TouchableOpacity
+            style={styles.arrowButton}
+            onPress={() => {
+              const previousMonth = new Date(
+                currentYear,
+                currentMonth - 1,
+                1,
+              );
+
+              const previousDate = `${previousMonth.getFullYear()}-${String(
+                previousMonth.getMonth() + 1,
+              ).padStart(2, '0')}-01`;
+
+              onSelectDate(previousDate);
+            }}
+          >
+            <Feather
+              name="chevron-left"
+              size={20}
+              color={textTheme}
+            />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.arrowButton}>
-            <Feather name="chevron-right" size={20} color={textTheme} />
+
+          <TouchableOpacity
+            style={styles.arrowButton}
+            onPress={() => {
+              const nextMonth = new Date(
+                currentYear,
+                currentMonth + 1,
+                1,
+              );
+
+              const nextDate = `${nextMonth.getFullYear()}-${String(
+                nextMonth.getMonth() + 1,
+              ).padStart(2, '0')}-01`;
+
+              onSelectDate(nextDate);
+            }}
+          >
+            <Feather
+              name="chevron-right"
+              size={20}
+              color={textTheme}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Weekday headers */}
+      {/* Weekday Headers */}
       <View style={styles.weekdayRow}>
-        {WEEKDAYS.map((day, idx) => (
-          <Text key={idx} style={[styles.weekdayLabel, { color: textSubTheme }]}>
+        {WEEKDAYS.map((day, index) => (
+          <Text
+            key={index}
+            style={[
+              styles.weekdayLabel,
+              { color: textSubTheme },
+            ]}
+          >
             {day}
           </Text>
         ))}
       </View>
 
-      {/* Grid days */}
+      {/* Calendar Grid */}
       <View style={styles.calendarGrid}>
-        {Array.from({ length: TOTAL_GRID_CELLS }).map((_, idx) => {
-          const cellDay = idx - START_OFFSET_JULY_2026 + 1;
-          const isValidDay = cellDay > 0 && cellDay <= DAYS_IN_JULY_2026;
+        {Array.from({ length: totalCells }).map((_, index) => {
+          const day = index - firstDayOfMonth + 1;
 
-          if (!isValidDay) {
-            return <View key={idx} style={styles.emptyGridCell} />;
+          if (day < 1 || day > daysInMonth) {
+            return (
+              <View
+                key={index}
+                style={styles.emptyGridCell}
+              />
+            );
           }
 
-          const dayString = `2026-07-${cellDay.toString().padStart(2, '0')}`;
-          const isSelected = selectedDate === dayString;
-          const isToday = dayString === '2026-07-24';
+          const dayString = formatDate(day);
 
-          // Get events for this specific date
-          const dayEvents = events.filter((e) => e.date === dayString);
+          const isSelected = selectedDate === dayString;
+          const todayDate = isToday(dayString);
+
+          const dayEvents = events.filter(
+            (event) => event.date === dayString,
+          );
 
           return (
             <TouchableOpacity
-              key={idx}
+              key={index}
               onPress={() => {
                 if (rescheduleMode) {
                   onCompleteRescheduling(dayString);
@@ -89,26 +187,46 @@ export default function MonthView({
               style={[
                 styles.gridCell,
                 {
-                  backgroundColor: isSelected ? primaryAccent : 'transparent',
-                  borderColor: isToday ? primaryAccent : 'transparent',
-                  borderWidth: isToday ? 1.5 : 0,
+                  backgroundColor: isSelected
+                    ? primaryAccent
+                    : 'transparent',
+
+                  borderColor: todayDate
+                    ? primaryAccent
+                    : 'transparent',
+
+                  borderWidth: todayDate ? 1.5 : 0,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.cellDayText,
-                  { color: isSelected ? '#FFFFFF' : isToday ? primaryAccent : textTheme },
+                  {
+                    color: isSelected
+                      ? '#FFFFFF'
+                      : todayDate
+                        ? primaryAccent
+                        : textTheme,
+                  },
                 ]}
               >
-                {cellDay}
+                {day}
               </Text>
-              {/* Event color indicators */}
+
+              {/* Event Indicators */}
               <View style={styles.indicatorRow}>
-                {dayEvents.slice(0, 3).map((evt) => (
+                {dayEvents.slice(0, 3).map((event) => (
                   <View
-                    key={evt.id}
-                    style={[styles.indicatorDot, { backgroundColor: CATEGORY_COLORS[evt.category] }]}
+                    key={event.id}
+                    style={[
+                      styles.indicatorDot,
+                      {
+                        backgroundColor:
+                          CATEGORY_COLORS[event.category] ??
+                          textSubTheme,
+                      },
+                    ]}
                   />
                 ))}
               </View>

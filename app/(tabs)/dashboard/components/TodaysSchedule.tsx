@@ -60,7 +60,7 @@ export default function TodaysSchedule({
       <View style={styles.header}>
         <View>
           <Text style={[styles.sectionTitle, { color: textPrimary }]}>
-            Today's Schedule
+            Today&apos;s Schedule
           </Text>
 
           <Text style={[styles.subtitle, { color: textSecondary }]}>
