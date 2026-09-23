@@ -1,4 +1,9 @@
-import { useState, useEffect, useCallback, useMemo,} from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import { Alert } from 'react-native';
 import api from '@/app/services/api';
 
@@ -19,7 +24,6 @@ interface BackendCalendarEvent {
   id: string;
   title: string;
   description?: string;
-  subject: string;
   category: string;
   date: string;
   time: string | null;
@@ -62,7 +66,9 @@ function mapBackendEvent(
 }
 
 export function useCalendarData() {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] =
+    useState<CalendarEvent[]>([]);
+
   const [upcomingDeadlines, setUpcomingDeadlines] =
     useState<CalendarEvent[]>([]);
 
@@ -89,10 +95,10 @@ export function useCalendarData() {
   const [selectedEvent, setSelectedEvent] =
     useState<CalendarEvent | null>(null);
 
-  const [rescheduleMode] =
+  const [rescheduleMode, setRescheduleMode] =
     useState(false);
 
-  const [activeReschedulingId] =
+  const [activeReschedulingId, setActiveReschedulingId] =
     useState<string | null>(null);
 
   const [newTitle, setNewTitle] =
@@ -154,6 +160,24 @@ export function useCalendarData() {
         );
 
       setEvents(mappedEvents);
+
+      /*
+       * Keep selected event synchronized
+       * with the latest backend data.
+       */
+      setSelectedEvent((currentEvent) => {
+        if (!currentEvent) {
+          return null;
+        }
+
+        const updatedEvent =
+          mappedEvents.find(
+            (event: CalendarEvent) =>
+              event.id === currentEvent.id,
+          );
+
+        return updatedEvent || null;
+      });
     } catch (error) {
       console.error(
         'Failed to load calendar events:',
@@ -206,7 +230,7 @@ export function useCalendarData() {
   ]);
 
   /*
-   * REFRESH BOTH CALENDAR + DEADLINES
+   * REFRESH CALENDAR
    */
   const refreshCalendar =
     useCallback(async () => {
@@ -243,7 +267,7 @@ export function useCalendarData() {
     }, [selectedDate]);
 
   /*
-   * SAVE EVENT TO BACKEND
+   * SAVE EVENT
    */
   const saveEvent =
     useCallback(async () => {
@@ -334,6 +358,265 @@ export function useCalendarData() {
     ]);
 
   /*
+   * DELETE EVENT
+   */
+  const deleteEvent =
+    useCallback(
+      (eventId: string) => {
+        Alert.alert(
+          'Delete Event',
+          'Are you sure you want to delete this event?',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+
+            {
+              text: 'Delete',
+              style: 'destructive',
+
+              onPress: async () => {
+                try {
+                  await api.delete(
+                    `/api/tasks/${eventId}`,
+                  );
+
+                  setEvents((prev) =>
+                    prev.filter(
+                      (event) =>
+                        event.id !== eventId,
+                    ),
+                  );
+
+                  setUpcomingDeadlines(
+                    (prev) =>
+                      prev.filter(
+                        (event) =>
+                          event.id !==
+                          eventId,
+                      ),
+                  );
+
+                  setSelectedEvent(null);
+                  setIsDetailModalOpen(false);
+
+                  Alert.alert(
+                    'Deleted',
+                    'Event deleted successfully.',
+                  );
+                } catch (error: any) {
+                  console.error(
+                    'Failed to delete event:',
+                    error,
+                  );
+
+                  Alert.alert(
+                    'Error',
+                    error?.response?.data
+                      ?.message ||
+                      'Failed to delete event.',
+                  );
+                }
+              },
+            },
+          ],
+        );
+      },
+      [],
+    );
+
+  /*
+   * TOGGLE CHECKLIST ITEM
+   *
+   * This now persists the checklist
+   * completion status to the backend.
+   */
+  const toggleChecklistItem =
+  useCallback(
+    async (
+      eventId: string,
+      itemId: string,
+    ) => {
+      const event = events.find(
+        (item) => item.id === eventId,
+      );
+
+      if (!event) {
+        return;
+      }
+
+      const checklistItem =
+        event.checklist.find(
+          (item) => item.id === itemId,
+        );
+
+      if (!checklistItem) {
+        return;
+      }
+
+      const newCompleted =
+        !checklistItem.completed;
+
+      console.log(
+        'completed:',
+        newCompleted,
+      );
+
+      console.log(
+        'type:',
+        typeof newCompleted,
+      );
+
+      try {
+        const response =
+          await api.patch(
+            `/api/tasks/${eventId}/subtasks/${itemId}`,
+            {
+              completed: newCompleted,
+            },
+          );
+
+        const updatedEvent =
+          mapBackendEvent(
+            response.data?.data,
+          );
+
+        setEvents((prev) =>
+          prev.map((item) =>
+            item.id === eventId
+              ? updatedEvent
+              : item,
+          ),
+        );
+
+        setSelectedEvent(
+          (currentEvent) =>
+            currentEvent?.id === eventId
+              ? updatedEvent
+              : currentEvent,
+        );
+      } catch (error: any) {
+        console.error(
+          'Failed to update checklist item:',
+          error,
+        );
+
+        Alert.alert(
+          'Error',
+          error?.response?.data?.message ||
+            'Failed to update checklist item.',
+        );
+      }
+    },
+    [events],
+  );
+
+  /*
+   * START RESCHEDULING
+   */
+  const startRescheduling =
+    useCallback(
+      (eventId: string) => {
+        setActiveReschedulingId(
+          eventId,
+        );
+
+        setRescheduleMode(true);
+
+        setIsDetailModalOpen(false);
+      },
+      [],
+    );
+
+  /*
+   * CANCEL RESCHEDULING
+   */
+  const cancelRescheduling =
+    useCallback(() => {
+      setRescheduleMode(false);
+      setActiveReschedulingId(null);
+    }, []);
+
+  /*
+   * COMPLETE RESCHEDULING
+   */
+  const completeRescheduling =
+    useCallback(
+      async (targetDate: string) => {
+        if (!activeReschedulingId) {
+          return;
+        }
+
+        const event =
+          events.find(
+            (item) =>
+              item.id ===
+              activeReschedulingId,
+          );
+
+        if (!event) {
+          cancelRescheduling();
+          return;
+        }
+
+        try {
+        const response = await api.patch(
+  `/api/tasks/${event.id}/reschedule`,
+  {
+    dueDate: targetDate,
+    dueTime: event.isAllDay
+      ? ''
+      : event.time,
+  },
+);
+
+          const updatedEvent =
+            mapBackendEvent(
+              response.data.data,
+            );
+
+          setEvents((prev) =>
+            prev.map((item) =>
+              item.id ===
+              activeReschedulingId
+                ? updatedEvent
+                : item,
+            ),
+          );
+
+          await loadUpcomingDeadlines();
+
+          Alert.alert(
+            'Event Rescheduled',
+            `"${event.title}" has been moved to ${targetDate}.`,
+          );
+
+          setRescheduleMode(false);
+          setActiveReschedulingId(null);
+        } catch (error: any) {
+          console.error(
+            'Failed to reschedule event:',
+            error,
+          );
+
+          Alert.alert(
+            'Error',
+            error?.response?.data
+              ?.message ||
+              'Failed to reschedule event.',
+          );
+        }
+      },
+      [
+        activeReschedulingId,
+        events,
+        cancelRescheduling,
+        loadUpcomingDeadlines,
+      ],
+    );
+
+  /*
    * FILTER EVENTS
    */
   const filteredEvents =
@@ -365,6 +648,42 @@ export function useCalendarData() {
       selectedCategory,
       searchQuery,
     ]);
+
+  /*
+   * ADD CHECKLIST ITEM
+   *
+   * These items are temporary form data.
+   * They are saved to the backend when
+   * saveEvent() is called.
+   */
+  const addChecklistItem =
+    useCallback(() => {
+      if (!newChecklistText.trim()) {
+        return;
+      }
+
+      setNewChecklistItems(
+        (prev) => [
+          ...prev,
+          newChecklistText.trim(),
+        ],
+      );
+
+      setNewChecklistText('');
+    }, [newChecklistText]);
+
+  /*
+   * REMOVE CHECKLIST ITEM
+   */
+  const removeChecklistItem =
+    useCallback((index: number) => {
+      setNewChecklistItems(
+        (prev) =>
+          prev.filter(
+            (_, i) => i !== index,
+          ),
+      );
+    }, []);
 
   /*
    * OPEN QUICK ADD
@@ -401,6 +720,10 @@ export function useCalendarData() {
 
     rescheduleMode,
     activeReschedulingId,
+
+    startRescheduling,
+    cancelRescheduling,
+    completeRescheduling,
 
     upcomingDeadlines,
 
@@ -447,14 +770,18 @@ export function useCalendarData() {
 
     newChecklistItems,
 
+    addChecklistItem,
+    removeChecklistItem,
+
     saveEvent,
+    deleteEvent,
+    toggleChecklistItem,
 
     openQuickAdd,
 
     refreshCalendar,
-
     loadEvents,
-
     loadUpcomingDeadlines,
   };
 }
+

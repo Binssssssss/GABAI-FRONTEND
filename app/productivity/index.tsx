@@ -279,7 +279,7 @@ const COLORS = {
               { color: COLORS.text },
             ]}
           >
-            "{affirmation}"
+            &quot;{affirmation}&quot;
           </Text>
         </View>
 
