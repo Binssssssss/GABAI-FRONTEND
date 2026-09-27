@@ -51,7 +51,7 @@ export default function TodaysFocus({
         }
       >
         <Text style={[styles.title, { color: textPrimary }]}>
-          Today's Focus
+          Today&apos;s Focus
         </Text>
 
         <Feather
@@ -154,7 +154,7 @@ export default function TodaysFocus({
               { color: textSecondary },
             ]}
           >
-            You're all caught up
+            You&apos;re all caught up
           </Text>
         </View>
       )}

@@ -100,7 +100,7 @@ export default function AgendaSection({
                         <View
                           style={[
                             styles.progressBarFill,
-                            { backgroundColor: CATEGORY_COLORS[evt.category], width: `${evt.progress}%` },
+                            { backgroundColor: CATEGORY_COLORS[evt.category] ?? `CATEGORY_COLORS.other` },
                           ]}
                         />
                       </View>

@@ -1,55 +1,122 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { localDb } from '@/app/services/localDb';
+import api from '@/app/services/api';
 import { Transaction, TransactionType } from '../types';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants/expenseCategories';
+import {
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+} from '../constants/expenseCategories';
+
+interface TransactionResponse {
+  id: string;
+  title: string;
+  amount: number;
+  type: 'expense' | 'income';
+  category: string;
+  userId: string;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface WalletBalanceResponse {
+  netBalance: number;
+  totalIncome: number;
+  totalExpenses: number;
+}
 
 export function useExpensesData() {
-  const [transactions, setTransactionsState] = useState<Transaction[]>(() => localDb.getTransactions());
-
-  const setTransactions = useCallback(
-    (newTransactions: Transaction[] | ((prev: Transaction[]) => Transaction[])) => {
-      const updated = typeof newTransactions === 'function' ? newTransactions(localDb.getTransactions()) : newTransactions;
-      localDb.setTransactions(updated);
-      setTransactionsState(updated);
-    },
-    []
-  );
-
-  useEffect(() => {
-    const unsubscribe = localDb.subscribe(() => {
-      setTransactionsState(localDb.getTransactions());
-    });
-    return unsubscribe;
-  }, []);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [newTitle, setNewTitle] = useState('');
   const [newAmount, setNewAmount] = useState('');
-  const [transactionType, setTransactionType] = useState<TransactionType>('expense');
-  const [newCategory, setNewCategory] = useState<string>(EXPENSE_CATEGORIES[0]);
+  const [transactionType, setTransactionType] =
+    useState<TransactionType>('expense');
+  const [newCategory, setNewCategory] = useState<string>(
+    EXPENSE_CATEGORIES[0],
+  );
   const [isAdding, setIsAdding] = useState(false);
 
-  // Computations
+  const [walletBalance, setWalletBalance] =
+    useState<WalletBalanceResponse>({
+      netBalance: 0,
+      totalIncome: 0,
+      totalExpenses: 0,
+    });
+
+  const loadTransactions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      const response = await api.get('/api/transactions');
+
+      if (response.data.success) {
+        const data: TransactionResponse[] = response.data.data;
+
+        const mappedTransactions: Transaction[] = data.map((item) => ({
+          id: item.id,
+          title: item.title,
+          amount: Number(item.amount),
+          category: item.category,
+          date: item.date,
+          type: item.type,
+        }));
+
+        setTransactions(mappedTransactions);
+      }
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loadWalletBalance = useCallback(async () => {
+    try {
+      const response = await api.get('/api/transactions/balance');
+
+      if (response.data.success) {
+        setWalletBalance(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load wallet balance:', error);
+    }
+  }, []);
+
+  const refreshWallet = useCallback(async () => {
+    await Promise.all([
+      loadTransactions(),
+      loadWalletBalance(),
+    ]);
+  }, [loadTransactions, loadWalletBalance]);
+
+  useEffect(() => {
+    refreshWallet();
+  }, [refreshWallet]);
+
   const totalIncome = useMemo(
-    () =>
-      transactions
-        .filter((t) => t.type === 'income')
-        .reduce((sum, item) => sum + item.amount, 0),
-    [transactions]
+    () => walletBalance.totalIncome,
+    [walletBalance.totalIncome],
   );
 
   const totalExpenses = useMemo(
-    () =>
-      transactions
-        .filter((t) => t.type === 'expense')
-        .reduce((sum, item) => sum + item.amount, 0),
-    [transactions]
+    () => walletBalance.totalExpenses,
+    [walletBalance.totalExpenses],
   );
 
-  const netBalance = useMemo(() => totalIncome - totalExpenses, [totalIncome, totalExpenses]);
+  const netBalance = useMemo(
+    () => walletBalance.netBalance,
+    [walletBalance.netBalance],
+  );
 
   const handleTypeChange = useCallback((type: TransactionType) => {
     setTransactionType(type);
-    setNewCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
+
+    setNewCategory(
+      type === 'expense'
+        ? EXPENSE_CATEGORIES[0]
+        : INCOME_CATEGORIES[0],
+    );
   }, []);
 
   const openAddModal = useCallback(() => {
@@ -64,40 +131,70 @@ export function useExpensesData() {
     setIsAdding(false);
   }, []);
 
-  const handleAddTransaction = useCallback(() => {
-    if (!newTitle.trim() || !newAmount) return;
+  const handleAddTransaction = useCallback(async () => {
+    if (!newTitle.trim() || !newAmount) {
+      return;
+    }
 
-    const transactionItem: Transaction = {
-      id: Date.now().toString(),
-      title: newTitle.trim(),
-      amount: parseFloat(newAmount) || 0,
-      category: newCategory,
-      date: 'Today',
-      type: transactionType,
-    };
+    const amount = parseFloat(newAmount);
 
-    setTransactions((prev) => [transactionItem, ...prev]);
-    setNewTitle('');
-    setNewAmount('');
-    setIsAdding(false);
-  }, [newTitle, newAmount, newCategory, transactionType, setTransactions]);
+    if (Number.isNaN(amount) || amount <= 0) {
+      return;
+    }
+
+    try {
+      const response = await api.post('/api/transactions', {
+        title: newTitle.trim(),
+        amount,
+        type: transactionType,
+        category: newCategory,
+      });
+
+      if (response.data.success) {
+        setNewTitle('');
+        setNewAmount('');
+        setIsAdding(false);
+
+        await refreshWallet();
+      }
+    } catch (error) {
+      console.error('Failed to create transaction:', error);
+    }
+  }, [
+    newTitle,
+    newAmount,
+    newCategory,
+    transactionType,
+    refreshWallet,
+  ]);
 
   return {
     transactions,
+
     totalIncome,
     totalExpenses,
     netBalance,
+
+    isLoading,
     isAdding,
+
     openAddModal,
     closeAddModal,
+
     newTitle,
     setNewTitle,
+
     newAmount,
     setNewAmount,
+
     transactionType,
+
     newCategory,
     setNewCategory,
+
     handleTypeChange,
     handleAddTransaction,
+
+    refreshWallet,
   };
 }

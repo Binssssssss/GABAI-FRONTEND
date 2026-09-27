@@ -121,6 +121,8 @@ export default function DashboardScreen() {
         greeting={greeting}
         userName={userName}
         onOpenDrawer={openDrawer}
+        greeting={greeting}
+        userName="Student"
         textPrimary={textPrimary}
         textSecondary={textSecondary}
       />

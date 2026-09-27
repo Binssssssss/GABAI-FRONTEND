@@ -6,7 +6,7 @@ export interface Transaction {
   amount: number;
   category: string;
   date: string;
-  type: TransactionType;
+  type: TransactionType
 }
 
 export type ExpenseCategory = 'Food' | 'Transport' | 'Academics' | 'Others' | string;
