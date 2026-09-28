@@ -91,7 +91,11 @@ export function useExpensesData() {
   }, [loadTransactions, loadWalletBalance]);
 
   useEffect(() => {
-    refreshWallet();
+    const loadTimer = setTimeout(() => {
+      void refreshWallet();
+    }, 0);
+
+    return () => clearTimeout(loadTimer);
   }, [refreshWallet]);
 
   const totalIncome = useMemo(

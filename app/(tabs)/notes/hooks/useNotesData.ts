@@ -6,18 +6,21 @@ import {
   useCallback,
 } from 'react';
 import { Alert, Share } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { isAxiosError } from 'axios';
+import type { Task } from '@/app/services/localDb';
 
 import api from '@/app/services/api';
-import { Task } from '@/app/services/localDb';
 
 import {
+  Note,
   NoteFilterTab,
   NoteSortOption,
   NoteViewMode,
 } from '../types';
 
-import { triggerHaptic } from '../utils/noteHelpers';
+import {
+  triggerSuccessHaptic,
+} from '../utils/noteHelpers';
 
 interface BackendNote {
   id: string;
@@ -47,659 +50,334 @@ interface NoteApiResponse {
   message?: string;
 }
 
-export interface AppNote {
-  id: string;
+interface CreateNoteInput {
   title: string;
   content: string;
-  type: string;
   category: string;
   tags: string[];
-  isPinned: boolean;
   isFavorite: boolean;
+  isPinned: boolean;
   isArchived: boolean;
-  createdAt: number;
-  updatedAt: number;
-  userId: string;
+}
+
+interface UpdateNoteInput {
+  title?: string;
+  content?: string;
+  category?: string;
+  tags?: string[];
+  isFavorite?: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
 }
 
 const mapBackendNote = (
   note: BackendNote,
-): AppNote => ({
+): Note => ({
   id: note.id,
   title: note.title,
   content: note.content,
   type: note.type,
   category: note.category,
-  tags: note.tags || [],
+  tags: note.tags ?? [],
   isPinned: note.isPinned,
   isFavorite: note.isFavorite,
   isArchived: note.isArchived,
-  createdAt: new Date(
-    note.createdAt,
-  ).getTime(),
-  updatedAt: new Date(
-    note.updatedAt,
-  ).getTime(),
-  userId: note.userId,
+  createdAt: new Date(note.createdAt).getTime(),
+  updatedAt: new Date(note.updatedAt).getTime(),
 });
 
 export function useNotesData() {
-  // ============================================================
-  // NOTES DATABASE STATE
-  // ============================================================
+  const [notes, setNotes] = useState<Note[]>([]);
 
-  const [notes, setNotes] =
-    useState<AppNote[]>([]);
+  const [isLoading, setIsLoading] =
+    useState(false);
 
-  const [isLoadingNotes, setIsLoadingNotes] =
-    useState(true);
+  const [isSaving, setIsSaving] =
+    useState(false);
 
-  const [notesError, setNotesError] =
+  const [searchQuery, setSearchQuery] =
+    useState('');
+
+  const [activeFilter, setActiveFilter] =
+    useState<NoteFilterTab>('all');
+
+  const [sortOption, setSortOption] =
+    useState<NoteSortOption>('recent_edit');
+
+  const [viewMode, setViewMode] =
+    useState<NoteViewMode>('grid');
+
+  const [selectedCategory, setSelectedCategory] =
+    useState<string>('All');
+
+  const [selectedTag, setSelectedTag] =
+    useState<string>('All');
+
+  const [isFabMenuOpen, setIsFabMenuOpen] =
+    useState(false);
+
+  const [isTemplateModalOpen, setIsTemplateModalOpen] =
+    useState(false);
+
+  const [isEditorModalOpen, setIsEditorModalOpen] =
+    useState(false);
+
+  const [isConvertTaskModalOpen, setIsConvertTaskModalOpen] =
+    useState(false);
+
+  const [isScheduleModalOpen, setIsScheduleModalOpen] =
+    useState(false);
+
+  const [isFilterSortSheetOpen, setIsFilterSortSheetOpen] =
+    useState(false);
+
+  const [editingNoteId, setEditingNoteId] =
     useState<string | null>(null);
 
-  // ============================================================
-  // FETCH NOTES
-  // ============================================================
+  const [editorTitle, setEditorTitle] =
+    useState('');
+
+  const [editorContent, setEditorContent] =
+    useState('');
+
+  const [editorCategory, setEditorCategory] =
+    useState('General');
+
+  const [editorTags, setEditorTags] =
+    useState<string[]>([]);
+
+  const [editorIsFavorite, setEditorIsFavorite] =
+    useState(false);
+
+  const [editorIsPinned, setEditorIsPinned] =
+    useState(false);
+
+  const [editorIsArchived, setEditorIsArchived] =
+    useState(false);
+
+  const [taskPriorityInput, setTaskPriorityInput] =
+    useState<Task['priority']>('Medium');
+
+  const [taskCategoryInput, setTaskCategoryInput] =
+    useState<Task['category']>('Academic');
+
+  const [dueDate, setDueDate] =
+    useState('');
+
+  const [linkTaskTitle, setLinkTaskTitle] =
+    useState('');
+
+  const autoSaveTimer =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * =========================================================
+   * FETCH NOTES
+   * =========================================================
+   */
 
   const fetchNotes = useCallback(
     async () => {
       try {
-        setNotesError(null);
+        setIsLoading(true);
 
         const response =
           await api.get<NotesApiResponse>(
             '/api/notes',
           );
 
-        if (response.data.success) {
-          const mappedNotes =
-            response.data.data.map(
-              mapBackendNote,
-            );
-
-          setNotes(mappedNotes);
+        if (!response.data.success) {
+          throw new Error(
+            response.data.message ||
+              'Failed to fetch notes',
+          );
         }
+
+        const mappedNotes =
+          response.data.data.map(
+            mapBackendNote,
+          );
+
+        setNotes(mappedNotes);
       } catch (error) {
         console.error(
-          'Failed to fetch notes:',
+          'Fetch notes error:',
           error,
         );
 
-        setNotesError(
-          'Failed to load notes.',
+        Alert.alert(
+          'Unable to Load Notes',
+          'Please check your connection and try again.',
         );
       } finally {
-        setIsLoadingNotes(false);
+        setIsLoading(false);
       }
     },
     [],
   );
 
   useEffect(() => {
-    fetchNotes();
+    const loadTimer = setTimeout(() => {
+      void fetchNotes();
+    }, 0);
+
+    return () => clearTimeout(loadTimer);
   }, [fetchNotes]);
 
-  // ============================================================
-  // FILTER & SEARCH STATES
-  // ============================================================
-
-  const [searchQuery, setSearchQuery] =
-    useState('');
-
-  const [
-    selectedCategory,
-    setSelectedCategory,
-  ] = useState('All');
-
-  const [
-    activeTabFilter,
-    setActiveTabFilter,
-  ] = useState<NoteFilterTab>('all');
-
-  const [
-    selectedTag,
-    setSelectedTag,
-  ] = useState<string | null>(null);
-
-  const [sortBy, setSortBy] =
-    useState<NoteSortOption>(
-      'recent_edit',
-    );
-
-  const [viewMode, setViewMode] =
-    useState<NoteViewMode>('grid');
-
-  // ============================================================
-  // BOTTOM SHEETS & POPUPS
-  // ============================================================
-
-  const [
-    isFilterSheetOpen,
-    setIsFilterSheetOpen,
-  ] = useState(false);
-
-  const [
-    isFabMenuOpen,
-    setIsFabMenuOpen,
-  ] = useState(false);
-
-  const [
-    isEditorMoreMenuOpen,
-    setIsEditorMoreMenuOpen,
-  ] = useState(false);
-
-  const [
-    isTemplateModalOpen,
-    setIsTemplateModalOpen,
-  ] = useState(false);
-
-  // ============================================================
-  // EDITOR STATE
-  // ============================================================
-
-  const [
-    isEditorOpen,
-    setIsEditorOpen,
-  ] = useState(false);
-
-  const [
-    editingNoteId,
-    setEditingNoteId,
-  ] = useState<string | null>(null);
-
-  const [editorTitle, setEditorTitle] =
-    useState('');
-
-  const [
-    editorContent,
-    setEditorContent,
-  ] = useState('');
-
-  const [
-    editorCategory,
-    setEditorCategory,
-  ] = useState('School');
-
-  const [
-    editorTags,
-    setEditorTags,
-  ] = useState<string[]>([]);
-
-  const [
-    editorTagInput,
-    setEditorTagInput,
-  ] = useState('');
-
-  const [
-    editorIsFavorite,
-    setEditorIsFavorite,
-  ] = useState(false);
-
-  const [
-    editorIsPinned,
-    setEditorIsPinned,
-  ] = useState(false);
-
-  const [
-    editorIsArchived,
-    setEditorIsArchived,
-  ] = useState(false);
-
-  const [saveStatus, setSaveStatus] =
-    useState<'saved' | 'saving'>(
-      'saved',
-    );
-
-  const [
-    isPreviewMode,
-    setIsPreviewMode,
-  ] = useState(false);
-
-  // ============================================================
-  // UNDO / REDO
-  // ============================================================
-
-  const historyRef = useRef<string[]>([]);
-
-  const historyIndexRef =
-    useRef<number>(-1);
-
-  // ============================================================
-  // AUTOSAVE
-  // ============================================================
-
-  const autoSaveTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null,
-    );
-
-  const isSavingRef =
-    useRef(false);
-
-  // ============================================================
-  // CONVERT TO TASK
-  // ============================================================
-
-  const [
-    convertTaskModalOpen,
-    setConvertTaskModalOpen,
-  ] = useState(false);
-
-  const [
-    convertTargetNote,
-    setConvertTargetNote,
-  ] = useState<AppNote | null>(null);
-
-  const [
-    taskSubjectInput,
-    setTaskSubjectInput,
-  ] = useState('General');
-
-  const [
-    taskPriorityInput,
-    setTaskPriorityInput,
-  ] = useState<Task['priority']>(
-    'Medium',
-  );
-
-  const [
-    taskCategoryInput,
-    setTaskCategoryInput,
-  ] = useState<Task['category']>(
-    'Academic',
-  );
-
-  // ============================================================
-  // CONVERT NOTE TO TASK
-  // ============================================================
-
-  const handleConvertNoteToTask =
-    useCallback(async () => {
-      if (!convertTargetNote) {
-        Alert.alert(
-          'No Note Selected',
-          'Please select a note first.',
-        );
-
-        return false;
-      }
-
-      try {
-        triggerHaptic(
-          Haptics.ImpactFeedbackStyle.Medium,
-        );
-
-        const title =
-          `Review Note: ${convertTargetNote.title}`;
-
-        const description =
-          convertTargetNote.content.slice(
-            0,
-            200,
-          );
-
-        const subject =
-          taskSubjectInput.trim() ||
-          convertTargetNote.category ||
-          'General';
-
-        const dueDate = new Date(
-          Date.now() +
-            86400000 * 2,
-        )
-          .toISOString()
-          .split('T')[0];
-
-        const response =
-          await api.post(
-            '/api/tasks',
-            {
-              title,
-              description,
-              subject,
-              priority:
-                taskPriorityInput,
-              category:
-                taskCategoryInput,
-              difficulty: 'Medium',
-              duration: 1.0,
-              dueDate,
-              dueTime: '18:00',
-              completed: false,
-              hasReminder: false,
-              repeat: 'None',
-              isPinned: false,
-              isFavorite: false,
-              attachments: 0,
-              subTasks: [],
-            },
-          );
-
-        if (!response.data?.success) {
-          throw new Error(
-            response.data?.message ||
-              'Failed to create task',
-          );
-        }
-
-        Alert.alert(
-          'Task Created',
-          'The note has been converted into a task successfully.',
-        );
-
-        setConvertTaskModalOpen(false);
-
-        setConvertTargetNote(null);
-
-        return true;
-      } catch (error) {
-        console.error(
-          'Convert note to task error:',
-          error,
-        );
-
-        Alert.alert(
-          'Create Task Failed',
-          'Unable to create the task. Please try again.',
-        );
-
-        return false;
-      }
-    }, [
-      convertTargetNote,
-      taskSubjectInput,
-      taskPriorityInput,
-      taskCategoryInput,
-    ]);
-
-  // ============================================================
-  // LINK TO SCHEDULE
-  // ============================================================
-
-  const [
-    scheduleModalOpen,
-    setScheduleModalOpen,
-  ] = useState(false);
-
-  const [
-    scheduleTargetNote,
-    setScheduleTargetNote,
-  ] = useState<AppNote | null>(
-    null,
-  );
-
-  const [
-    scheduleDateInput,
-    setScheduleDateInput,
-  ] = useState(
-    () =>
-      new Date()
-        .toISOString()
-        .split('T')[0],
-  );
-
-  const [
-    scheduleTimeInput,
-    setScheduleTimeInput,
-  ] = useState('14:00');
-
-  // ============================================================
-  // UNIQUE TAGS
-  // ============================================================
-
-  const allUniqueTags = useMemo(() => {
-    const tagSet =
-      new Set<string>();
-
-    notes.forEach((note) => {
-      if (!note.isArchived) {
-        note.tags?.forEach((tag) => {
-          tagSet.add(tag);
-        });
-      }
-    });
-
-    return Array.from(tagSet);
-  }, [notes]);
-
-  // ============================================================
-  // ACTIVE CUSTOM FILTER COUNT
-  // ============================================================
-
-  const activeCustomFiltersCount =
-    useMemo(() => {
-      let count = 0;
-
-      if (
-        selectedCategory !== 'All'
-      ) {
-        count++;
-      }
-
-      if (selectedTag !== null) {
-        count++;
-      }
-
-      if (
-        sortBy !== 'recent_edit'
-      ) {
-        count++;
-      }
-
-      return count;
-    }, [
-      selectedCategory,
-      selectedTag,
-      sortBy,
-    ]);
-
-  // ============================================================
-  // FILTERED & SORTED NOTES
-  // ============================================================
-
-  const filteredNotes =
-    useMemo(() => {
-      return notes
-        .filter((note) => {
-          // ----------------------------
-          // Tab Filter
-          // ----------------------------
-
-          if (
-            activeTabFilter ===
-            'archived'
-          ) {
-            if (!note.isArchived) {
-              return false;
-            }
-          } else {
-            if (note.isArchived) {
-              return false;
-            }
-
-            if (
-              activeTabFilter ===
-                'pinned' &&
-              !note.isPinned
-            ) {
-              return false;
-            }
-
-            if (
-              activeTabFilter ===
-                'favorites' &&
-              !note.isFavorite
-            ) {
-              return false;
-            }
-          }
-
-          // ----------------------------
-          // Category
-          // ----------------------------
-
-          if (
-            selectedCategory !==
-              'All' &&
-            note.category !==
-              selectedCategory
-          ) {
-            return false;
-          }
-
-          // ----------------------------
-          // Tag
-          // ----------------------------
-
-          if (
-            selectedTag &&
-            (!note.tags ||
-              !note.tags.includes(
-                selectedTag,
-              ))
-          ) {
-            return false;
-          }
-
-          // ----------------------------
-          // Search
-          // ----------------------------
-
-          if (searchQuery.trim()) {
-            const q =
-              searchQuery
-                .toLowerCase()
-                .trim();
-
-            const matchTitle =
-              note.title
-                ?.toLowerCase()
-                .includes(q);
-
-            const matchContent =
-              note.content
-                ?.toLowerCase()
-                .includes(q);
-
-            const matchCategory =
-              note.category
-                ?.toLowerCase()
-                .includes(q);
-
-            const matchTags =
-              note.tags?.some(
-                (tag) =>
-                  tag
-                    .toLowerCase()
-                    .includes(q),
-              );
-
-            if (
-              !matchTitle &&
-              !matchContent &&
-              !matchCategory &&
-              !matchTags
-            ) {
-              return false;
-            }
-          }
-
-          return true;
-        })
-        .sort((a, b) => {
-          if (
-            sortBy ===
-            'recent_edit'
-          ) {
-            return (
-              b.updatedAt -
-              a.updatedAt
-            );
-          }
-
-          if (
-            sortBy ===
-            'recent_create'
-          ) {
-            return (
-              b.createdAt -
-              a.createdAt
-            );
-          }
-
-          if (
-            sortBy === 'title'
-          ) {
-            return a.title.localeCompare(
-              b.title,
-            );
-          }
-
-          if (
-            sortBy ===
-            'category'
-          ) {
-            return a.category.localeCompare(
-              b.category,
-            );
-          }
-
-          return 0;
-        });
-    }, [
-      notes,
-      activeTabFilter,
-      selectedCategory,
-      selectedTag,
-      searchQuery,
-      sortBy,
-    ]);
-
-  // ============================================================
-  // PINNED / UNPINNED
-  // ============================================================
-
-  const pinnedNotes =
-    useMemo(() => {
-      if (
-        activeTabFilter ===
-          'archived' ||
-        activeTabFilter ===
-          'pinned'
-      ) {
-        return [];
-      }
-
-      return filteredNotes.filter(
+  /**
+   * =========================================================
+   * FILTERED / SORTED NOTES
+   * =========================================================
+   */
+
+  const filteredNotes = useMemo(() => {
+    let result = [...notes];
+
+    if (activeFilter === 'pinned') {
+      result = result.filter(
         (note) => note.isPinned,
       );
-    }, [
-      filteredNotes,
-      activeTabFilter,
-    ]);
+    }
 
-  const unpinnedNotes =
-    useMemo(() => {
-      if (
-        activeTabFilter ===
-          'archived' ||
-        activeTabFilter ===
-          'pinned'
-      ) {
-        return filteredNotes;
-      }
-
-      return filteredNotes.filter(
-        (note) => !note.isPinned,
+    if (activeFilter === 'favorites') {
+      result = result.filter(
+        (note) => note.isFavorite,
       );
-    }, [
-      filteredNotes,
-      activeTabFilter,
-    ]);
+    }
 
-  // ============================================================
-  // CREATE NOTE
-  // ============================================================
+    if (activeFilter === 'archived') {
+      result = result.filter(
+        (note) => note.isArchived,
+      );
+    }
+
+    if (activeFilter !== 'archived') {
+      result = result.filter(
+        (note) => !note.isArchived,
+      );
+    }
+
+    if (
+      selectedCategory !== 'All'
+    ) {
+      result = result.filter(
+        (note) =>
+          note.category ===
+          selectedCategory,
+      );
+    }
+
+    if (selectedTag !== 'All') {
+      result = result.filter(
+        (note) =>
+          note.tags.includes(
+            selectedTag,
+          ),
+      );
+    }
+
+    const query =
+      searchQuery.trim().toLowerCase();
+
+    if (query) {
+      result = result.filter(
+        (note) =>
+          note.title
+            .toLowerCase()
+            .includes(query) ||
+          note.content
+            .toLowerCase()
+            .includes(query) ||
+          note.category
+            .toLowerCase()
+            .includes(query) ||
+          note.tags.some((tag) =>
+            tag
+              .toLowerCase()
+              .includes(query),
+          ),
+      );
+    }
+
+    switch (sortOption) {
+      case 'recent_edit':
+        result.sort(
+          (a, b) =>
+            b.updatedAt -
+            a.updatedAt,
+        );
+        break;
+
+      case 'recent_create':
+        result.sort(
+          (a, b) =>
+            b.createdAt -
+            a.createdAt,
+        );
+        break;
+
+      case 'title':
+        result.sort((a, b) =>
+          a.title.localeCompare(
+            b.title,
+          ),
+        );
+        break;
+
+      case 'category':
+        result.sort((a, b) =>
+          a.category.localeCompare(
+            b.category,
+          ),
+        );
+        break;
+    }
+
+    return result;
+  }, [
+    notes,
+    activeFilter,
+    selectedCategory,
+    selectedTag,
+    searchQuery,
+    sortOption,
+  ]);
+
+  /**
+   * =========================================================
+   * COUNTS
+   * =========================================================
+   */
+
+  const totalNotes =
+    notes.filter(
+      (note) => !note.isArchived,
+    ).length;
+
+  const pinnedNotes =
+    notes.filter(
+      (note) =>
+        note.isPinned &&
+        !note.isArchived,
+    ).length;
+
+  const favoriteNotes =
+    notes.filter(
+      (note) =>
+        note.isFavorite &&
+        !note.isArchived,
+    ).length;
+
+  const archivedNotes =
+    notes.filter(
+      (note) => note.isArchived,
+    ).length;
+
+  /**
+   * =========================================================
+   * CREATE NOTE
+   * =========================================================
+   */
 
   const createNote = useCallback(
     async (
@@ -712,23 +390,26 @@ export function useNotesData() {
       isArchived: boolean,
     ) => {
       try {
+        setIsSaving(true);
+
         const cleanTitle =
           title.trim() ||
           'Untitled Note';
 
+        const payload: CreateNoteInput = {
+          title: cleanTitle,
+          content,
+          category,
+          tags,
+          isFavorite,
+          isPinned,
+          isArchived,
+        };
+
         const response =
           await api.post<NoteApiResponse>(
             '/api/notes',
-            {
-              title: cleanTitle,
-              content,
-              type: 'BLANK',
-              category,
-              tags,
-              isFavorite,
-              isPinned,
-              isArchived,
-            },
+            payload,
           );
 
         if (!response.data.success) {
@@ -765,29 +446,49 @@ export function useNotesData() {
         );
 
         return null;
+      } finally {
+        setIsSaving(false);
       }
     },
     [],
   );
 
-  // ============================================================
-  // UPDATE NOTE
-  // ============================================================
+  /**
+   * =========================================================
+   * UPDATE NOTE
+   * =========================================================
+   *
+   * IMPORTANT:
+   * This function expects the REAL UUID.
+   *
+   * Correct:
+   * updateNote(note.id, {...})
+   *
+   * Wrong:
+   * updateNote(note.title, {...})
+   */
 
   const updateNote = useCallback(
     async (
       noteId: string,
-      updates: {
-        title?: string;
-        content?: string;
-        category?: string;
-        tags?: string[];
-        isFavorite?: boolean;
-        isPinned?: boolean;
-        isArchived?: boolean;
-      },
+      updates: UpdateNoteInput,
     ) => {
       try {
+        if (!noteId) {
+          console.error(
+            'Update note failed: missing note ID',
+          );
+
+          return null;
+        }
+
+        console.log(
+          'Updating note:',
+          noteId,
+        );
+
+        setIsSaving(true);
+
         const response =
           await api.patch<NoteApiResponse>(
             `/api/notes/${noteId}`,
@@ -816,898 +517,741 @@ export function useNotesData() {
 
         return updatedNote;
       } catch (error) {
-        console.error(
-          'Update note error:',
-          error,
-        );
+        if (isAxiosError(error)) {
+          console.error(
+            '==============================',
+          );
+
+          console.error(
+            'UPDATE NOTE ERROR',
+          );
+
+          console.error(
+            'URL:',
+            `${error.config?.baseURL ?? ''}${error.config?.url ?? ''}`,
+          );
+
+          console.error(
+            'METHOD:',
+            error.config?.method,
+          );
+
+          console.error(
+            'STATUS:',
+            error.response?.status,
+          );
+
+          console.error(
+            'RESPONSE:',
+            error.response?.data,
+          );
+
+          console.error(
+            'NOTE ID:',
+            noteId,
+          );
+
+          console.error(
+            'UPDATES:',
+            updates,
+          );
+
+          console.error(
+            '==============================',
+          );
+        } else {
+          console.error(
+            'Update note error:',
+            error,
+          );
+        }
 
         return null;
+      } finally {
+        setIsSaving(false);
       }
     },
     [],
   );
 
-  // ============================================================
-  // SAVE CURRENT NOTE
-  // ============================================================
+  /**
+   * =========================================================
+   * DELETE NOTE
+   * =========================================================
+   */
 
-  const saveCurrentNote =
-    useCallback(
-      async (
-        title = editorTitle,
-        content = editorContent,
-        category = editorCategory,
-        tags = editorTags,
-        isFav = editorIsFavorite,
-        isPin = editorIsPinned,
-        isArch = editorIsArchived,
-      ) => {
+  const handleDeleteNote = useCallback(
+    async (noteId: string) => {
+      try {
+        if (!noteId) {
+          return false;
+        }
+
+        await api.delete(
+          `/api/notes/${noteId}`,
+        );
+
+        setNotes((current) =>
+          current.filter(
+            (note) =>
+              note.id !== noteId,
+          ),
+        );
+
         if (
-          !title.trim() &&
-          !content.trim()
+          editingNoteId === noteId
         ) {
-          return;
+          setEditingNoteId(null);
+          setIsEditorModalOpen(false);
         }
 
-        if (isSavingRef.current) {
-          return;
-        }
+        triggerSuccessHaptic();
 
-        isSavingRef.current = true;
+        return true;
+      } catch (error) {
+        console.error(
+          'Delete note error:',
+          error,
+        );
 
-        setSaveStatus('saving');
+        Alert.alert(
+          'Delete Failed',
+          'Unable to delete the note.',
+        );
 
-        try {
-          // ----------------------------
-          // CREATE
-          // ----------------------------
+        return false;
+      }
+    },
+    [editingNoteId],
+  );
 
-          if (!editingNoteId) {
-            await createNote(
-              title,
-              content,
-              category,
-              tags,
-              isFav,
-              isPin,
-              isArch,
-            );
+  /**
+   * =========================================================
+   * FAVORITE
+   * =========================================================
+   */
 
-            setSaveStatus('saved');
+  const handleFavoriteToggle = useCallback(
+    async (note: Note) => {
+      const updatedNote =
+        await updateNote(
+          note.id,
+          {
+            isFavorite:
+              !note.isFavorite,
+          },
+        );
 
-            return;
-          }
+      if (updatedNote) {
+        triggerSuccessHaptic();
+      }
+    },
+    [updateNote],
+  );
 
-          // ----------------------------
-          // UPDATE
-          // ----------------------------
+  /**
+   * =========================================================
+   * PIN
+   * =========================================================
+   */
 
+  const handlePinToggle = useCallback(
+    async (note: Note) => {
+      const updatedNote =
+        await updateNote(
+          note.id,
+          {
+            isPinned:
+              !note.isPinned,
+          },
+        );
+
+      if (updatedNote) {
+        triggerSuccessHaptic();
+      }
+    },
+    [updateNote],
+  );
+
+  /**
+   * =========================================================
+   * ARCHIVE
+   * =========================================================
+   */
+
+  const handleArchiveToggle =
+    useCallback(
+      async (note: Note) => {
+        const updatedNote =
           await updateNote(
-            editingNoteId,
+            note.id,
             {
-              title:
-                title.trim() ||
-                'Untitled Note',
-              content,
-              category,
-              tags,
-              isFavorite: isFav,
-              isPinned: isPin,
-              isArchived: isArch,
+              isArchived:
+                !note.isArchived,
             },
           );
 
-          setSaveStatus('saved');
-        } finally {
-          isSavingRef.current =
-            false;
+        if (updatedNote) {
+          triggerSuccessHaptic();
         }
       },
-      [
-        editorTitle,
-        editorContent,
-        editorCategory,
+      [updateNote],
+    );
+
+  /**
+   * =========================================================
+   * OPEN NEW NOTE
+   * =========================================================
+   */
+
+  const handleOpenNewNote =
+    useCallback(() => {
+      setIsFabMenuOpen(false);
+
+      setEditingNoteId(null);
+      setEditorTitle('');
+      setEditorContent('');
+      setEditorCategory('General');
+      setEditorTags([]);
+      setEditorIsFavorite(false);
+      setEditorIsPinned(false);
+      setEditorIsArchived(false);
+
+      setIsEditorModalOpen(true);
+    }, []);
+
+  /**
+   * =========================================================
+   * OPEN EXISTING NOTE
+   * =========================================================
+   */
+
+  const handleOpenNote = useCallback(
+    (note: Note) => {
+      /*
+       * IMPORTANT:
+       * Always store note.id here.
+       * Never use note.title as editingNoteId.
+       */
+
+      setEditingNoteId(note.id);
+
+      setEditorTitle(note.title);
+      setEditorContent(note.content);
+      setEditorCategory(
+        note.category,
+      );
+      setEditorTags(note.tags ?? []);
+      setEditorIsFavorite(
+        note.isFavorite,
+      );
+      setEditorIsPinned(
+        note.isPinned,
+      );
+      setEditorIsArchived(
+        note.isArchived,
+      );
+
+      setIsEditorModalOpen(true);
+    },
+    [],
+  );
+
+  /**
+   * =========================================================
+   * SAVE CURRENT NOTE
+   * =========================================================
+   */
+
+  const saveCurrentNote =
+    useCallback(async () => {
+      const cleanTitle =
+        editorTitle.trim();
+
+      const cleanContent =
+        editorContent;
+
+      if (
+        !cleanTitle &&
+        !cleanContent.trim()
+      ) {
+        return null;
+      }
+
+      if (editingNoteId) {
+        /*
+         * Existing note:
+         * editingNoteId MUST be UUID.
+         */
+
+        return updateNote(
+          editingNoteId,
+          {
+            title:
+              cleanTitle ||
+              'Untitled Note',
+            content: cleanContent,
+            category:
+              editorCategory ||
+              'General',
+            tags: editorTags,
+            isFavorite:
+              editorIsFavorite,
+            isPinned:
+              editorIsPinned,
+            isArchived:
+              editorIsArchived,
+          },
+        );
+      }
+
+      return createNote(
+        cleanTitle ||
+          'Untitled Note',
+        cleanContent,
+        editorCategory ||
+          'General',
         editorTags,
         editorIsFavorite,
         editorIsPinned,
         editorIsArchived,
-        editingNoteId,
-        createNote,
-        updateNote,
-      ],
-    );
+      );
+    }, [
+      editorTitle,
+      editorContent,
+      editorCategory,
+      editorTags,
+      editorIsFavorite,
+      editorIsPinned,
+      editorIsArchived,
+      editingNoteId,
+      updateNote,
+      createNote,
+    ]);
 
-  // ============================================================
-  // OPEN NEW NOTE
-  // ============================================================
+  /**
+   * =========================================================
+   * AUTO SAVE
+   * =========================================================
+   */
 
-  const handleOpenNewNote =
+  useEffect(() => {
+    if (!isEditorModalOpen) {
+      return;
+    }
+
+    if (!editingNoteId) {
+      return;
+    }
+
+    if (
+      !editorTitle.trim() &&
+      !editorContent.trim()
+    ) {
+      return;
+    }
+
+    if (autoSaveTimer.current) {
+      clearTimeout(
+        autoSaveTimer.current,
+      );
+    }
+
+    autoSaveTimer.current =
+      setTimeout(() => {
+        updateNote(
+          editingNoteId,
+          {
+            title:
+              editorTitle.trim() ||
+              'Untitled Note',
+            content:
+              editorContent,
+            category:
+              editorCategory ||
+              'General',
+            tags: editorTags,
+            isFavorite:
+              editorIsFavorite,
+            isPinned:
+              editorIsPinned,
+            isArchived:
+              editorIsArchived,
+          },
+        );
+      }, 600);
+
+    return () => {
+      if (autoSaveTimer.current) {
+        clearTimeout(
+          autoSaveTimer.current,
+        );
+      }
+    };
+  }, [
+    editorTitle,
+    editorContent,
+    editorCategory,
+    editorTags,
+    editorIsFavorite,
+    editorIsPinned,
+    editorIsArchived,
+    editingNoteId,
+    isEditorModalOpen,
+    updateNote,
+  ]);
+
+  /**
+   * =========================================================
+   * CLOSE EDITOR
+   * =========================================================
+   */
+
+  const handleCloseEditor =
+    useCallback(async () => {
+      if (autoSaveTimer.current) {
+        clearTimeout(
+          autoSaveTimer.current,
+        );
+      }
+
+      await saveCurrentNote();
+
+      setIsEditorModalOpen(false);
+      setEditingNoteId(null);
+
+      setEditorTitle('');
+      setEditorContent('');
+      setEditorCategory('General');
+      setEditorTags([]);
+      setEditorIsFavorite(false);
+      setEditorIsPinned(false);
+      setEditorIsArchived(false);
+    }, [saveCurrentNote]);
+
+  /**
+   * =========================================================
+   * QUICK JOT
+   * =========================================================
+   */
+
+  const handleOpenQuickNote =
+    useCallback(() => {
+      setIsFabMenuOpen(false);
+
+      setEditingNoteId(null);
+
+      setEditorTitle('');
+      setEditorContent('');
+      setEditorCategory('Quick Jot');
+      setEditorTags([]);
+      setEditorIsFavorite(false);
+      setEditorIsPinned(false);
+      setEditorIsArchived(false);
+
+      setIsEditorModalOpen(true);
+    }, []);
+
+  /**
+   * =========================================================
+   * TEMPLATE
+   * =========================================================
+   */
+
+  const handleOpenTemplate =
     useCallback(
       (
-        category = 'School',
-        templateContent?: string,
-        templateTitle?: string,
+        title: string,
+        content: string,
+        category: string,
       ) => {
-        triggerHaptic(
-          Haptics.ImpactFeedbackStyle.Medium,
-        );
-
+        setIsTemplateModalOpen(false);
         setIsFabMenuOpen(false);
 
         setEditingNoteId(null);
 
-        setEditorTitle(
-          templateTitle || '',
-        );
-
-        setEditorContent(
-          templateContent || '',
-        );
-
+        setEditorTitle(title);
+        setEditorContent(content);
         setEditorCategory(
-          category,
+          category || 'General',
         );
-
         setEditorTags([]);
-
-        setEditorTagInput('');
-
         setEditorIsFavorite(false);
-
         setEditorIsPinned(false);
-
         setEditorIsArchived(false);
 
-        setSaveStatus('saved');
-
-        setIsPreviewMode(false);
-
-        historyRef.current = [
-          templateContent || '',
-        ];
-
-        historyIndexRef.current = 0;
-
-        setIsEditorOpen(true);
+        setIsEditorModalOpen(true);
       },
       [],
     );
 
-  // ============================================================
-  // QUICK NOTE
-  // ============================================================
+  /**
+   * =========================================================
+   * CONVERT NOTE TO TASK
+   * =========================================================
+   */
 
-  const handleOpenQuickNote =
-    useCallback(() => {
-      const timeString =
-        new Date().toLocaleTimeString(
-          [],
-          {
-            hour: '2-digit',
-            minute: '2-digit',
-          },
-        );
+  const handleConvertNoteToTask =
+    useCallback(async () => {
+      if (!editingNoteId) {
+        return false;
+      }
 
-      const dateString =
-        new Date().toLocaleDateString(
-          [],
-          {
-            month: 'short',
-            day: 'numeric',
-          },
-        );
+      try {
+        const title =
+          editorTitle.trim() ||
+          'Untitled Task';
 
-      handleOpenNewNote(
-        'Ideas',
-        `## Quick Jot (${timeString})\n- `,
-        `Quick Note - ${dateString}`,
-      );
-    }, [
-      handleOpenNewNote,
-    ]);
-
-  // ============================================================
-  // OPEN EXISTING NOTE
-  // ============================================================
-
-  const handleOpenNote =
-    useCallback(
-      (note: AppNote) => {
-        triggerHaptic();
-
-        setEditingNoteId(
-          note.id,
-        );
-
-        setEditorTitle(
-          note.title,
-        );
-
-        setEditorContent(
-          note.content,
-        );
-
-        setEditorCategory(
-          note.category,
-        );
-
-        setEditorTags(
-          note.tags || [],
-        );
-
-        setEditorTagInput('');
-
-        setEditorIsFavorite(
-          note.isFavorite,
-        );
-
-        setEditorIsPinned(
-          note.isPinned,
-        );
-
-        setEditorIsArchived(
-          note.isArchived,
-        );
-
-        setSaveStatus('saved');
-
-        setIsPreviewMode(false);
-
-        historyRef.current = [
-          note.content,
-        ];
-
-        historyIndexRef.current = 0;
-
-        setIsEditorOpen(true);
-      },
-      [],
-    );
-
-  // ============================================================
-  // CONTENT CHANGE
-  // ============================================================
-
-  const handleContentChange =
-    useCallback(
-      (newContent: string) => {
-        setEditorContent(
-          newContent,
-        );
-
-        setSaveStatus('saving');
-
-        if (
-          historyIndexRef.current <
-          historyRef.current.length -
-            1
-        ) {
-          historyRef.current =
-            historyRef.current.slice(
-              0,
-              historyIndexRef.current +
-                1,
-            );
-        }
-
-        if (
-          historyRef.current[
-            historyRef.current.length -
-              1
-          ] !== newContent
-        ) {
-          historyRef.current.push(
-            newContent,
+        const response =
+          await api.post(
+            '/api/tasks',
+            {
+              title,
+              description:
+                editorContent,
+              subject:
+                editorCategory ||
+                'General',
+              priority:
+                taskPriorityInput,
+              dueDate:
+                dueDate || undefined,
+              dueTime:
+                '18:00',
+              completed: false,
+              hasReminder: false,
+              subTasks: [],
+            },
           );
 
-          historyIndexRef.current =
-            historyRef.current.length -
-            1;
-        }
-
         if (
-          autoSaveTimerRef.current
+          response.data?.success === false
         ) {
-          clearTimeout(
-            autoSaveTimerRef.current,
+          throw new Error(
+            response.data?.message ||
+              'Failed to convert note',
           );
         }
 
-        autoSaveTimerRef.current =
-          setTimeout(() => {
-            saveCurrentNote(
-              editorTitle,
-              newContent,
-            );
-          }, 600);
-      },
-      [
-        editorTitle,
-        saveCurrentNote,
-      ],
-    );
-
-  // ============================================================
-  // TITLE CHANGE
-  // ============================================================
-
-  const handleTitleChange =
-    useCallback(
-      (newTitle: string) => {
-        setEditorTitle(
-          newTitle,
+        setIsConvertTaskModalOpen(
+          false,
         );
 
-        setSaveStatus('saving');
-
-        if (
-          autoSaveTimerRef.current
-        ) {
-          clearTimeout(
-            autoSaveTimerRef.current,
-          );
-        }
-
-        autoSaveTimerRef.current =
-          setTimeout(() => {
-            saveCurrentNote(
-              newTitle,
-              editorContent,
-            );
-          }, 600);
-      },
-      [
-        editorContent,
-        saveCurrentNote,
-      ],
-    );
-
-  // ============================================================
-  // CLOSE EDITOR
-  // ============================================================
-
-  const handleCloseEditor =
-    useCallback(() => {
-      triggerHaptic();
-
-      if (
-        autoSaveTimerRef.current
-      ) {
-        clearTimeout(
-          autoSaveTimerRef.current,
-        );
-      }
-
-      if (
-        editorTitle.trim() ||
-        editorContent.trim()
-      ) {
-        saveCurrentNote();
-      }
-
-      setIsEditorOpen(false);
-
-      setIsEditorMoreMenuOpen(false);
-    }, [
-      editorTitle,
-      editorContent,
-      saveCurrentNote,
-    ]);
-
-  // ============================================================
-  // FORMATTING
-  // ============================================================
-
-  const insertFormatting =
-    useCallback(
-      (
-        prefix: string,
-        suffix = '',
-        placeholder = '',
-      ) => {
-        triggerHaptic();
-
-        const updated =
-          editorContent +
-          `\n${prefix}${placeholder}${suffix}`;
-
-        handleContentChange(
-          updated,
-        );
-      },
-      [
-        editorContent,
-        handleContentChange,
-      ],
-    );
-
-  // ============================================================
-  // UNDO
-  // ============================================================
-
-  const handleUndo =
-    useCallback(() => {
-      if (
-        historyIndexRef.current >
-        0
-      ) {
-        triggerHaptic();
-
-        historyIndexRef.current -=
-          1;
-
-        const prevContent =
-          historyRef.current[
-            historyIndexRef.current
-          ];
-
-        setEditorContent(
-          prevContent,
+        Alert.alert(
+          'Task Created',
+          'The note has been converted into a task.',
         );
 
-        saveCurrentNote(
-          editorTitle,
-          prevContent,
+        triggerSuccessHaptic();
+
+        return true;
+      } catch (error) {
+        console.error(
+          'Convert note to task error:',
+          error,
         );
+
+        Alert.alert(
+          'Conversion Failed',
+          'Unable to convert this note into a task.',
+        );
+
+        return false;
       }
     }, [
-      editorTitle,
-      saveCurrentNote,
-    ]);
-
-  // ============================================================
-  // REDO
-  // ============================================================
-
-  const handleRedo =
-    useCallback(() => {
-      if (
-        historyIndexRef.current <
-        historyRef.current.length -
-          1
-      ) {
-        triggerHaptic();
-
-        historyIndexRef.current +=
-          1;
-
-        const nextContent =
-          historyRef.current[
-            historyIndexRef.current
-          ];
-
-        setEditorContent(
-          nextContent,
-        );
-
-        saveCurrentNote(
-          editorTitle,
-          nextContent,
-        );
-      }
-    }, [
-      editorTitle,
-      saveCurrentNote,
-    ]);
-
-  // ============================================================
-  // ADD TAG
-  // ============================================================
-
-  const handleAddTag =
-    useCallback(() => {
-      if (
-        !editorTagInput.trim()
-      ) {
-        return;
-      }
-
-      let tag =
-        editorTagInput.trim();
-
-      if (!tag.startsWith('#')) {
-        tag = `#${tag}`;
-      }
-
-      if (
-        !editorTags.includes(tag)
-      ) {
-        const updated = [
-          ...editorTags,
-          tag,
-        ];
-
-        setEditorTags(
-          updated,
-        );
-
-        saveCurrentNote(
-          editorTitle,
-          editorContent,
-          editorCategory,
-          updated,
-        );
-      }
-
-      setEditorTagInput('');
-    }, [
-      editorTagInput,
-      editorTags,
+      editingNoteId,
       editorTitle,
       editorContent,
       editorCategory,
-      saveCurrentNote,
+      taskPriorityInput,
+      dueDate,
     ]);
 
-  // ============================================================
-  // REMOVE TAG
-  // ============================================================
+  /**
+   * =========================================================
+   * LINK TO SCHEDULE / TASK
+   * =========================================================
+   */
 
-  const handleRemoveTag =
-    useCallback(
-      (tagToRemove: string) => {
-        const updated =
-          editorTags.filter(
-            (tag) =>
-              tag !==
-              tagToRemove,
-          );
-
-        setEditorTags(updated);
-
-        saveCurrentNote(
-          editorTitle,
-          editorContent,
-          editorCategory,
-          updated,
-        );
-      },
-      [
-        editorTags,
-        editorTitle,
-        editorContent,
-        editorCategory,
-        saveCurrentNote,
-      ],
-    );
-
-  // ============================================================
-  // DELETE NOTE
-  // ============================================================
-
-  const handleDeleteNote =
-    useCallback(
-      (noteId: string) => {
+  const handleLinkToSchedule =
+    useCallback(async () => {
+      if (!linkTaskTitle.trim()) {
         Alert.alert(
-          'Delete Note',
-          'Are you sure you want to permanently delete this note?',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Delete',
-              style: 'destructive',
-
-              onPress: async () => {
-                triggerHaptic(
-                  Haptics.ImpactFeedbackStyle.Medium,
-                );
-
-                try {
-                  await api.delete(
-                    `/api/notes/${noteId}`,
-                  );
-
-                  setNotes(
-                    (current) =>
-                      current.filter(
-                        (note) =>
-                          note.id !==
-                          noteId,
-                      ),
-                  );
-
-                  setIsEditorOpen(
-                    false,
-                  );
-
-                  setIsEditorMoreMenuOpen(
-                    false,
-                  );
-                } catch (error) {
-                  console.error(
-                    'Delete note error:',
-                    error,
-                  );
-
-                  Alert.alert(
-                    'Delete Failed',
-                    'Unable to delete the note.',
-                  );
-                }
-              },
-            },
-          ],
+          'Missing Title',
+          'Please enter a task title.',
         );
-      },
-      [],
-    );
 
-  // ============================================================
-  // ARCHIVE
-  // ============================================================
+        return false;
+      }
 
-  const handleArchiveToggle =
-    useCallback(
-      async (
-        noteId: string,
-        currentVal: boolean,
-      ) => {
-        triggerHaptic();
+      try {
+        await api.post(
+          '/api/tasks',
+          {
+            title:
+              linkTaskTitle.trim(),
+            description:
+              editorContent,
+            subject:
+              editorCategory ||
+              'General',
+            priority: 'Medium',
+            dueDate:
+              dueDate || undefined,
+            dueTime:
+              '18:00',
+            completed: false,
+            hasReminder: false,
+            subTasks: [],
+          },
+        );
 
-        const newValue =
-          !currentVal;
-
-        const updated =
-          await updateNote(
-            noteId,
-            {
-              isArchived:
-                newValue,
-            },
-          );
-
-        if (updated) {
-          if (
-            editingNoteId ===
-            noteId
-          ) {
-            setEditorIsArchived(
-              newValue,
-            );
-          }
-        }
-      },
-      [
-        editingNoteId,
-        updateNote,
-      ],
-    );
-
-  // ============================================================
-  // FAVORITE
-  // ============================================================
-
-  const handleFavoriteToggle =
-    useCallback(
-      async (
-        noteId: string,
-        currentVal: boolean,
-      ) => {
-        triggerHaptic();
-
-        const newValue =
-          !currentVal;
-
-        const updated =
-          await updateNote(
-            noteId,
-            {
-              isFavorite:
-                newValue,
-            },
-          );
-
-        if (updated) {
-          if (
-            editingNoteId ===
-            noteId
-          ) {
-            setEditorIsFavorite(
-              newValue,
-            );
-          }
-        }
-      },
-      [
-        editingNoteId,
-        updateNote,
-      ],
-    );
-
-  // ============================================================
-  // PIN
-  // ============================================================
-
-  const handlePinToggle =
-    useCallback(
-      async (
-        noteId: string,
-        currentVal: boolean,
-      ) => {
-        triggerHaptic();
-
-        const newValue =
-          !currentVal;
-
-        const updated =
-          await updateNote(
-            noteId,
-            {
-              isPinned:
-                newValue,
-            },
-          );
-
-        if (updated) {
-          if (
-            editingNoteId ===
-            noteId
-          ) {
-            setEditorIsPinned(
-              newValue,
-            );
-          }
-        }
-      },
-      [
-        editingNoteId,
-        updateNote,
-      ],
-    );
-
-  // ============================================================
-  // DUPLICATE NOTE
-  // ============================================================
-
-  const handleDuplicateNote =
-    useCallback(
-      async (note: AppNote) => {
-        triggerHaptic();
-
-        await createNote(
-          `${note.title} (Copy)`,
-          note.content,
-          note.category,
-          note.tags,
-          false,
-          false,
+        setIsScheduleModalOpen(
           false,
         );
-      },
-      [createNote],
-    );
 
-  // ============================================================
-  // SHARE
-  // ============================================================
+        setLinkTaskTitle('');
+
+        Alert.alert(
+          'Added to Schedule',
+          'The note has been linked to your schedule.',
+        );
+
+        triggerSuccessHaptic();
+
+        return true;
+      } catch (error) {
+        console.error(
+          'Link note to schedule error:',
+          error,
+        );
+
+        Alert.alert(
+          'Failed',
+          'Unable to link the note to your schedule.',
+        );
+
+        return false;
+      }
+    }, [
+      linkTaskTitle,
+      editorContent,
+      editorCategory,
+      dueDate,
+    ]);
+
+  /**
+   * =========================================================
+   * SHARE NOTE
+   * =========================================================
+   */
 
   const handleShareNote =
-    useCallback(
-      async (
-        title: string,
-        content: string,
-      ) => {
-        try {
-          await Share.share({
-            title,
-            message:
-              `${title}\n\n${content}`,
-          });
-        } catch {
-          // Intentionally ignored
-        }
-      },
-      [],
-    );
-
-  // ============================================================
-  // APPLY TEMPLATE
-  // ============================================================
-
-  const handleApplyTemplate =
-    useCallback(
-      (template: {
-        title: string;
-        category: string;
-        content: string;
-      }) => {
-        setIsTemplateModalOpen(
-          false,
-        );
-
-        handleOpenNewNote(
-          template.category,
-          template.content,
-          template.title,
-        );
-      },
-      [handleOpenNewNote],
-    );
-
-  // ============================================================
-  // CLEANUP AUTOSAVE TIMER
-  // ============================================================
-
-  useEffect(() => {
-    return () => {
-      if (
-        autoSaveTimerRef.current
-      ) {
-        clearTimeout(
-          autoSaveTimerRef.current,
+    useCallback(async (note: Note) => {
+      try {
+        await Share.share({
+          title:
+            note.title ||
+            'GabAi Note',
+          message:
+            `${note.title}\n\n${note.content}`,
+        });
+      } catch (error) {
+        console.error(
+          'Share note error:',
+          error,
         );
       }
-    };
-  }, []);
+    }, []);
 
-  // ============================================================
-  // RETURN
-  // ============================================================
+  /**
+   * =========================================================
+   * REFRESH
+   * =========================================================
+   */
+
+  const refreshNotes =
+    useCallback(async () => {
+      await fetchNotes();
+    }, [fetchNotes]);
+
+  /**
+   * =========================================================
+   * RETURN
+   * =========================================================
+   */
 
   return {
-    // Notes
+    // Data
     notes,
     filteredNotes,
+
+    // Loading
+    isLoading,
+    isSaving,
+
+    // Counts
+    totalNotes,
     pinnedNotes,
-    unpinnedNotes,
+    favoriteNotes,
+    archivedNotes,
 
-    // Loading/Error
-    isLoadingNotes,
-    notesError,
-    refreshNotes: fetchNotes,
-
-    // Tags / Filters
-    allUniqueTags,
-    activeCustomFiltersCount,
-
+    // Search
     searchQuery,
     setSearchQuery,
+
+    // Filters
+    activeFilter,
+    setActiveFilter,
 
     selectedCategory,
     setSelectedCategory,
 
-    activeTabFilter,
-    setActiveTabFilter,
-
     selectedTag,
     setSelectedTag,
 
-    sortBy,
-    setSortBy,
+    // Sort
+    sortOption,
+    setSortOption,
 
+    // View
     viewMode,
     setViewMode,
 
-    // Bottom sheets
-    isFilterSheetOpen,
-    setIsFilterSheetOpen,
-
+    // FAB
     isFabMenuOpen,
     setIsFabMenuOpen,
 
-    isEditorMoreMenuOpen,
-    setIsEditorMoreMenuOpen,
-
+    // Modals
     isTemplateModalOpen,
     setIsTemplateModalOpen,
 
+    isEditorModalOpen,
+    setIsEditorModalOpen,
+
+    isConvertTaskModalOpen,
+    setIsConvertTaskModalOpen,
+
+    isScheduleModalOpen,
+    setIsScheduleModalOpen,
+
+    isFilterSortSheetOpen,
+    setIsFilterSortSheetOpen,
+
     // Editor
-    isEditorOpen,
     editingNoteId,
 
     editorTitle,
+    setEditorTitle,
+
     editorContent,
+    setEditorContent,
 
     editorCategory,
     setEditorCategory,
 
     editorTags,
-
-    editorTagInput,
-    setEditorTagInput,
+    setEditorTags,
 
     editorIsFavorite,
     setEditorIsFavorite,
@@ -1718,70 +1262,45 @@ export function useNotesData() {
     editorIsArchived,
     setEditorIsArchived,
 
-    saveStatus,
-
-    isPreviewMode,
-    setIsPreviewMode,
-
-    // Convert Task
-    convertTaskModalOpen,
-    setConvertTaskModalOpen,
-
-    convertTargetNote,
-    setConvertTargetNote,
-
-    taskSubjectInput,
-    setTaskSubjectInput,
-
+    // Task conversion
     taskPriorityInput,
     setTaskPriorityInput,
 
     taskCategoryInput,
     setTaskCategoryInput,
 
-    handleConvertNoteToTask,
+    dueDate,
+    setDueDate,
 
     // Schedule
-    scheduleModalOpen,
-    setScheduleModalOpen,
+    linkTaskTitle,
+    setLinkTaskTitle,
 
-    scheduleTargetNote,
-    setScheduleTargetNote,
-
-    scheduleDateInput,
-    setScheduleDateInput,
-
-    scheduleTimeInput,
-    setScheduleTimeInput,
-
-    // Actions
-    handleOpenNewNote,
-    handleOpenQuickNote,
-    handleOpenNote,
-
-    handleCloseEditor,
-
-    handleContentChange,
-    handleTitleChange,
-
-    insertFormatting,
-
-    handleUndo,
-    handleRedo,
-
-    handleAddTag,
-    handleRemoveTag,
-
+    // API operations
+    fetchNotes,
+    refreshNotes,
+    createNote,
+    updateNote,
     handleDeleteNote,
 
-    handleArchiveToggle,
+    // Note actions
     handleFavoriteToggle,
     handlePinToggle,
+    handleArchiveToggle,
 
-    handleDuplicateNote,
+    // Editor actions
+    handleOpenNewNote,
+    handleOpenNote,
+    handleOpenQuickNote,
+    handleOpenTemplate,
+    saveCurrentNote,
+    handleCloseEditor,
 
+    // Task / schedule
+    handleConvertNoteToTask,
+    handleLinkToSchedule,
+
+    // Share
     handleShareNote,
-
-    handleApplyTemplate,
   };
 }

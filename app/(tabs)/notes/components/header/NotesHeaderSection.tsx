@@ -17,6 +17,11 @@ export default function NotesHeaderSection({
   notesData,
   theme,
 }: NotesHeaderSectionProps) {
+  const activeCustomFiltersCount =
+    Number(notesData.selectedCategory !== 'All') +
+    Number(notesData.selectedTag !== 'All') +
+    Number(notesData.sortOption !== 'recent_edit');
+
   return (
     <View>
       {/* 1. Top Header */}
@@ -48,14 +53,18 @@ export default function NotesHeaderSection({
 
       {/* 3. Filter Tabs & Category Scroll */}
       <NotesFilterTabs
-        activeTabFilter={notesData.activeTabFilter}
-        onSelectTabFilter={notesData.setActiveTabFilter}
+        activeTabFilter={notesData.activeFilter}
+        onSelectTabFilter={notesData.setActiveFilter}
         selectedCategory={notesData.selectedCategory}
         onSelectCategory={notesData.setSelectedCategory}
-        selectedTag={notesData.selectedTag}
-        onClearTag={() => notesData.setSelectedTag(null)}
-        activeCustomFiltersCount={notesData.activeCustomFiltersCount}
-        onOpenFilterSheet={() => notesData.setIsFilterSheetOpen(true)}
+        selectedTag={
+          notesData.selectedTag === 'All'
+            ? null
+            : notesData.selectedTag
+        }
+        onClearTag={() => notesData.setSelectedTag('All')}
+        activeCustomFiltersCount={activeCustomFiltersCount}
+        onOpenFilterSheet={() => notesData.setIsFilterSortSheetOpen(true)}
         cardBg={theme.cardBg}
         borderCol={theme.borderCol}
         textPrimary={theme.textPrimary}

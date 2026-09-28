@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated, TouchableWithoutFeedback } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, View, Animated, TouchableWithoutFeedback, useAnimatedValue } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -28,8 +28,8 @@ export default function AssistantButton({
   const borderCol = isDark ? 'rgba(169, 124, 80, 0.3)' : 'rgba(169, 124, 80, 0.2)';
 
   // Animations
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useAnimatedValue(1);
+  const pulseAnim = useAnimatedValue(0);
 
   // Pulse animation looping
   useEffect(() => {

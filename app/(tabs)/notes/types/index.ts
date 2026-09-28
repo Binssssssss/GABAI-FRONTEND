@@ -1,12 +1,32 @@
-import { Note } from '@/app/services/localDb';
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  category: string;
+  tags: string[];
+  isPinned: boolean;
+  isFavorite: boolean;
+  isArchived: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
 
-export type { Note };
+export type NoteFilterTab =
+  | 'all'
+  | 'pinned'
+  | 'favorites'
+  | 'archived';
 
-export type NoteFilterTab = 'all' | 'pinned' | 'favorites' | 'archived';
+export type NoteSortOption =
+  | 'recent_edit'
+  | 'recent_create'
+  | 'title'
+  | 'category';
 
-export type NoteSortOption = 'recent_edit' | 'recent_create' | 'title' | 'category';
-
-export type NoteViewMode = 'grid' | 'list';
+export type NoteViewMode =
+  | 'grid'
+  | 'list';
 
 export interface NoteCategoryItem {
   name: string;

@@ -1,11 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Animated,
   PanResponder,
   Dimensions,
-  Platform,
+  useAnimatedValue,
+  useAnimatedValueXY,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -15,6 +16,8 @@ import * as Haptics from 'expo-haptics';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const BUTTON_SIZE = 52;
+
+const getCurrentTime = () => Date.now();
 
 interface FloatingAssistantProps {
   hasSuggestions?: boolean;
@@ -46,9 +49,9 @@ export default function FloatingAssistant({
   const initialX = screenWidth - BUTTON_SIZE - 18;
   const initialY = screenHeight - (insets.bottom || 20) - 130;
 
-  const pan = useRef(new Animated.ValueXY({ x: initialX, y: initialY })).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const pan = useAnimatedValueXY({ x: initialX, y: initialY });
+  const scaleAnim = useAnimatedValue(1);
+  const pulseAnim = useAnimatedValue(0);
 
   // Drag tracking refs
   const isDragging = useRef(false);
@@ -76,7 +79,7 @@ export default function FloatingAssistant({
     };
   }, [hasSuggestions, pulseAnim]);
 
-  const openAssistantChat = () => {
+  const openAssistantChat = useCallback(() => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
@@ -91,11 +94,13 @@ export default function FloatingAssistant({
         // Fallback
       }
     }
-  };
+  }, [router]);
 
   // Pan Responder for Dragging, Edge Docking & Tap Detection
-  const panResponder = useRef(
-    PanResponder.create({
+  const panResponder = useMemo(
+    // PanResponder retains these callbacks for later gesture events.
+    // eslint-disable-next-line react-hooks/refs
+    () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         // Only treat as drag if finger moves noticeably
@@ -103,7 +108,7 @@ export default function FloatingAssistant({
       },
       onPanResponderGrant: (_, gestureState) => {
         isDragging.current = false;
-        pressStartTime.current = Date.now();
+        pressStartTime.current = getCurrentTime();
         dragStartPos.current = { x: gestureState.x0, y: gestureState.y0 };
 
         // Save current animated value offset
@@ -148,7 +153,7 @@ export default function FloatingAssistant({
           bounciness: 6,
         }).start();
 
-        const pressDuration = Date.now() - pressStartTime.current;
+        const pressDuration = getCurrentTime() - pressStartTime.current;
         const dist = Math.hypot(
           gestureState.moveX - dragStartPos.current.x,
           gestureState.moveY - dragStartPos.current.y
@@ -185,8 +190,17 @@ export default function FloatingAssistant({
           tension: 40,
         }).start();
       },
-    })
-  ).current;
+    }),
+    [
+      insets.bottom,
+      insets.top,
+      openAssistantChat,
+      pan,
+      scaleAnim,
+      screenHeight,
+      screenWidth,
+    ],
+  );
 
   if (isAssistantRoute) {
     return null;

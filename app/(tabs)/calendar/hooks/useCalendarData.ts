@@ -222,8 +222,12 @@ export function useCalendarData() {
    * INITIAL LOAD
    */
   useEffect(() => {
-    loadEvents();
-    loadUpcomingDeadlines();
+    const loadTimer = setTimeout(() => {
+      void loadEvents();
+      void loadUpcomingDeadlines();
+    }, 0);
+
+    return () => clearTimeout(loadTimer);
   }, [
     loadEvents,
     loadUpcomingDeadlines,

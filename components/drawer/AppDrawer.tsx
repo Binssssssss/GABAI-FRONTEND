@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import {
   Animated,
   Dimensions,
@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useAnimatedValue,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,9 +61,7 @@ export default function AppDrawer({
   const screenWidth = Dimensions.get('window').width;
   const drawerWidth = screenWidth * 0.78;
 
-  const slideAnim = useRef(
-    new Animated.Value(-drawerWidth)
-  ).current;
+  const slideAnim = useAnimatedValue(-drawerWidth);
 
   useEffect(() => {
     AsyncStorage.getItem('gabai_user').then((storedUser) => {

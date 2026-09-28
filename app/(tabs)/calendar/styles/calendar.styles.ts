@@ -681,7 +681,7 @@ export const calendarStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   aiProgressOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,

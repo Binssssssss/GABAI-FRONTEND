@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { localDb, Note } from '@/app/services/localDb';
+import { Note } from '@/app/services/localDb';
+import api from '@/app/services/api';
 import { triggerHaptic } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
 
@@ -38,26 +39,28 @@ export default function LinkToScheduleModal({
 }: LinkToScheduleModalProps) {
   if (!visible || !note) return null;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+  if (!note) return;
+
+  try {
     triggerHaptic();
-    localDb.addEvent({
+
+    await api.post('/api/tasks', {
       title: `Review: ${note.title}`,
       description: `Study notes from ${note.category}:\n\n${note.content.slice(0, 150)}...`,
-      date: dateInput,
-      time: timeInput,
-      category: 'Exam',
-      duration: 60,
+      subject: note.category || 'General',
       priority: 'Medium',
-      isAllDay: false,
+      dueDate: dateInput,
+      dueTime: timeInput,
       hasReminder: true,
-      reminderTime: '15m',
-      isRecurring: false,
-      recurrenceRule: '',
-      progress: 0,
-      checklist: [],
+      subTasks: [],
     });
+
     onClose();
-  };
+  } catch (error) {
+    console.error('Failed to schedule note:', error);
+  }
+};
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

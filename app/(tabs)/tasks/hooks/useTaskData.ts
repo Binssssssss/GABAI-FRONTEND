@@ -160,29 +160,24 @@ export function useTaskData() {
   // ----------------------------------------------------
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
+    if (!isTimerRunning) return;
 
-    if (isTimerRunning && pomodoroTime > 0) {
-      interval = setInterval(() => {
-        setPomodoroTime((prev) => prev - 1);
-      }, 1000);
-    }
+    const interval = setInterval(() => {
+      if (pomodoroTime <= 1) {
+        setIsTimerRunning(false);
+        Alert.alert(
+          'Focus Time Up!',
+          'Great job! Take a small rest break.'
+        );
+        setPomodoroTime(25 * 60);
+        return;
+      }
 
-    if (pomodoroTime === 0) {
-      setIsTimerRunning(false);
-
-      Alert.alert(
-        'Focus Time Up!',
-        'Great job! Take a small rest break.'
-      );
-
-      setPomodoroTime(25 * 60);
-    }
+      setPomodoroTime((prev) => prev - 1);
+    }, 1000);
 
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
+      clearInterval(interval);
     };
   }, [isTimerRunning, pomodoroTime]);
 
