@@ -1,3 +1,4 @@
+
 import api from "../services/api";
 
 import {
@@ -20,17 +21,23 @@ let loadPromise: Promise<Notification[]> | null = null;
 
 const listeners = new Set<NotificationListener>();
 
+/**
+ * Load notifications from the backend.
+ * Falls back to AsyncStorage if the backend is unavailable.
+ */
 async function loadNotifications(): Promise<Notification[]> {
+  // Return cached notifications if already loaded
   if (cachedNotifications !== null) {
     return cachedNotifications;
   }
 
+  // Prevent multiple requests at the same time
   if (!loadPromise) {
     loadPromise = api
-      .get("/api/notifications")
+      .get("/notifications")
       .then(async (response) => {
         const notifications: Notification[] =
-          response.data.data ?? [];
+          response.data?.data ?? [];
 
         cachedNotifications = notifications;
 
@@ -38,6 +45,8 @@ async function loadNotifications(): Promise<Notification[]> {
         await storeNotifications(notifications);
 
         loadPromise = null;
+
+        notifyListeners();
 
         return notifications;
       })
@@ -55,6 +64,8 @@ async function loadNotifications(): Promise<Notification[]> {
 
         cachedNotifications = storedNotifications;
 
+        notifyListeners();
+
         return storedNotifications;
       });
   }
@@ -62,6 +73,9 @@ async function loadNotifications(): Promise<Notification[]> {
   return loadPromise;
 }
 
+/**
+ * Notify all subscribed listeners when notifications change.
+ */
 function notifyListeners(): void {
   if (cachedNotifications === null) {
     return;
@@ -72,18 +86,27 @@ function notifyListeners(): void {
   });
 }
 
+/**
+ * Get all notifications.
+ */
 export async function getNotifications(): Promise<Notification[]> {
   const notifications = await loadNotifications();
 
   return [...notifications];
 }
 
+/**
+ * Add a new notification.
+ *
+ * Backend endpoint:
+ * POST /api/notifications
+ */
 export async function addNotification(
   notification: CreateNotificationInput
 ): Promise<Notification> {
   try {
     const response = await api.post(
-      "/api/notifications",
+      "/notifications",
       {
         title: notification.title,
         message: notification.message,
@@ -97,7 +120,7 @@ export async function addNotification(
     );
 
     const newNotification: Notification =
-      response.data.data;
+      response.data?.data;
 
     cachedNotifications = [
       newNotification,
@@ -116,10 +139,9 @@ export async function addNotification(
     );
 
     /*
-     * Fallback:
-     * If backend is unavailable, create it locally.
+     * Backend failed.
+     * Create the notification locally instead.
      */
-
     const newNotification: Notification = {
       ...notification,
       id:
@@ -142,12 +164,18 @@ export async function addNotification(
   }
 }
 
+/**
+ * Mark one notification as read.
+ *
+ * Backend endpoint:
+ * PATCH /api/notifications/:id/read
+ */
 export async function markNotificationAsRead(
   notificationId: string
 ): Promise<void> {
   try {
     await api.patch(
-      `/api/notifications/${notificationId}/read`
+      `/notifications/${notificationId}/read`
     );
 
     updateCachedNotificationAsRead(notificationId);
@@ -157,15 +185,14 @@ export async function markNotificationAsRead(
       error
     );
 
-    /*
-     * Backend failed, but we can still update
-     * the local cache.
-     */
-
+    // Update local cache even if backend fails
     updateCachedNotificationAsRead(notificationId);
   }
 }
 
+/**
+ * Update a single notification in the local cache.
+ */
 function updateCachedNotificationAsRead(
   notificationId: string
 ): void {
@@ -184,13 +211,20 @@ function updateCachedNotificationAsRead(
   );
 
   storeNotifications(cachedNotifications);
+
   notifyListeners();
 }
 
+/**
+ * Mark all notifications as read.
+ *
+ * Backend endpoint:
+ * PATCH /api/notifications/read-all
+ */
 export async function markAllNotificationsAsRead(): Promise<void> {
   try {
     await api.patch(
-      "/api/notifications/read-all"
+      "/notifications/read-all"
     );
 
     if (cachedNotifications === null) {
@@ -209,7 +243,7 @@ export async function markAllNotificationsAsRead(): Promise<void> {
     notifyListeners();
   } catch (error) {
     console.error(
-      "Failed to mark all notifications as read:",
+      "Failed to mark all notifications as read on backend:",
       error
     );
 
@@ -231,12 +265,18 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   }
 }
 
+/**
+ * Delete one notification.
+ *
+ * Backend endpoint:
+ * DELETE /api/notifications/:id
+ */
 export async function deleteNotification(
   notificationId: string
 ): Promise<void> {
   try {
     await api.delete(
-      `/api/notifications/${notificationId}`
+      `/notifications/${notificationId}`
     );
 
     removeCachedNotification(notificationId);
@@ -251,6 +291,9 @@ export async function deleteNotification(
   }
 }
 
+/**
+ * Remove a notification from the local cache.
+ */
 function removeCachedNotification(
   notificationId: string
 ): void {
@@ -269,14 +312,13 @@ function removeCachedNotification(
   notifyListeners();
 }
 
+/**
+ * Clear all locally stored notifications.
+ *
+ * There is currently no DELETE ALL endpoint
+ * in the backend, so this only clears local storage.
+ */
 export async function clearNotifications(): Promise<void> {
-  /*
-   * There is currently no DELETE ALL endpoint
-   * in the backend.
-   *
-   * Therefore, this only clears the local cache.
-   */
-
   cachedNotifications = [];
 
   await clearStoredNotifications();
@@ -284,6 +326,11 @@ export async function clearNotifications(): Promise<void> {
   notifyListeners();
 }
 
+/**
+ * Subscribe to notification changes.
+ *
+ * Returns an unsubscribe function.
+ */
 export function subscribeToNotifications(
   listener: NotificationListener
 ): () => void {

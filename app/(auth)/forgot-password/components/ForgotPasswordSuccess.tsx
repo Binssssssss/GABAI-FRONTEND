@@ -11,7 +11,7 @@ interface ForgotPasswordSuccessProps {
   primaryBrown: string;
 }
 
-export function ForgotPasswordSuccess({
+export default function ForgotPasswordSuccess({
   email,
   onBackToLogin,
   textPrimary,

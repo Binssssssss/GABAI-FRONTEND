@@ -44,7 +44,7 @@ export default function AcademicPressure({
   useEffect(() => {
     const fetchAcademicPressure = async () => {
       try {
-        const response = await api.get("/api/academic-pressure");
+        const response = await api.get("/academic-pressure");
 
         const data: AcademicPressureResponse =
           response.data.data;
@@ -52,7 +52,7 @@ export default function AcademicPressure({
         setPressureLabel(data.label);
         setPressureLevel(data.level);
       } catch (error) {
-        console.error(
+        console.error (
           "Failed to fetch academic pressure:",
           error,
         );

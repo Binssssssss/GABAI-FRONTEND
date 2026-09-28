@@ -1,32 +1,31 @@
 
-import React from 'react';
-import { ScrollView, RefreshControl } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAppTheme } from '@/app/context/ThemeContext';
-import { useAuth } from '@/app/context/AuthContext';
 import { useDrawer } from '@/app/(tabs)/_layout';
+import { useAuth } from '@/app/context/AuthContext';
+import { useAppTheme } from '@/app/context/ThemeContext';
 
 import {
-  DashboardHeader,
-  QuickActions,
-  SmartReminders,
-  AcademicPressure,
-  TodaysFocus,
-  QuickOverview,
-  TodaysSchedule,
-  FocusSessionWidget,
-  UpcomingDeadlines,
-  SubjectProgress,
-  RecentActivity,
-  Footer,
-  DashboardTask,
+    AcademicPressure,
+    DashboardHeader,
+    DashboardTask,
+    FocusSessionWidget,
+    Footer,
+    QuickActions,
+    QuickOverview,
+    RecentActivity,
+    SmartReminders,
+    SubjectProgress,
+    TodaysFocus,
+    TodaysSchedule,
+    UpcomingDeadlines,
 } from './components';
 
 import { useDashboardData } from './hooks/useDashboardData';
 import {
-  getPriorityColor,
-  getTimelineIcon,
+    getPriorityColor,
+    getTimelineIcon,
 } from './utils/dashboardHelpers';
 
 import { dashboardStyles as styles } from './styles/dashboard.styles';
@@ -121,8 +120,6 @@ export default function DashboardScreen() {
         greeting={greeting}
         userName={userName}
         onOpenDrawer={openDrawer}
-        greeting={greeting}
-        userName="Student"
         textPrimary={textPrimary}
         textSecondary={textSecondary}
       />

@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { forgotPasswordStyles as styles } from '../styles';
 
 interface ForgotPasswordHeaderProps {
@@ -9,7 +8,7 @@ interface ForgotPasswordHeaderProps {
   primaryBrown: string;
 }
 
-export function ForgotPasswordHeader({
+export default function ForgotPasswordHeader({
   onBack,
   textPrimary,
   primaryBrown,
