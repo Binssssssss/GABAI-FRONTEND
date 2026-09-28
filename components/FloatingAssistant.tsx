@@ -99,7 +99,6 @@ export default function FloatingAssistant({
   // Pan Responder for Dragging, Edge Docking & Tap Detection
   const panResponder = useMemo(
     // PanResponder retains these callbacks for later gesture events.
-    // eslint-disable-next-line react-hooks/refs
     () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
