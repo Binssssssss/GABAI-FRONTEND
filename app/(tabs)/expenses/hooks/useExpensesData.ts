@@ -32,9 +32,11 @@ export function useExpensesData() {
   const [newAmount, setNewAmount] = useState('');
   const [transactionType, setTransactionType] =
     useState<TransactionType>('expense');
+
   const [newCategory, setNewCategory] = useState<string>(
     EXPENSE_CATEGORIES[0],
   );
+
   const [isAdding, setIsAdding] = useState(false);
 
   const [walletBalance, setWalletBalance] =
@@ -48,24 +50,30 @@ export function useExpensesData() {
     try {
       setIsLoading(true);
 
-      const response = await api.get('/api/transactions');
+      const response = await api.get('/transactions');
 
       if (response.data.success) {
-        const data: TransactionResponse[] = response.data.data;
+        const data: TransactionResponse[] =
+          response.data.data;
 
-        const mappedTransactions: Transaction[] = data.map((item) => ({
-          id: item.id,
-          title: item.title,
-          amount: Number(item.amount),
-          category: item.category,
-          date: item.date,
-          type: item.type,
-        }));
+        const mappedTransactions: Transaction[] = data.map(
+          (item) => ({
+            id: item.id,
+            title: item.title,
+            amount: Number(item.amount),
+            category: item.category,
+            date: item.date,
+            type: item.type,
+          }),
+        );
 
         setTransactions(mappedTransactions);
       }
     } catch (error) {
-      console.error('Failed to load transactions:', error);
+      console.error(
+        'Failed to load transactions:',
+        error,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -73,13 +81,18 @@ export function useExpensesData() {
 
   const loadWalletBalance = useCallback(async () => {
     try {
-      const response = await api.get('/api/transactions/balance');
+      const response = await api.get(
+        '/transactions/balance',
+      );
 
       if (response.data.success) {
         setWalletBalance(response.data.data);
       }
     } catch (error) {
-      console.error('Failed to load wallet balance:', error);
+      console.error(
+        'Failed to load wallet balance:',
+        error,
+      );
     }
   }, []);
 
@@ -109,15 +122,18 @@ export function useExpensesData() {
     [walletBalance.netBalance],
   );
 
-  const handleTypeChange = useCallback((type: TransactionType) => {
-    setTransactionType(type);
+  const handleTypeChange = useCallback(
+    (type: TransactionType) => {
+      setTransactionType(type);
 
-    setNewCategory(
-      type === 'expense'
-        ? EXPENSE_CATEGORIES[0]
-        : INCOME_CATEGORIES[0],
-    );
-  }, []);
+      setNewCategory(
+        type === 'expense'
+          ? EXPENSE_CATEGORIES[0]
+          : INCOME_CATEGORIES[0],
+      );
+    },
+    [],
+  );
 
   const openAddModal = useCallback(() => {
     setNewTitle('');
@@ -143,12 +159,15 @@ export function useExpensesData() {
     }
 
     try {
-      const response = await api.post('/api/transactions', {
-        title: newTitle.trim(),
-        amount,
-        type: transactionType,
-        category: newCategory,
-      });
+      const response = await api.post(
+        '/transactions',
+        {
+          title: newTitle.trim(),
+          amount,
+          type: transactionType,
+          category: newCategory,
+        },
+      );
 
       if (response.data.success) {
         setNewTitle('');
@@ -158,7 +177,10 @@ export function useExpensesData() {
         await refreshWallet();
       }
     } catch (error) {
-      console.error('Failed to create transaction:', error);
+      console.error(
+        'Failed to create transaction:',
+        error,
+      );
     }
   }, [
     newTitle,
