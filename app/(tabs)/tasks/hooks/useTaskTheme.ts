@@ -24,3 +24,7 @@ export function useTaskTheme(): TaskTheme {
     inputBg: isDark ? '#181818' : '#FFFFFF',
   };
 }
+
+export default function TaskThemeRoute() {
+  return useTaskTheme();
+}
