@@ -7,6 +7,8 @@ import {
   Dimensions,
   useAnimatedValue,
   useAnimatedValueXY,
+  type GestureResponderEvent,
+  type PanResponderGestureState,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -96,109 +98,100 @@ export default function FloatingAssistant({
     }
   }, [router]);
 
-  // Pan Responder for Dragging, Edge Docking & Tap Detection
+  const onPanResponderGrant = useCallback((_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    isDragging.current = false;
+    pressStartTime.current = getCurrentTime();
+    dragStartPos.current = { x: gestureState.x0, y: gestureState.y0 };
+
+    pan.setOffset({
+      // @ts-ignore
+      x: pan.x._value,
+      // @ts-ignore
+      y: pan.y._value,
+    });
+    pan.setValue({ x: 0, y: 0 });
+
+    Animated.spring(scaleAnim, {
+      toValue: 1.08,
+      useNativeDriver: true,
+      speed: 40,
+    }).start();
+  }, [pan, scaleAnim]);
+
+  const onPanResponderMove = useCallback((_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    const dist = Math.hypot(
+      gestureState.moveX - dragStartPos.current.x,
+      gestureState.moveY - dragStartPos.current.y
+    );
+    if (dist > 8 && !isDragging.current) {
+      isDragging.current = true;
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // Ignored
+      }
+    }
+    pan.setValue({ x: gestureState.dx, y: gestureState.dy });
+  }, [pan]);
+
+  const onPanResponderRelease = useCallback((_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    pan.flattenOffset();
+
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 6,
+    }).start();
+
+    const pressDuration = getCurrentTime() - pressStartTime.current;
+    const dist = Math.hypot(
+      gestureState.moveX - dragStartPos.current.x,
+      gestureState.moveY - dragStartPos.current.y
+    );
+    const isTap = dist < 12 || (pressDuration < 350 && dist < 20);
+
+    if (isTap) {
+      openAssistantChat();
+      return;
+    }
+
+    // @ts-ignore
+    const currentX = pan.x._value;
+    // @ts-ignore
+    const currentY = pan.y._value;
+
+    const targetX =
+      currentX + BUTTON_SIZE / 2 < screenWidth / 2
+        ? 16
+        : screenWidth - BUTTON_SIZE - 16;
+
+    const minY = (insets.top || 40) + 10;
+    const maxY = screenHeight - (insets.bottom || 20) - BUTTON_SIZE - 20;
+    const clampedY = Math.max(minY, Math.min(currentY, maxY));
+
+    Animated.spring(pan, {
+      toValue: { x: targetX, y: clampedY },
+      useNativeDriver: true,
+      friction: 6,
+      tension: 40,
+    }).start();
+  }, [insets.bottom, insets.top, openAssistantChat, pan, scaleAnim, screenHeight, screenWidth]);
+
+  // PanResponder stores these handlers and invokes them only in response to gestures.
   const panResponder = useMemo(
-    // PanResponder retains these callbacks for later gesture events.
+    // eslint-disable-next-line react-hooks/refs
     () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         // Only treat as drag if finger moves noticeably
         return Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6;
       },
-      onPanResponderGrant: (_, gestureState) => {
-        isDragging.current = false;
-        pressStartTime.current = getCurrentTime();
-        dragStartPos.current = { x: gestureState.x0, y: gestureState.y0 };
-
-        // Save current animated value offset
-        pan.setOffset({
-          // @ts-ignore
-          x: pan.x._value,
-          // @ts-ignore
-          y: pan.y._value,
-        });
-        pan.setValue({ x: 0, y: 0 });
-
-        // Scale up slightly for tactile feedback
-        Animated.spring(scaleAnim, {
-          toValue: 1.08,
-          useNativeDriver: true,
-          speed: 40,
-        }).start();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        const dist = Math.hypot(
-          gestureState.moveX - dragStartPos.current.x,
-          gestureState.moveY - dragStartPos.current.y
-        );
-        if (dist > 8 && !isDragging.current) {
-          isDragging.current = true;
-          try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          } catch {
-            // Ignored
-          }
-        }
-        pan.setValue({ x: gestureState.dx, y: gestureState.dy });
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        pan.flattenOffset();
-
-        // Scale back to normal
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          speed: 30,
-          bounciness: 6,
-        }).start();
-
-        const pressDuration = getCurrentTime() - pressStartTime.current;
-        const dist = Math.hypot(
-          gestureState.moveX - dragStartPos.current.x,
-          gestureState.moveY - dragStartPos.current.y
-        );
-
-        // Tap detected (minimal movement or quick tap)
-        const isTap = dist < 12 || (pressDuration < 350 && dist < 20);
-
-        if (isTap) {
-          openAssistantChat();
-          return;
-        }
-
-        // Clamp & Dock to closest edge (Left or Right)
-        // @ts-ignore
-        const currentX = pan.x._value;
-        // @ts-ignore
-        const currentY = pan.y._value;
-
-        const targetX =
-          currentX + BUTTON_SIZE / 2 < screenWidth / 2
-            ? 16 // Snap to left edge
-            : screenWidth - BUTTON_SIZE - 16; // Snap to right edge
-
-        // Keep within vertical safe bounds
-        const minY = (insets.top || 40) + 10;
-        const maxY = screenHeight - (insets.bottom || 20) - BUTTON_SIZE - 20;
-        const clampedY = Math.max(minY, Math.min(currentY, maxY));
-
-        Animated.spring(pan, {
-          toValue: { x: targetX, y: clampedY },
-          useNativeDriver: true,
-          friction: 6,
-          tension: 40,
-        }).start();
-      },
+      onPanResponderGrant,
+      onPanResponderMove,
+      onPanResponderRelease,
     }),
-    [
-      insets.bottom,
-      insets.top,
-      openAssistantChat,
-      pan,
-      scaleAnim,
-      screenHeight,
-      screenWidth,
-    ],
+    [onPanResponderGrant, onPanResponderMove, onPanResponderRelease],
   );
 
   if (isAssistantRoute) {

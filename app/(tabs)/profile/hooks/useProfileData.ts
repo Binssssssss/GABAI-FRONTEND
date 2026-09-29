@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+
 import { localDb } from '@/app/services/localDb';
-import { UserProfile, ProfileStatItem } from '../types';
 import { useAuth } from '@/app/context/AuthContext';
+
+import { UserProfile, ProfileStatItem } from '../types';
 
 const EMPTY_USER_PROFILE: UserProfile = {
   name: '',
@@ -15,19 +17,23 @@ const EMPTY_USER_PROFILE: UserProfile = {
 export function useProfileData() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const [userProfile, setUserProfile] = useState<UserProfile>(EMPTY_USER_PROFILE);
+
+  const [userProfile, setUserProfile] =
+    useState<UserProfile>(EMPTY_USER_PROFILE);
 
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
         const currentUser = user || {};
+
         const name = String(
           currentUser.name ||
-          currentUser.fullName ||
-          currentUser.userName ||
-          currentUser.email ||
-          ''
+            currentUser.fullName ||
+            currentUser.userName ||
+            currentUser.email ||
+            '',
         );
+
         setUserProfile({
           name,
           email: String(currentUser.email || ''),
@@ -40,19 +46,31 @@ export function useProfileData() {
             .slice(0, 2)
             .toUpperCase(),
         });
+
         console.log('CURRENT STORED USER:', currentUser);
       } catch (error) {
-        console.error('Failed to load stored user:', error);
+        console.error(
+          'Failed to load stored user:',
+          error,
+        );
       }
     };
 
     loadUserProfile();
   }, [user]);
 
-  // Sync state from central database
-  const [tasks, setTasks] = useState(() => localDb.getTasks());
-  const [events, setEvents] = useState(() => localDb.getEvents());
-  const [transactions, setTransactions] = useState(() => localDb.getTransactions());
+  // Sync state from central local database.
+  const [tasks, setTasks] = useState(() =>
+    localDb.getTasks(),
+  );
+
+  const [events, setEvents] = useState(() =>
+    localDb.getEvents(),
+  );
+
+  const [transactions, setTransactions] = useState(() =>
+    localDb.getTransactions(),
+  );
 
   useEffect(() => {
     const unsubscribe = localDb.subscribe(() => {
@@ -60,20 +78,36 @@ export function useProfileData() {
       setEvents(localDb.getEvents());
       setTransactions(localDb.getTransactions());
     });
+
     return unsubscribe;
   }, []);
 
-  // Compute live stats
-  const completedTasksCount = useMemo(() => tasks.filter((t) => t.completed).length, [tasks]);
-  const eventsCount = useMemo(() => events.length, [events]);
+  // Compute live statistics.
+  const completedTasksCount = useMemo(
+    () => tasks.filter((task) => task.completed).length,
+    [tasks],
+  );
+
+  const eventsCount = useMemo(
+    () => events.length,
+    [events],
+  );
 
   const walletBalance = useMemo(() => {
     const income = transactions
-      .filter((t) => t.type === 'income')
-      .reduce((sum, item) => sum + item.amount, 0);
+      .filter((transaction) => transaction.type === 'income')
+      .reduce(
+        (sum, transaction) => sum + transaction.amount,
+        0,
+      );
+
     const expense = transactions
-      .filter((t) => t.type === 'expense')
-      .reduce((sum, item) => sum + item.amount, 0);
+      .filter((transaction) => transaction.type === 'expense')
+      .reduce(
+        (sum, transaction) => sum + transaction.amount,
+        0,
+      );
+
     return income - expense;
   }, [transactions]);
 
@@ -94,11 +128,17 @@ export function useProfileData() {
       {
         id: 'budget',
         label: 'Budget',
-        value: `₱${walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        value: `₱${walletBalance.toLocaleString(
+          undefined,
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          },
+        )}`,
         icon: 'credit-card',
       },
     ],
-    [completedTasksCount, eventsCount, walletBalance]
+    [completedTasksCount, eventsCount, walletBalance],
   );
 
   const handleLogout = useCallback(() => {
@@ -114,12 +154,27 @@ export function useProfileData() {
           text: 'Log Out',
           style: 'destructive',
           onPress: async () => {
-            await signOut();
-            router.replace('/(auth)/login/login');
+            try {
+              await signOut();
+
+              router.replace('/(auth)/login/login');
+            } catch (error) {
+              console.error(
+                'Logout failed:',
+                error,
+              );
+
+              Alert.alert(
+                'Logout Error',
+                'Something went wrong while logging out. Please try again.',
+              );
+            }
           },
         },
       ],
-      { cancelable: true }
+      {
+        cancelable: true,
+      },
     );
   }, [router, signOut]);
 
