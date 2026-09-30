@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import { createContext, useContext } from 'react';
 
 interface DrawerContextType {
   openDrawer: () => void;
@@ -13,4 +13,4 @@ export const DrawerContext =
     isDrawerOpen: false,
   });
 
-export const useDrawer = () => useContext(DrawerContext);
+export const useDrawer = () => useContext(DrawerContext); 
