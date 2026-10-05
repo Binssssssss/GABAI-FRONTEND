@@ -13,6 +13,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  console.log("========== API REQUEST ==========");
+  console.log("BASE URL:", config.baseURL);
+  console.log("URL:", config.url);
+  console.log("METHOD:", config.method);
+
   const session = await AsyncStorage.getItem("gabai.auth.session");
 
   console.log("AUTH SESSION:", session);
@@ -23,7 +28,7 @@ api.interceptors.request.use(async (config) => {
 
       console.log(
         "HAS ACCESS TOKEN:",
-        !!parsed?.accessToken
+        !!parsed?.token
       );
 
       if (parsed?.token) {
@@ -36,6 +41,9 @@ api.interceptors.request.use(async (config) => {
       console.log("SESSION PARSE ERROR:", error);
     }
   }
+
+  console.log("FULL REQUEST URL:", `${config.baseURL}${config.url}`);
+  console.log("================================");
 
   return config;
 });

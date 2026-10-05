@@ -8,12 +8,12 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { CATEGORIES } from '../../constants/notesConfig';
 import { countWords } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface NoteEditorModalProps {
   visible: boolean;

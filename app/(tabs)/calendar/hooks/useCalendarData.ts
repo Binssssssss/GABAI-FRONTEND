@@ -149,7 +149,7 @@ export function useCalendarData() {
   const loadEvents = useCallback(async () => {
     try {
       const response =
-        await api.get('/api/tasks');
+        await api.get('/tasks');
 
       const backendEvents =
         response.data?.data || [];
@@ -193,7 +193,7 @@ export function useCalendarData() {
     useCallback(async () => {
       try {
         const response =
-          await api.get('/api/tasks/upcoming');
+          await api.get('/tasks/upcoming');
 
         const backendDeadlines =
           response.data?.data || [];
@@ -340,7 +340,7 @@ export function useCalendarData() {
         Alert.alert(
           'Error',
           error?.response?.data?.message ||
-            'Failed to save the event.',
+          'Failed to save the event.',
         );
       }
     }, [
@@ -415,7 +415,7 @@ export function useCalendarData() {
                     'Error',
                     error?.response?.data
                       ?.message ||
-                      'Failed to delete event.',
+                    'Failed to delete event.',
                   );
                 }
               },
@@ -433,84 +433,84 @@ export function useCalendarData() {
    * completion status to the backend.
    */
   const toggleChecklistItem =
-  useCallback(
-    async (
-      eventId: string,
-      itemId: string,
-    ) => {
-      const event = events.find(
-        (item) => item.id === eventId,
-      );
-
-      if (!event) {
-        return;
-      }
-
-      const checklistItem =
-        event.checklist.find(
-          (item) => item.id === itemId,
+    useCallback(
+      async (
+        eventId: string,
+        itemId: string,
+      ) => {
+        const event = events.find(
+          (item) => item.id === eventId,
         );
 
-      if (!checklistItem) {
-        return;
-      }
+        if (!event) {
+          return;
+        }
 
-      const newCompleted =
-        !checklistItem.completed;
-
-      console.log(
-        'completed:',
-        newCompleted,
-      );
-
-      console.log(
-        'type:',
-        typeof newCompleted,
-      );
-
-      try {
-        const response =
-          await api.patch(
-            `/api/tasks/${eventId}/subtasks/${itemId}`,
-            {
-              completed: newCompleted,
-            },
+        const checklistItem =
+          event.checklist.find(
+            (item) => item.id === itemId,
           );
 
-        const updatedEvent =
-          mapBackendEvent(
-            response.data?.data,
+        if (!checklistItem) {
+          return;
+        }
+
+        const newCompleted =
+          !checklistItem.completed;
+
+        console.log(
+          'completed:',
+          newCompleted,
+        );
+
+        console.log(
+          'type:',
+          typeof newCompleted,
+        );
+
+        try {
+          const response =
+            await api.patch(
+              `/api/tasks/${eventId}/subtasks/${itemId}`,
+              {
+                completed: newCompleted,
+              },
+            );
+
+          const updatedEvent =
+            mapBackendEvent(
+              response.data?.data,
+            );
+
+          setEvents((prev) =>
+            prev.map((item) =>
+              item.id === eventId
+                ? updatedEvent
+                : item,
+            ),
           );
 
-        setEvents((prev) =>
-          prev.map((item) =>
-            item.id === eventId
-              ? updatedEvent
-              : item,
-          ),
-        );
+          setSelectedEvent(
+            (currentEvent) =>
+              currentEvent?.id === eventId
+                ? updatedEvent
+                : currentEvent,
+          );
+        } catch (error: any) {
+          console.error(
+            'Failed to update checklist item:',
+            error,
+          );
 
-        setSelectedEvent(
-          (currentEvent) =>
-            currentEvent?.id === eventId
-              ? updatedEvent
-              : currentEvent,
-        );
-      } catch (error: any) {
-        console.error(
-          'Failed to update checklist item:',
-          error,
-        );
-
-        Alert.alert(
-          'Error',
-          error?.response?.data?.message ||
+          Alert.alert(
+            'Error',
+            error?.response?.data?.message ||
             'Failed to update checklist item.',
-        );
-      }
-    },
-    [events],
-  );
+          );
+        }
+      },
+      [events],
+    );
 
   /*
    * START RESCHEDULING
@@ -561,15 +561,15 @@ export function useCalendarData() {
         }
 
         try {
-        const response = await api.patch(
-  `/api/tasks/${event.id}/reschedule`,
-  {
-    dueDate: targetDate,
-    dueTime: event.isAllDay
-      ? ''
-      : event.time,
-  },
-);
+          const response = await api.patch(
+            `/api/tasks/${event.id}/reschedule`,
+            {
+              dueDate: targetDate,
+              dueTime: event.isAllDay
+                ? ''
+                : event.time,
+            },
+          );
 
           const updatedEvent =
             mapBackendEvent(
@@ -579,7 +579,7 @@ export function useCalendarData() {
           setEvents((prev) =>
             prev.map((item) =>
               item.id ===
-              activeReschedulingId
+                activeReschedulingId
                 ? updatedEvent
                 : item,
             ),
@@ -604,7 +604,7 @@ export function useCalendarData() {
             'Error',
             error?.response?.data
               ?.message ||
-              'Failed to reschedule event.',
+            'Failed to reschedule event.',
           );
         }
       },
@@ -628,7 +628,7 @@ export function useCalendarData() {
         const matchesCategory =
           selectedCategory === 'All' ||
           event.category ===
-            selectedCategory;
+          selectedCategory;
 
         const matchesSearch =
           event.title
