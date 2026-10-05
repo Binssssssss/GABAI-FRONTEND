@@ -58,9 +58,31 @@ api.interceptors.request.use(
       /*
        * Attach JWT when available.
        */
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      /*
+ * Attach JWT when available.
+ */
+if (token) {
+  console.log(
+    'API REQUEST:',
+    config.method?.toUpperCase(),
+    config.url,
+  );
+
+  console.log(
+    'AUTH TOKEN:',
+    `${token.substring(0, 20)}...`,
+  );
+
+  config.headers.Authorization = `Bearer ${token}`;
+} else {
+  console.log(
+    'API REQUEST:',
+    config.method?.toUpperCase(),
+    config.url,
+  );
+
+  console.log('AUTH TOKEN: NO TOKEN');
+}
 
       /*
        * Only use JSON Content-Type when a request

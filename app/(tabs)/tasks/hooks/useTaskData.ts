@@ -183,14 +183,6 @@ const mapApiTaskToTask = (
     subject:
       apiTask.subject || 'General',
 
-    /*
-     * The current backend does NOT store a separate
-     * category field.
-     *
-     * Calendar/task responses may return category
-     * mapped from subject, so we normalize it here
-     * for frontend compatibility.
-     */
     category: normalizeCategory(
       apiTask.category,
     ),
@@ -199,10 +191,6 @@ const mapApiTaskToTask = (
       apiTask.priority,
     ),
 
-    /*
-     * Difficulty is currently frontend-only because
-     * the backend Task model has no difficulty column.
-     */
     difficulty: normalizeDifficulty(),
 
     duration:
@@ -222,15 +210,9 @@ const mapApiTaskToTask = (
     hasReminder:
       Boolean(apiTask.hasReminder),
 
-    /*
-     * Repeat is currently frontend-only because
-     * the backend Task model has no recurrence field.
-     */
-    repeat: normalizeRepeat(),
+    repeat:
+      normalizeRepeat(),
 
-    /*
-     * Pin/Favorite are currently local UI states.
-     */
     isPinned: false,
 
     isFavorite: false,
@@ -336,13 +318,6 @@ export function useTaskData() {
   const [newSubject, setNewSubject] =
     useState('Capstone Paper');
 
-  /*
-   * Category, difficulty, duration, and repeat remain
-   * available for the existing frontend form.
-   *
-   * They are NOT sent to the current backend because
-   * the Task database model does not contain these fields.
-   */
   const [newCategory, setNewCategory] =
     useState<TaskCategory>('Academic');
 
@@ -403,7 +378,7 @@ export function useTaskData() {
     async () => {
       try {
         const response =
-          await api.get('/tasks/analytics');
+          await api.get('/api/tasks/analytics');
 
         if (
           response.data?.success &&
@@ -435,7 +410,7 @@ export function useTaskData() {
         }
 
         const response =
-          await api.get('/tasks');
+          await api.get('/api/tasks');
 
         const responseData =
           response.data;
@@ -617,10 +592,6 @@ export function useTaskData() {
 
       let result = tasks.filter(
         (task) => {
-          // --------------------------------------------
-          // SEARCH
-          // --------------------------------------------
-
           if (query) {
             const matchesTitle =
               task.title
@@ -645,10 +616,6 @@ export function useTaskData() {
               return false;
             }
           }
-
-          // --------------------------------------------
-          // FILTER
-          // --------------------------------------------
 
           switch (activeFilter) {
             case 'Today':
@@ -692,11 +659,6 @@ export function useTaskData() {
                 !task.completed
               );
 
-            /*
-             * These are kept as neutral/general filters
-             * because the current backend does not have
-             * dedicated category/difficulty fields.
-             */
             case 'Difficulty':
               return (
                 task.difficulty ===
@@ -720,10 +682,6 @@ export function useTaskData() {
         },
       );
 
-      // ----------------------------------------------
-      // FRONTEND-ONLY SORTING FILTERS
-      // ----------------------------------------------
-
       if (
         activeFilter ===
         'Recently Added'
@@ -743,15 +701,17 @@ export function useTaskData() {
       ) {
         result = [
           ...result,
-        ].filter(
-          (task) =>
-            !task.completed,
-        ).sort(
-          (a, b) =>
-            a.dueDate.localeCompare(
-              b.dueDate,
-            ),
-        );
+        ]
+          .filter(
+            (task) =>
+              !task.completed,
+          )
+          .sort(
+            (a, b) =>
+              a.dueDate.localeCompare(
+                b.dueDate,
+              ),
+          );
       }
 
       return result;
@@ -846,7 +806,7 @@ export function useTaskData() {
 
         try {
           await api.put(
-            `/tasks/${taskId}`,
+            `/api/tasks/${taskId}`,
             {
               completed:
                 newCompleted,
@@ -922,7 +882,7 @@ export function useTaskData() {
         try {
           const response =
             await api.patch(
-              `/tasks/${taskId}/subtasks/${subTaskId}`,
+              `/api/tasks/${taskId}/subtasks/${subTaskId}`,
               {
                 completed:
                   newCompleted,
@@ -1017,7 +977,7 @@ export function useTaskData() {
                 async () => {
                   try {
                     await api.delete(
-                      `/tasks/${taskId}`,
+                      `/api/tasks/${taskId}`,
                     );
 
                     setTasksState(
@@ -1152,7 +1112,7 @@ export function useTaskData() {
 
         try {
           await api.post(
-            '/tasks/bulk/complete',
+            '/api/tasks/bulk/complete',
             {
               taskIds:
                 selectedTaskIds,
@@ -1234,7 +1194,7 @@ export function useTaskData() {
               async () => {
                 try {
                   await api.delete(
-                    '/tasks/bulk',
+                    '/api/tasks/bulk',
                     {
                       data: {
                         taskIds:
@@ -1395,19 +1355,6 @@ export function useTaskData() {
         try {
           setIsLoading(true);
 
-          /*
-           * IMPORTANT:
-           * Only fields supported by the current
-           * backend Task model are sent.
-           *
-           * category
-           * difficulty
-           * duration
-           * repeat
-           *
-           * are NOT sent because they are not
-           * database fields in the current backend.
-           */
           const payload = {
             title:
               newTitle.trim(),
@@ -1453,7 +1400,7 @@ export function useTaskData() {
 
           const response =
             await api.post(
-              '/tasks',
+              '/api/tasks',
               payload,
             );
 

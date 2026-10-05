@@ -127,37 +127,47 @@ export function AuthProvider({
     loadSession();
   }, []);
 
-  const signIn = useCallback(async (nextSession: AuthSession) => {
-    if (!isSessionValid(nextSession)) {
-      throw new Error('Cannot save an invalid auth session.');
-    }
+ const signIn = useCallback(async (nextSession: AuthSession) => {
+  console.log('AUTH SIGN IN CALLED');
+  console.log(
+    'TOKEN RECEIVED:',
+    nextSession?.token
+      ? `${nextSession.token.substring(0, 20)}...`
+      : 'NO TOKEN',
+  );
 
+  if (!isSessionValid(nextSession)) {
+    throw new Error('Cannot save an invalid auth session.');
+  }
+
+  await AsyncStorage.setItem(
+    SESSION_KEY,
+    JSON.stringify(nextSession),
+  );
+
+  await AsyncStorage.setItem(
+    LEGACY_TOKEN_KEY,
+    nextSession.token,
+  );
+
+  if (nextSession.refreshToken) {
     await AsyncStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify(nextSession),
+      REFRESH_TOKEN_KEY,
+      nextSession.refreshToken,
     );
+  }
 
+  if (nextSession.user) {
     await AsyncStorage.setItem(
-      LEGACY_TOKEN_KEY,
-      nextSession.token,
+      LEGACY_USER_KEY,
+      JSON.stringify(nextSession.user),
     );
+  }
 
-    if (nextSession.refreshToken) {
-      await AsyncStorage.setItem(
-        REFRESH_TOKEN_KEY,
-        nextSession.refreshToken,
-      );
-    }
+  console.log('AUTH SESSION SAVED');
 
-    if (nextSession.user) {
-      await AsyncStorage.setItem(
-        LEGACY_USER_KEY,
-        JSON.stringify(nextSession.user),
-      );
-    }
-
-    setSession(nextSession);
-  }, []);
+  setSession(nextSession);
+}, []);
 
   const signOut = useCallback(async () => {
     /*
