@@ -1,16 +1,15 @@
 
-import React from 'react';
-import { View, Text, FlatList } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAppTheme } from '@/app/context/ThemeContext';
 import { useDrawer } from '@/app/(tabs)/_layout';
+import { useAppTheme } from '@/app/context/ThemeContext';
 
 import {
-  WalletHeader,
-  WalletBalanceCard,
-  TransactionItem,
-  AddTransactionModal,
+    AddTransactionModal,
+    TransactionItem,
+    WalletBalanceCard,
+    WalletHeader,
 } from './components';
 
 import { useExpensesData } from './hooks/useExpensesData';
@@ -65,6 +64,8 @@ export default function WalletScreen() {
     setNewTitle,
     newAmount,
     setNewAmount,
+    newDate,
+    setNewDate,
     transactionType,
     newCategory,
     setNewCategory,
@@ -154,6 +155,8 @@ export default function WalletScreen() {
         onTitleChange={setNewTitle}
         amount={newAmount}
         onAmountChange={setNewAmount}
+        date={newDate}
+        onDateChange={setNewDate}
         transactionType={transactionType}
         onTypeChange={handleTypeChange}
         category={newCategory}

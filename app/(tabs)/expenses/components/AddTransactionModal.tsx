@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,14 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
+
 import { TransactionType } from '../types';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants/expenseCategories';
+import {
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+} from '../constants/expenseCategories';
 import { expenseStyles as styles } from '../styles/expenses.styles';
 
 interface AddTransactionModalProps {
@@ -25,6 +30,11 @@ interface AddTransactionModalProps {
   onTypeChange: (type: TransactionType) => void;
   category: string;
   onCategoryChange: (cat: string) => void;
+
+  // NEW
+  date: Date;
+  onDateChange: (date: Date) => void;
+
   onSubmit: () => void;
   cardBg: string;
   borderCol: string;
@@ -47,6 +57,11 @@ export default function AddTransactionModal({
   onTypeChange,
   category,
   onCategoryChange,
+
+  // NEW
+  date,
+  onDateChange,
+
   onSubmit,
   cardBg,
   borderCol,
@@ -57,7 +72,43 @@ export default function AddTransactionModal({
   successGreen,
   errorRed,
 }: AddTransactionModalProps) {
-  const currentCategories = transactionType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const currentCategories =
+    transactionType === 'expense'
+      ? EXPENSE_CATEGORIES
+      : INCOME_CATEGORIES;
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const formatDate = (value: Date) => {
+    return value.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const isToday = (value: Date) => {
+    const today = new Date();
+
+    return (
+      value.getFullYear() === today.getFullYear() &&
+      value.getMonth() === today.getMonth() &&
+      value.getDate() === today.getDate()
+    );
+  };
+
+  const handleDateChange = (
+    event: any,
+    selectedDate?: Date
+  ) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (selectedDate) {
+      onDateChange(selectedDate);
+    }
+  };
 
   return (
     <Modal
@@ -71,24 +122,56 @@ export default function AddTransactionModal({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalContainer}
         >
-          <View style={[styles.modalContent, { backgroundColor: cardBg, borderColor: borderCol }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: cardBg,
+                borderColor: borderCol,
+              },
+            ]}
+          >
             {/* Modal Header */}
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: textPrimary }]}>Add New Transaction</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Feather name="x" size={22} color={textSecondary} />
+              <Text
+                style={[
+                  styles.modalTitle,
+                  { color: textPrimary },
+                ]}
+              >
+                Add New Transaction
+              </Text>
+
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.closeButton}
+              >
+                <Feather
+                  name="x"
+                  size={22}
+                  color={textSecondary}
+                />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* Transaction Type Toggles */}
               <View style={styles.toggleRow}>
                 <TouchableOpacity
                   style={[
                     styles.toggleButton,
                     {
-                      backgroundColor: transactionType === 'expense' ? errorRed : inputBg,
-                      borderColor: transactionType === 'expense' ? errorRed : borderCol,
+                      backgroundColor:
+                        transactionType === 'expense'
+                          ? errorRed
+                          : inputBg,
+                      borderColor:
+                        transactionType === 'expense'
+                          ? errorRed
+                          : borderCol,
                     },
                   ]}
                   onPress={() => onTypeChange('expense')}
@@ -96,13 +179,23 @@ export default function AddTransactionModal({
                   <Feather
                     name="arrow-up-right"
                     size={16}
-                    color={transactionType === 'expense' ? '#FFFFFF' : textSecondary}
+                    color={
+                      transactionType === 'expense'
+                        ? '#FFFFFF'
+                        : textSecondary
+                    }
                     style={{ marginRight: 6 }}
                   />
+
                   <Text
                     style={[
                       styles.toggleButtonText,
-                      { color: transactionType === 'expense' ? '#FFFFFF' : textPrimary },
+                      {
+                        color:
+                          transactionType === 'expense'
+                            ? '#FFFFFF'
+                            : textPrimary,
+                      },
                     ]}
                   >
                     Expense
@@ -113,8 +206,14 @@ export default function AddTransactionModal({
                   style={[
                     styles.toggleButton,
                     {
-                      backgroundColor: transactionType === 'income' ? successGreen : inputBg,
-                      borderColor: transactionType === 'income' ? successGreen : borderCol,
+                      backgroundColor:
+                        transactionType === 'income'
+                          ? successGreen
+                          : inputBg,
+                      borderColor:
+                        transactionType === 'income'
+                          ? successGreen
+                          : borderCol,
                     },
                   ]}
                   onPress={() => onTypeChange('income')}
@@ -122,13 +221,23 @@ export default function AddTransactionModal({
                   <Feather
                     name="arrow-down-left"
                     size={16}
-                    color={transactionType === 'income' ? '#FFFFFF' : textSecondary}
+                    color={
+                      transactionType === 'income'
+                        ? '#FFFFFF'
+                        : textSecondary
+                    }
                     style={{ marginRight: 6 }}
                   />
+
                   <Text
                     style={[
                       styles.toggleButtonText,
-                      { color: transactionType === 'income' ? '#FFFFFF' : textPrimary },
+                      {
+                        color:
+                          transactionType === 'income'
+                            ? '#FFFFFF'
+                            : textPrimary,
+                      },
                     ]}
                   >
                     Income
@@ -136,10 +245,25 @@ export default function AddTransactionModal({
                 </TouchableOpacity>
               </View>
 
-              {/* Text Inputs */}
-              <Text style={[styles.inputLabel, { color: textSecondary }]}>Description</Text>
+              {/* Description */}
+              <Text
+                style={[
+                  styles.inputLabel,
+                  { color: textSecondary },
+                ]}
+              >
+                Description
+              </Text>
+
               <TextInput
-                style={[styles.input, { color: textPrimary, backgroundColor: inputBg, borderColor: borderCol }]}
+                style={[
+                  styles.input,
+                  {
+                    color: textPrimary,
+                    backgroundColor: inputBg,
+                    borderColor: borderCol,
+                  },
+                ]}
                 placeholder="e.g. Weekly Allowance, Lunch"
                 placeholderTextColor={textSecondary}
                 value={title}
@@ -147,9 +271,25 @@ export default function AddTransactionModal({
                 autoFocus={true}
               />
 
-              <Text style={[styles.inputLabel, { color: textSecondary }]}>Amount (₱)</Text>
+              {/* Amount */}
+              <Text
+                style={[
+                  styles.inputLabel,
+                  { color: textSecondary },
+                ]}
+              >
+                Amount (₱)
+              </Text>
+
               <TextInput
-                style={[styles.input, { color: textPrimary, backgroundColor: inputBg, borderColor: borderCol }]}
+                style={[
+                  styles.input,
+                  {
+                    color: textPrimary,
+                    backgroundColor: inputBg,
+                    borderColor: borderCol,
+                  },
+                ]}
                 placeholder="0.00"
                 placeholderTextColor={textSecondary}
                 keyboardType="numeric"
@@ -157,8 +297,86 @@ export default function AddTransactionModal({
                 onChangeText={onAmountChange}
               />
 
-              {/* Dynamic Category List */}
-              <Text style={[styles.categoryLabel, { color: textSecondary }]}>Category</Text>
+              {/* Date */}
+              <Text
+                style={[
+                  styles.inputLabel,
+                  { color: textSecondary },
+                ]}
+              >
+                Date
+              </Text>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowDatePicker(true)}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: inputBg,
+                    borderColor: borderCol,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Feather
+                    name="calendar"
+                    size={18}
+                    color={primaryBrown}
+                    style={{ marginRight: 10 }}
+                  />
+
+                  <Text
+                    style={{
+                      color: textPrimary,
+                      fontSize: 15,
+                    }}
+                  >
+                    {isToday(date)
+                      ? `Today · ${formatDate(date)}`
+                      : formatDate(date)}
+                  </Text>
+                </View>
+
+                <Feather
+                  name="chevron-down"
+                  size={18}
+                  color={textSecondary}
+                />
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display={
+                    Platform.OS === 'ios'
+                      ? 'spinner'
+                      : 'default'
+                  }
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                />
+              )}
+
+              {/* Category */}
+              <Text
+                style={[
+                  styles.categoryLabel,
+                  { color: textSecondary },
+                ]}
+              >
+                Category
+              </Text>
+
               <View style={styles.categoryRow}>
                 {currentCategories.map((cat) => (
                   <TouchableOpacity
@@ -166,7 +384,10 @@ export default function AddTransactionModal({
                     style={[
                       styles.categoryButton,
                       {
-                        backgroundColor: category === cat ? primaryBrown : inputBg,
+                        backgroundColor:
+                          category === cat
+                            ? primaryBrown
+                            : inputBg,
                         borderColor: borderCol,
                       },
                     ]}
@@ -175,7 +396,12 @@ export default function AddTransactionModal({
                     <Text
                       style={[
                         styles.categoryButtonText,
-                        { color: category === cat ? '#FFFFFF' : textPrimary },
+                        {
+                          color:
+                            category === cat
+                              ? '#FFFFFF'
+                              : textPrimary,
+                        },
                       ]}
                     >
                       {cat}
@@ -184,13 +410,19 @@ export default function AddTransactionModal({
                 ))}
               </View>
 
-              {/* Submit Button */}
+              {/* Submit */}
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: primaryBrown }]}
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: primaryBrown },
+                ]}
                 onPress={onSubmit}
               >
                 <Text style={styles.submitButtonText}>
-                  Save {transactionType === 'income' ? 'Income' : 'Expense'}
+                  Save{' '}
+                  {transactionType === 'income'
+                    ? 'Income'
+                    : 'Expense'}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
