@@ -1,5 +1,6 @@
 import api from '@/app/services/api';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -103,9 +104,11 @@ export function useExpensesData() {
     ]);
   }, [loadTransactions, loadWalletBalance]);
 
-  useEffect(() => {
-    refreshWallet();
-  }, [refreshWallet]);
+  useFocusEffect(
+    useCallback(() => {
+      refreshWallet();
+    }, [refreshWallet]),
+  );
 
   // =========================
   // WALLET VALUES

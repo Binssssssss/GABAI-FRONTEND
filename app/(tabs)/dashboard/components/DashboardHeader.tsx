@@ -224,27 +224,7 @@ export default function DashboardHeader({
           </TouchableOpacity>
 
           {/* PROFILE */}
-          <TouchableOpacity
-            style={[
-              styles.avatarWrapper,
-              {
-                borderColor: isDark
-                  ? '#4A3A2D'
-                  : '#D8C2AA',
-              },
-            ]}
-            onPress={() =>
-              router.push('/(tabs)/profile/profile')
-            }
-            activeOpacity={0.8}
-          >
-            <Image
-              source={{
-                uri: 'https://i.pravatar.cc/150?img=12',
-              }}
-              style={styles.avatar}
-            />
-          </TouchableOpacity>
+
         </View>
       </View>
 

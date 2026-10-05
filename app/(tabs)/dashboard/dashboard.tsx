@@ -11,7 +11,6 @@ import {
   DashboardTask,
   FocusSessionWidget,
   Footer,
-  // QuickActions,
   QuickOverview,
   RecentActivity,
   SmartReminders,
@@ -21,6 +20,7 @@ import {
   UpcomingDeadlines,
 } from './components';
 
+import { useExpensesData } from '../expenses/hooks/useExpensesData';
 import { useDashboardData } from './hooks/useDashboardData';
 
 import {
@@ -42,13 +42,9 @@ export default function DashboardScreen() {
   const warningOrange = '#F59E0B';
 
   const bgTheme = isDark ? '#121212' : '#FFFFFF';
-
   const textPrimary = isDark ? '#ECEDEE' : '#11181C';
-
   const textSecondary = isDark ? '#9BA1A6' : '#666666';
-
   const cardBg = isDark ? '#1E1E1E' : '#F8FAFC';
-
   const borderCol = isDark ? '#2E2E2E' : '#E2E8F0';
 
   // Drawer + Auth
@@ -81,6 +77,13 @@ export default function DashboardScreen() {
     onRefresh,
     handleToggleComplete,
   } = useDashboardData();
+
+  const {
+    netBalance,
+    totalIncome,
+    totalExpenses,
+    isLoading: isMoneyLoading,
+  } = useExpensesData();
 
   const priorityColorHelper = (
     pr: DashboardTask['priority']
@@ -122,14 +125,6 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* QUICK ACTIONS
-        <View style={styles.section}>
-          <QuickActions
-            primaryBrown={primaryBrown}
-            borderCol={borderCol}
-          />
-        </View> */}
-
         {/* SMART REMINDERS */}
         <View style={styles.sectionSmall}>
           <SmartReminders
@@ -171,10 +166,12 @@ export default function DashboardScreen() {
             borderCol={borderCol}
             textPrimary={textPrimary}
             textSecondary={textSecondary}
-            tasksCount={4}
-            deadlinesCount={5}
-            classesCount={2}
-            weeklySpend="₱1,250"
+            successGreen={successGreen}
+            errorRed={errorRed}
+            balance={netBalance}
+            income={totalIncome}
+            expenses={totalExpenses}
+            isLoading={isMoneyLoading}
           />
         </View>
 

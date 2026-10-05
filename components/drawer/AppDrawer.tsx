@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { drawerStyles as styles } from './drawer.style';
@@ -46,6 +47,7 @@ export default function AppDrawer({
   handleLogout,
   isActiveRoute,
   menuItems,
+  
 
   primaryBrown,
   successGreen,
@@ -56,6 +58,7 @@ export default function AppDrawer({
   cardBg,
   borderCol,
 }: AppDrawerProps) {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = React.useState<Record<string, string>>({});
   const screenWidth = Dimensions.get('window').width;
   const drawerWidth = screenWidth * 0.78;
@@ -156,23 +159,29 @@ export default function AppDrawer({
           }
         >
           {/* =====================================
-              PROFILE CARD
-          ====================================== */}
+    PROFILE CARD
+====================================== */}
 
-          <View
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+  closeDrawer();
+
+  setTimeout(() => {
+    router.push('/(tabs)/profile/profile');
+  }, 150);
+}}
             style={[
               styles.profileCard,
               {
-                backgroundColor:
-                  colorWithOpacity(
-                    primaryBrown,
-                    0.08
-                  ),
-                borderColor:
-                  colorWithOpacity(
-                    primaryBrown,
-                    0.16
-                  ),
+                backgroundColor: colorWithOpacity(
+                  primaryBrown,
+                  0.08
+                ),
+                borderColor: colorWithOpacity(
+                  primaryBrown,
+                  0.16
+                ),
               },
             ]}
           >
@@ -185,7 +194,11 @@ export default function AppDrawer({
               ]}
             >
               <Text style={styles.avatarText}>
-                {currentUser.initials || currentUser.name?.slice(0, 2).toUpperCase() || 'U'}
+                {currentUser.initials ||
+                  currentUser.name
+                    ?.slice(0, 2)
+                    .toUpperCase() ||
+                  'U'}
               </Text>
 
               <View
@@ -209,7 +222,11 @@ export default function AppDrawer({
                 ]}
                 numberOfLines={1}
               >
-                {currentUser.name || currentUser.fullName || currentUser.userName || currentUser.email || 'User'}
+                {currentUser.name ||
+                  currentUser.fullName ||
+                  currentUser.userName ||
+                  currentUser.email ||
+                  'User'}
               </Text>
 
               <Text
@@ -228,8 +245,7 @@ export default function AppDrawer({
                   style={[
                     styles.statusDot,
                     {
-                      backgroundColor:
-                        successGreen,
+                      backgroundColor: successGreen,
                     },
                   ]}
                 />
@@ -252,7 +268,7 @@ export default function AppDrawer({
               size={17}
               color={textSecondary}
             />
-          </View>
+          </TouchableOpacity>
 
           {/* =====================================
               MAIN NAVIGATION
@@ -490,13 +506,13 @@ function DrawerMenuItem({
           {
             backgroundColor: item.active
               ? colorWithOpacity(
-                  primaryBrown,
-                  0.13
-                )
+                primaryBrown,
+                0.13
+              )
               : colorWithOpacity(
-                  textSecondary,
-                  0.06
-                ),
+                textSecondary,
+                0.06
+              ),
           },
         ]}
       >

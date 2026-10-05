@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Alert } from 'react-native';
 
@@ -14,6 +15,42 @@ import {
   TaskDifficulty,
   TaskRepeat,
 } from '../types';
+
+// ------------------------------------------------------
+// ALERT HELPERS
+// ------------------------------------------------------
+
+const showErrorAlert = (
+  title: string,
+  message: string
+) => {
+  Alert.alert(
+    title,
+    message,
+    [
+      {
+        text: 'OK',
+        style: 'default',
+      },
+    ]
+  );
+};
+
+const showSuccessAlert = (
+  title: string,
+  message: string
+) => {
+  Alert.alert(
+    title,
+    message,
+    [
+      {
+        text: 'OK',
+        style: 'default',
+      },
+    ]
+  );
+};
 
 // ------------------------------------------------------
 // DATE HELPERS
@@ -55,7 +92,6 @@ const normalizeBackendTask = (
   subject: task.subject || 'General',
 
   // Backend does not currently store these fields.
-  // Keep frontend defaults for now.
   category: 'Academic',
 
   priority: task.priority,
@@ -127,18 +163,68 @@ export function useTaskData() {
     try {
       setIsLoading(true);
 
+      console.log('STEP 1: Calling taskService.getTasks()');
+
       const backendTasks =
         await taskService.getTasks();
 
-      const normalizedTasks =
-        backendTasks.map(normalizeBackendTask);
+      console.log(
+        'TASK API RESPONSE:',
+        JSON.stringify(backendTasks, null, 2)
+      );
 
-      localDb.setTasks(normalizedTasks);
-      setTasksState(normalizedTasks);
-    } catch {
-      Alert.alert(
+      console.log(
+        'IS ARRAY:',
+        Array.isArray(backendTasks)
+      );
+
+      console.log('STEP 2: backendTasks =', backendTasks);
+      console.log(
+        'STEP 3: backendTasks is array =',
+        Array.isArray(backendTasks)
+      );
+
+      const taskArray = Array.isArray(backendTasks)
+  ? backendTasks
+  : [];
+
+console.log(
+  'TASK API RESPONSE:',
+  backendTasks
+);
+
+console.log(
+  'IS ARRAY:',
+  Array.isArray(backendTasks)
+);
+
+const normalizedTasks =
+  taskArray.map(normalizeBackendTask);
+      console.log(
+        'STEP 4: normalizedTasks =',
+        normalizedTasks
+      );
+
+      localDb.setTasks(
+        normalizedTasks
+      );
+
+      console.log('STEP 5: localDb.setTasks() worked');
+
+      setTasksState(
+        normalizedTasks
+      );
+
+      console.log('STEP 6: setTasksState() worked');
+    } catch (error) {
+      console.error(
+        'Failed to load tasks:',
+        error
+      );
+
+      showErrorAlert(
         'Unable to Load Tasks',
-        'Could not connect to your tasks. Please try again.'
+        'We could not load your tasks right now. Please check your connection and try again.'
       );
     } finally {
       setIsLoading(false);
@@ -154,9 +240,12 @@ export function useTaskData() {
   // ----------------------------------------------------
 
   useEffect(() => {
-    const unsubscribe = localDb.subscribe(() => {
-      setTasksState(localDb.getTasks());
-    });
+    const unsubscribe =
+      localDb.subscribe(() => {
+        setTasksState(
+          localDb.getTasks()
+        );
+      });
 
     return unsubscribe;
   }, []);
@@ -189,27 +278,39 @@ export function useTaskData() {
   // MULTI SELECT
   // ----------------------------------------------------
 
-  const [isMultiSelectMode, setIsMultiSelectMode] =
-    useState(false);
+  const [
+    isMultiSelectMode,
+    setIsMultiSelectMode,
+  ] = useState(false);
 
-  const [selectedTaskIds, setSelectedTaskIds] =
-    useState<string[]>([]);
+  const [
+    selectedTaskIds,
+    setSelectedTaskIds,
+  ] = useState<string[]>([]);
 
   // ----------------------------------------------------
   // FOCUS MODE
   // ----------------------------------------------------
 
-  const [focusedTask, setFocusedTask] =
-    useState<Task | null>(null);
+  const [
+    focusedTask,
+    setFocusedTask,
+  ] = useState<Task | null>(null);
 
-  const [isFocusActive, setIsFocusActive] =
-    useState(false);
+  const [
+    isFocusActive,
+    setIsFocusActive,
+  ] = useState(false);
 
-  const [pomodoroTime, setPomodoroTime] =
-    useState(25 * 60);
+  const [
+    pomodoroTime,
+    setPomodoroTime,
+  ] = useState(25 * 60);
 
-  const [isTimerRunning, setIsTimerRunning] =
-    useState(false);
+  const [
+    isTimerRunning,
+    setIsTimerRunning,
+  ] = useState(false);
 
   // ----------------------------------------------------
   // CREATE TASK FORM
@@ -250,11 +351,15 @@ export function useTaskData() {
   const [newRepeat, setNewRepeat] =
     useState<TaskRepeat>('None');
 
-  const [newSubTaskInput, setNewSubTaskInput] =
-    useState('');
+  const [
+    newSubTaskInput,
+    setNewSubTaskInput,
+  ] = useState('');
 
-  const [newSubTasksList, setNewSubTasksList] =
-    useState<string[]>([]);
+  const [
+    newSubTasksList,
+    setNewSubTasksList,
+  ] = useState<string[]>([]);
 
   // ----------------------------------------------------
   // SEARCH
@@ -290,8 +395,14 @@ export function useTaskData() {
       setIsTimerRunning(false);
 
       Alert.alert(
-        'Focus Time Up!',
-        'Great job! Take a small rest break.'
+        'Focus Session Complete',
+        'Great work! Your focus session is finished. Take a short break before continuing.',
+        [
+          {
+            text: 'Take a Break',
+            style: 'default',
+          },
+        ]
       );
 
       setPomodoroTime(25 * 60);
@@ -339,10 +450,10 @@ export function useTaskData() {
   const completionRate =
     totalTasks > 0
       ? Math.round(
-          (completedTasks /
-            totalTasks) *
-            100
-        )
+        (completedTasks /
+          totalTasks) *
+        100
+      )
       : 0;
 
   const estimatedRemainingHours =
@@ -439,7 +550,7 @@ export function useTaskData() {
           ) {
             return (
               task.dueDate ===
-                todayStr &&
+              todayStr &&
               !task.completed
             );
           }
@@ -449,7 +560,7 @@ export function useTaskData() {
           ) {
             return (
               task.dueDate ===
-                tomorrowStr &&
+              tomorrowStr &&
               !task.completed
             );
           }
@@ -459,7 +570,7 @@ export function useTaskData() {
           ) {
             return (
               task.priority ===
-                'High' &&
+              'High' &&
               !task.completed
             );
           }
@@ -469,7 +580,7 @@ export function useTaskData() {
           ) {
             return (
               task.difficulty ===
-                'Hard' &&
+              'Hard' &&
               !task.completed
             );
           }
@@ -501,7 +612,7 @@ export function useTaskData() {
         tasks.filter(
           (task) =>
             task.dueDate <
-              todayStr &&
+            todayStr &&
             !task.completed
         ),
       [tasks, todayStr]
@@ -513,7 +624,7 @@ export function useTaskData() {
         tasks.filter(
           (task) =>
             task.dueDate ===
-              todayStr &&
+            todayStr &&
             !task.completed
         ),
       [tasks, todayStr]
@@ -525,7 +636,7 @@ export function useTaskData() {
         tasks.filter(
           (task) =>
             task.dueDate ===
-              tomorrowStr &&
+            tomorrowStr &&
             !task.completed
         ),
       [tasks, tomorrowStr]
@@ -537,7 +648,7 @@ export function useTaskData() {
         tasks.filter(
           (task) =>
             task.dueDate >
-              tomorrowStr &&
+            tomorrowStr &&
             !task.completed
         ),
       [tasks, tomorrowStr]
@@ -564,10 +675,10 @@ export function useTaskData() {
           prev.map((task) =>
             task.id === taskId
               ? {
-                  ...task,
-                  completed:
-                    !task.completed,
-                }
+                ...task,
+                completed:
+                  !task.completed,
+              }
               : task
           )
         );
@@ -593,12 +704,12 @@ export function useTaskData() {
               task.subTasks.map(
                 (subTask) =>
                   subTask.id ===
-                  subTaskId
+                    subTaskId
                     ? {
-                        ...subTask,
-                        completed:
-                          !subTask.completed,
-                      }
+                      ...subTask,
+                      completed:
+                        !subTask.completed,
+                    }
                     : subTask
               );
 
@@ -621,8 +732,8 @@ export function useTaskData() {
     useCallback(
       (taskId: string) => {
         Alert.alert(
-          'Delete Task',
-          'Are you sure you want to delete this task?',
+          'Delete Task?',
+          'This task will be removed from your task list. This action cannot be undone.',
           [
             {
               text: 'Cancel',
@@ -668,10 +779,10 @@ export function useTaskData() {
           prev.map((task) =>
             task.id === taskId
               ? {
-                  ...task,
-                  isPinned:
-                    !task.isPinned,
-                }
+                ...task,
+                isPinned:
+                  !task.isPinned,
+              }
               : task
           )
         );
@@ -690,10 +801,10 @@ export function useTaskData() {
           prev.map((task) =>
             task.id === taskId
               ? {
-                  ...task,
-                  isFavorite:
-                    !task.isFavorite,
-                }
+                ...task,
+                isFavorite:
+                  !task.isFavorite,
+              }
               : task
           )
         );
@@ -712,13 +823,13 @@ export function useTaskData() {
           (prev) =>
             prev.includes(taskId)
               ? prev.filter(
-                  (id) =>
-                    id !== taskId
-                )
+                (id) =>
+                  id !== taskId
+              )
               : [
-                  ...prev,
-                  taskId,
-                ]
+                ...prev,
+                taskId,
+              ]
         );
       },
       []
@@ -730,6 +841,10 @@ export function useTaskData() {
         selectedTaskIds.length ===
         0
       ) {
+        showErrorAlert(
+          'No Tasks Selected',
+          'Select at least one task to mark as completed.'
+        );
         return;
       }
 
@@ -739,15 +854,23 @@ export function useTaskData() {
             task.id
           )
             ? {
-                ...task,
-                completed: true,
-              }
+              ...task,
+              completed: true,
+            }
             : task
         )
       );
 
       setSelectedTaskIds([]);
       setIsMultiSelectMode(false);
+
+      showSuccessAlert(
+        'Tasks Completed',
+        `${selectedTaskIds.length} task${selectedTaskIds.length === 1
+          ? ''
+          : 's'
+        } marked as completed.`
+      );
     }, [
       selectedTaskIds,
       setTasks,
@@ -759,12 +882,20 @@ export function useTaskData() {
         selectedTaskIds.length ===
         0
       ) {
+        showErrorAlert(
+          'No Tasks Selected',
+          'Select at least one task to delete.'
+        );
         return;
       }
 
+      const count =
+        selectedTaskIds.length;
+
       Alert.alert(
-        'Bulk Delete',
-        `Delete ${selectedTaskIds.length} selected tasks?`,
+        'Delete Selected Tasks?',
+        `You're about to delete ${count} selected task${count === 1 ? '' : 's'
+        }. This action cannot be undone.`,
         [
           {
             text: 'Cancel',
@@ -784,8 +915,14 @@ export function useTaskData() {
               );
 
               setSelectedTaskIds([]);
-              setIsMultiSelectMode(
-                false
+              setIsMultiSelectMode(false);
+
+              showSuccessAlert(
+                'Tasks Deleted',
+                `${count} task${count === 1
+                  ? ''
+                  : 's'
+                } removed successfully.`
               );
             },
           },
@@ -845,6 +982,10 @@ export function useTaskData() {
         newSubTaskInput.trim();
 
       if (!value) {
+        showErrorAlert(
+          'Subtask Required',
+          'Please enter a subtask before adding it.'
+        );
         return;
       }
 
@@ -876,93 +1017,163 @@ export function useTaskData() {
   // CREATE TASK
   // ----------------------------------------------------
 
-  const handleCreateTask = useCallback(async () => {
-  if (!newTitle.trim()) {
-    Alert.alert('Error', 'Please enter a task title');
-    return;
-  }
+  const handleCreateTask =
+    useCallback(async () => {
+      if (!newTitle.trim()) {
+        showErrorAlert(
+          'Task Title Required',
+          'Please enter a title for your task before saving.'
+        );
+        return;
+      }
 
-  try {
-    const duration = parseFloat(newDuration) || 1.0;
+      try {
+        const duration =
+          parseFloat(
+            newDuration
+          ) || 1.0;
 
-    const subTasksFormatted: SubTask[] = newSubTasksList.map(
-      (title, index) => ({
-        id: `${Date.now()}-${index}`,
-        title,
-        completed: false,
-      })
-    );
+        const backendTask =
+          await taskService.createTask({
+            title:
+              newTitle.trim(),
 
-    // Send only backend-supported fields
-    const backendTask = await taskService.createTask({
-      title: newTitle.trim(),
-      description:
-        newDesc.trim() || 'No detailed description provided.',
-      subject: newSubject,
-      priority: newPriority,
-      dueDate: newDueDate,
-      dueTime: newDueTime,
-      hasReminder: newHasReminder,
-      subTasks: newSubTasksList,
-    });
+            description:
+              newDesc.trim() ||
+              'No detailed description provided.',
 
-    // Convert backend task to your existing frontend Task structure
-    const created: Task = {
-      id: backendTask.id,
-      title: backendTask.title,
-      description: backendTask.description || '',
-      subject: backendTask.subject,
-      category: newCategory,
-      priority: backendTask.priority,
-      difficulty: newDifficulty,
-      duration,
-      dueDate: backendTask.dueDate,
-      dueTime: backendTask.dueTime,
-      completed: backendTask.completed,
-      hasReminder: backendTask.hasReminder,
-      repeat: newRepeat,
-      isPinned: false,
-      isFavorite: false,
-      attachments: 0,
-      subTasks: backendTask.subTasks.map((subTask) => ({
-        id: subTask.id,
-        title: subTask.title,
-        completed: subTask.completed,
-      })),
-      createdAt: Date.parse(backendTask.createdAt) || Date.now(),
-    };
+            subject:
+              newSubject,
 
-    setTasks((prev) => [created, ...prev]);
+            priority:
+              newPriority,
 
-    setNewTitle('');
-    setNewDesc('');
-    setNewSubTasksList([]);
-    setNewSubTaskInput('');
-    setIsAdding(false);
-  } catch (error: any) {
-    console.error('Failed to create task:', error);
+            dueDate:
+              newDueDate,
 
-    Alert.alert(
-      'Error',
-      error?.response?.data?.message ||
-        'Failed to save task. Please try again.'
-    );
-  }
-}, [
-  newTitle,
-  newDesc,
-  newSubject,
-  newCategory,
-  newPriority,
-  newDifficulty,
-  newDuration,
-  newDueDate,
-  newDueTime,
-  newHasReminder,
-  newRepeat,
-  newSubTasksList,
-  setTasks,
-]);
+            dueTime:
+              newDueTime,
+
+            hasReminder:
+              newHasReminder,
+
+            subTasks:
+              newSubTasksList,
+          });
+
+        const created: Task = {
+          id:
+            backendTask.id,
+
+          title:
+            backendTask.title,
+
+          description:
+            backendTask.description ||
+            '',
+
+          subject:
+            backendTask.subject,
+
+          category:
+            newCategory,
+
+          priority:
+            backendTask.priority,
+
+          difficulty:
+            newDifficulty,
+
+          duration,
+
+          dueDate:
+            backendTask.dueDate,
+
+          dueTime:
+            backendTask.dueTime,
+
+          completed:
+            backendTask.completed,
+
+          hasReminder:
+            backendTask.hasReminder,
+
+          repeat:
+            newRepeat,
+
+          isPinned:
+            false,
+
+          isFavorite:
+            false,
+
+          attachments:
+            0,
+
+          subTasks:
+            backendTask.subTasks.map(
+              (subTask) => ({
+                id:
+                  subTask.id,
+
+                title:
+                  subTask.title,
+
+                completed:
+                  subTask.completed,
+              })
+            ),
+
+          createdAt:
+            Date.parse(
+              backendTask.createdAt
+            ) || Date.now(),
+        };
+
+        setTasks(
+          (prev) => [
+            created,
+            ...prev,
+          ]
+        );
+
+        setNewTitle('');
+        setNewDesc('');
+        setNewSubTasksList([]);
+        setNewSubTaskInput('');
+        setIsAdding(false);
+
+        showSuccessAlert(
+          'Task Added',
+          'Your task has been added successfully.'
+        );
+      } catch (error: any) {
+        console.error(
+          'Failed to create task:',
+          error
+        );
+
+        showErrorAlert(
+          'Unable to Save Task',
+          error?.response?.data?.message ||
+          'We could not save your task. Please try again.'
+        );
+      }
+    }, [
+      newTitle,
+      newDesc,
+      newSubject,
+      newCategory,
+      newPriority,
+      newDifficulty,
+      newDuration,
+      newDueDate,
+      newDueTime,
+      newHasReminder,
+      newRepeat,
+      newSubTasksList,
+      setTasks,
+    ]);
 
   // ----------------------------------------------------
   // REFRESH
@@ -976,10 +1187,43 @@ export function useTaskData() {
         const backendTasks =
           await taskService.getTasks();
 
+        console.log(
+          '========== TASK DEBUG =========='
+        );
+
+        console.log(
+          'backendTasks:',
+          backendTasks
+        );
+
+        console.log(
+          'backendTasks type:',
+          typeof backendTasks
+        );
+
+        console.log(
+          'isArray:',
+          Array.isArray(backendTasks)
+        );
+
+        console.log(
+          'keys:',
+          backendTasks &&
+            typeof backendTasks === 'object'
+            ? Object.keys(backendTasks)
+            : 'NO KEYS'
+        );
+
+        console.log(
+          '================================'
+        );
+
+        const taskArray = Array.isArray(backendTasks)
+          ? backendTasks
+          : [];
+
         const normalizedTasks =
-          backendTasks.map(
-            normalizeBackendTask
-          );
+          taskArray.map(normalizeBackendTask);
 
         localDb.setTasks(
           normalizedTasks
@@ -988,10 +1232,15 @@ export function useTaskData() {
         setTasksState(
           normalizedTasks
         );
-      } catch {
-        Alert.alert(
+      } catch (error) {
+        console.error(
+          'Failed to refresh tasks:',
+          error
+        );
+
+        showErrorAlert(
           'Unable to Refresh',
-          'Could not load your tasks. Please try again.'
+          'Could not load your latest tasks. Please try again.'
         );
       } finally {
         setIsRefreshing(false);
