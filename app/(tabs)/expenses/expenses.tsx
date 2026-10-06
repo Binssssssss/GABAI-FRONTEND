@@ -16,39 +16,19 @@ import { useExpensesData } from './hooks/useExpensesData';
 import { expenseStyles as styles } from './styles/expenses.styles';
 
 export default function WalletScreen() {
-  const { colorScheme } = useAppTheme();
-
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
 
   // Theme Colors
   const primaryBrown = '#A97C50';
 
-  const textPrimary = isDark
-    ? '#ECEDEE'
-    : '#11181C';
-
-  const textSecondary = isDark
-    ? '#9BA1A6'
-    : '#666666';
-
-  const cardBg = isDark
-    ? '#1E1E1E'
-    : '#F8FAFC';
-
-  const borderCol = isDark
-    ? '#2E2E2E'
-    : '#E2E8F0';
-
-  const inputBg = isDark
-    ? '#121212'
-    : '#FFFFFF';
-
-  const bgTheme = isDark
-    ? '#121212'
-    : '#FFFFFF';
-
-  const successGreen = '#10B981';
-  const errorRed = '#EF4444';
+  const textPrimary = colors.text;
+  const textSecondary = colors.icon;
+  const cardBg = colors.surface;
+  const borderCol = colors.border;
+  const inputBg = colors.surfaceStrong;
+  const bgTheme = colors.background;
+  const successGreen = colors.success;
+  const errorRed = colors.danger;
 
   const { openDrawer } = useDrawer();
 

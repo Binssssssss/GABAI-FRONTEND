@@ -1,4 +1,4 @@
-import { StyleSheet, Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const assistantStyles = StyleSheet.create({
   container: {
@@ -65,7 +65,7 @@ export const assistantStyles = StyleSheet.create({
     marginTop: 6,
   },
   messageBubble: {
-    borderRadius: 18,
+    borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     position: 'relative',
@@ -165,7 +165,7 @@ export const assistantStyles = StyleSheet.create({
   },
   guideCard: {
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     width: '100%',
     marginBottom: 24,
@@ -215,7 +215,7 @@ export const assistantStyles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 8,
     width: '100%',

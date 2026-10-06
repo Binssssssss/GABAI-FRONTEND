@@ -1,7 +1,6 @@
-import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface FocusSessionWidgetProps {
   cardBg: string;
@@ -9,8 +8,6 @@ interface FocusSessionWidgetProps {
   textPrimary: string;
   textSecondary: string;
   primaryBrown: string;
-  timerDisplay?: string;
-  targetDisplay?: string;
 }
 
 export default function FocusSessionWidget({
@@ -19,8 +16,6 @@ export default function FocusSessionWidget({
   textPrimary,
   textSecondary,
   primaryBrown,
-  timerDisplay = '25:00',
-  targetDisplay = '1.5 hrs remaining',
 }: FocusSessionWidgetProps) {
   const router = useRouter();
 
@@ -66,21 +61,12 @@ export default function FocusSessionWidget({
               { color: textSecondary },
             ]}
           >
-            {targetDisplay}
+            Start a focused study block
           </Text>
         </View>
       </View>
 
       <View style={styles.right}>
-        <Text
-          style={[
-            styles.timer,
-            { color: textPrimary },
-          ]}
-        >
-          {timerDisplay}
-        </Text>
-
         <View
           style={[
             styles.playButton,
@@ -100,9 +86,9 @@ export default function FocusSessionWidget({
 
 const styles = StyleSheet.create({
   card: {
-    height: 64,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    minHeight: 72,
+    paddingHorizontal: 16,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 16,
 
@@ -135,7 +121,7 @@ const styles = StyleSheet.create({
   },
 
   target: {
-    fontSize: 10,
+    fontSize: 11,
     marginTop: 2,
   },
 
@@ -143,12 +129,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 10,
-  },
-
-  timer: {
-    fontSize: 15,
-    fontWeight: '800',
-    marginRight: 10,
   },
 
   playButton: {

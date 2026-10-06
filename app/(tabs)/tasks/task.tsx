@@ -1,21 +1,37 @@
-import React from 'react';
-import { ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
 import { useDrawer } from '@/app/(tabs)/_layout';
+import { Feather } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  TaskHeaderSection,
-  TaskMainViewsContainer,
-  TasksModalContainer,
+    TaskHeaderSection,
+    TaskMainViewsContainer,
+    TasksModalContainer,
 } from './components';
 import { useTaskData, useTaskTheme } from './hooks';
 import { taskStyles as styles } from './styles/task.styles';
 
 export default function TaskScreen() {
   const { openDrawer } = useDrawer();
+  const router = useRouter();
   const theme = useTaskTheme();
   const taskData = useTaskData();
+  const { focusTaskId } = useLocalSearchParams<{ focusTaskId?: string }>();
+  const openedFocusTaskId = useRef<string | null>(null);
+  const { tasks, isLoading, handleFocusOnTask } = taskData;
+
+  useEffect(() => {
+    if (!focusTaskId || isLoading || openedFocusTaskId.current === focusTaskId) return;
+
+    const task = tasks.find((item) => item.id === focusTaskId);
+    if (task) {
+      openedFocusTaskId.current = focusTaskId;
+      handleFocusOnTask(task);
+      router.setParams({ focusTaskId: undefined });
+    }
+  }, [focusTaskId, isLoading, tasks, handleFocusOnTask, router]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bgTheme }]} edges={['top']}>

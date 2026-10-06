@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Alert } from 'react-native';
 
-import { localDb, Task, SubTask } from '@/app/services/localDb';
+import { localDb, Task } from '@/app/services/localDb';
 import {
   taskService,
   Task as BackendTask,
@@ -20,36 +20,22 @@ import {
 // ALERT HELPERS
 // ------------------------------------------------------
 
-const showErrorAlert = (
-  title: string,
-  message: string
-) => {
-  Alert.alert(
-    title,
-    message,
-    [
-      {
-        text: 'OK',
-        style: 'default',
-      },
-    ]
-  );
+const showErrorAlert = (title: string, message: string) => {
+  Alert.alert(title, message, [
+    {
+      text: 'OK',
+      style: 'default',
+    },
+  ]);
 };
 
-const showSuccessAlert = (
-  title: string,
-  message: string
-) => {
-  Alert.alert(
-    title,
-    message,
-    [
-      {
-        text: 'OK',
-        style: 'default',
-      },
-    ]
-  );
+const showSuccessAlert = (title: string, message: string) => {
+  Alert.alert(title, message, [
+    {
+      text: 'OK',
+      style: 'default',
+    },
+  ]);
 };
 
 // ------------------------------------------------------
@@ -80,52 +66,34 @@ const getTodayAndTomorrow = () => {
 // BACKEND → FRONTEND TASK NORMALIZER
 // ------------------------------------------------------
 
-const normalizeBackendTask = (
-  task: BackendTask
-): Task => ({
+const normalizeBackendTask = (task: BackendTask): Task => ({
   id: task.id,
-
   title: task.title,
-
   description: task.description || '',
-
   subject: task.subject || 'General',
 
-  // Backend does not currently store these fields.
+  // These fields are currently frontend-only.
   category: 'Academic',
-
-  priority: task.priority,
-
   difficulty: 'Medium',
-
   duration: 1,
-
-  dueDate: task.dueDate,
-
-  dueTime: task.dueTime || '00:00',
-
-  completed: task.completed,
-
-  hasReminder: task.hasReminder,
-
   repeat: 'None',
-
   isPinned: false,
-
   isFavorite: false,
-
   attachments: 0,
 
-  subTasks: (task.subTasks || []).map(
-    (subTask) => ({
-      id: subTask.id,
-      title: subTask.title,
-      completed: subTask.completed,
-    })
-  ),
+  priority: task.priority,
+  dueDate: task.dueDate,
+  dueTime: task.dueTime || '00:00',
+  completed: task.completed,
+  hasReminder: task.hasReminder,
 
-  createdAt:
-    Date.parse(task.createdAt) || Date.now(),
+  subTasks: (task.subTasks || []).map((subTask) => ({
+    id: subTask.id,
+    title: subTask.title,
+    completed: subTask.completed,
+  })),
+
+  createdAt: Date.parse(task.createdAt) || Date.now(),
 });
 
 // ------------------------------------------------------
@@ -140,14 +108,12 @@ export function useTaskData() {
   const [activeSubTab, setActiveSubTab] =
     useState<TaskSubTab>('overview');
 
-  const [tasks, setTasksState] =
-    useState<Task[]>([]);
+  const [tasks, setTasksState] = useState<Task[]>([]);
 
   const [activeFilter, setActiveFilter] =
     useState<string>('All');
 
-  const [isAdding, setIsAdding] =
-    useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
   const [isRefreshing, setIsRefreshing] =
     useState(false);
@@ -156,66 +122,61 @@ export function useTaskData() {
     useState(true);
 
   // ----------------------------------------------------
-  // LOAD TASKS FROM BACKEND
+  // TASK LOADING
   // ----------------------------------------------------
 
   const loadTasks = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      console.log('STEP 1: Calling taskService.getTasks()');
+      console.log(
+        '========== LOAD TASKS =========='
+      );
+
+      console.log(
+        'Calling taskService.getTasks()...'
+      );
 
       const backendTasks =
         await taskService.getTasks();
 
       console.log(
-        'TASK API RESPONSE:',
-        JSON.stringify(backendTasks, null, 2)
+        'Backend tasks:',
+        backendTasks
       );
 
       console.log(
-        'IS ARRAY:',
+        'Is array:',
         Array.isArray(backendTasks)
       );
 
-      console.log('STEP 2: backendTasks =', backendTasks);
+      const normalizedTasks =
+        backendTasks.map(
+          normalizeBackendTask
+        );
+
       console.log(
-        'STEP 3: backendTasks is array =',
-        Array.isArray(backendTasks)
-      );
-
-      const taskArray = Array.isArray(backendTasks)
-  ? backendTasks
-  : [];
-
-console.log(
-  'TASK API RESPONSE:',
-  backendTasks
-);
-
-console.log(
-  'IS ARRAY:',
-  Array.isArray(backendTasks)
-);
-
-const normalizedTasks =
-  taskArray.map(normalizeBackendTask);
-      console.log(
-        'STEP 4: normalizedTasks =',
+        'Normalized tasks:',
         normalizedTasks
       );
 
+      // Keep localDb synchronized with
+      // the latest backend data.
       localDb.setTasks(
         normalizedTasks
       );
-
-      console.log('STEP 5: localDb.setTasks() worked');
 
       setTasksState(
         normalizedTasks
       );
 
-      console.log('STEP 6: setTasksState() worked');
+      console.log(
+        'Task state updated successfully.'
+      );
+
+      console.log(
+        '================================'
+      );
     } catch (error) {
       console.error(
         'Failed to load tasks:',
@@ -231,8 +192,12 @@ const normalizedTasks =
     }
   }, []);
 
+  // ----------------------------------------------------
+  // INITIAL LOAD
+  // ----------------------------------------------------
+
   useEffect(() => {
-    loadTasks();
+    void loadTasks();
   }, [loadTasks]);
 
   // ----------------------------------------------------
@@ -391,21 +356,29 @@ const normalizedTasks =
       }, 1000);
     }
 
-    if (pomodoroTime === 0) {
-      setIsTimerRunning(false);
+    if (
+      pomodoroTime === 0 &&
+      isTimerRunning
+    ) {
+      const timeout = setTimeout(() => {
+        setIsTimerRunning(false);
 
-      Alert.alert(
-        'Focus Session Complete',
-        'Great work! Your focus session is finished. Take a short break before continuing.',
-        [
-          {
-            text: 'Take a Break',
-            style: 'default',
-          },
-        ]
-      );
+        Alert.alert(
+          'Focus Session Complete',
+          'Great work! Your focus session is finished. Take a short break before continuing.',
+          [
+            {
+              text: 'Take a Break',
+              style: 'default',
+            },
+          ]
+        );
 
-      setPomodoroTime(25 * 60);
+        setPomodoroTime(25 * 60);
+      }, 0);
+
+      return () =>
+        clearTimeout(timeout);
     }
 
     return () => {
@@ -450,10 +423,10 @@ const normalizedTasks =
   const completionRate =
     totalTasks > 0
       ? Math.round(
-        (completedTasks /
-          totalTasks) *
-        100
-      )
+          (completedTasks /
+            totalTasks) *
+            100
+        )
       : 0;
 
   const estimatedRemainingHours =
@@ -550,7 +523,7 @@ const normalizedTasks =
           ) {
             return (
               task.dueDate ===
-              todayStr &&
+                todayStr &&
               !task.completed
             );
           }
@@ -560,7 +533,7 @@ const normalizedTasks =
           ) {
             return (
               task.dueDate ===
-              tomorrowStr &&
+                tomorrowStr &&
               !task.completed
             );
           }
@@ -570,7 +543,7 @@ const normalizedTasks =
           ) {
             return (
               task.priority ===
-              'High' &&
+                'High' &&
               !task.completed
             );
           }
@@ -580,7 +553,7 @@ const normalizedTasks =
           ) {
             return (
               task.difficulty ===
-              'Hard' &&
+                'Hard' &&
               !task.completed
             );
           }
@@ -603,7 +576,7 @@ const normalizedTasks =
     ]);
 
   // ----------------------------------------------------
-  // TIMELINE TASKS
+  // TIMELINE TASK GROUPS
   // ----------------------------------------------------
 
   const overdueTasks =
@@ -612,7 +585,7 @@ const normalizedTasks =
         tasks.filter(
           (task) =>
             task.dueDate <
-            todayStr &&
+              todayStr &&
             !task.completed
         ),
       [tasks, todayStr]
@@ -624,7 +597,7 @@ const normalizedTasks =
         tasks.filter(
           (task) =>
             task.dueDate ===
-            todayStr &&
+              todayStr &&
             !task.completed
         ),
       [tasks, todayStr]
@@ -636,7 +609,7 @@ const normalizedTasks =
         tasks.filter(
           (task) =>
             task.dueDate ===
-            tomorrowStr &&
+              tomorrowStr &&
             !task.completed
         ),
       [tasks, tomorrowStr]
@@ -648,7 +621,7 @@ const normalizedTasks =
         tasks.filter(
           (task) =>
             task.dueDate >
-            tomorrowStr &&
+              tomorrowStr &&
             !task.completed
         ),
       [tasks, tomorrowStr]
@@ -675,10 +648,10 @@ const normalizedTasks =
           prev.map((task) =>
             task.id === taskId
               ? {
-                ...task,
-                completed:
-                  !task.completed,
-              }
+                  ...task,
+                  completed:
+                    !task.completed,
+                }
               : task
           )
         );
@@ -700,23 +673,20 @@ const normalizedTasks =
               return task;
             }
 
-            const updatedSubs =
-              task.subTasks.map(
-                (subTask) =>
-                  subTask.id ===
-                    subTaskId
-                    ? {
-                      ...subTask,
-                      completed:
-                        !subTask.completed,
-                    }
-                    : subTask
-              );
-
             return {
               ...task,
               subTasks:
-                updatedSubs,
+                task.subTasks.map(
+                  (subTask) =>
+                    subTask.id ===
+                    subTaskId
+                      ? {
+                          ...subTask,
+                          completed:
+                            !subTask.completed,
+                        }
+                      : subTask
+                ),
             };
           })
         );
@@ -746,8 +716,7 @@ const normalizedTasks =
                 setTasks((prev) =>
                   prev.filter(
                     (task) =>
-                      task.id !==
-                      taskId
+                      task.id !== taskId
                   )
                 );
 
@@ -779,10 +748,10 @@ const normalizedTasks =
           prev.map((task) =>
             task.id === taskId
               ? {
-                ...task,
-                isPinned:
-                  !task.isPinned,
-              }
+                  ...task,
+                  isPinned:
+                    !task.isPinned,
+                }
               : task
           )
         );
@@ -801,10 +770,10 @@ const normalizedTasks =
           prev.map((task) =>
             task.id === taskId
               ? {
-                ...task,
-                isFavorite:
-                  !task.isFavorite,
-              }
+                  ...task,
+                  isFavorite:
+                    !task.isFavorite,
+                }
               : task
           )
         );
@@ -823,13 +792,13 @@ const normalizedTasks =
           (prev) =>
             prev.includes(taskId)
               ? prev.filter(
-                (id) =>
-                  id !== taskId
-              )
+                  (id) =>
+                    id !== taskId
+                )
               : [
-                ...prev,
-                taskId,
-              ]
+                  ...prev,
+                  taskId,
+                ]
         );
       },
       []
@@ -848,15 +817,18 @@ const normalizedTasks =
         return;
       }
 
+      const count =
+        selectedTaskIds.length;
+
       setTasks((prev) =>
         prev.map((task) =>
           selectedTaskIds.includes(
             task.id
           )
             ? {
-              ...task,
-              completed: true,
-            }
+                ...task,
+                completed: true,
+              }
             : task
         )
       );
@@ -866,9 +838,8 @@ const normalizedTasks =
 
       showSuccessAlert(
         'Tasks Completed',
-        `${selectedTaskIds.length} task${selectedTaskIds.length === 1
-          ? ''
-          : 's'
+        `${count} task${
+          count === 1 ? '' : 's'
         } marked as completed.`
       );
     }, [
@@ -894,7 +865,8 @@ const normalizedTasks =
 
       Alert.alert(
         'Delete Selected Tasks?',
-        `You're about to delete ${count} selected task${count === 1 ? '' : 's'
+        `You're about to delete ${count} selected task${
+          count === 1 ? '' : 's'
         }. This action cannot be undone.`,
         [
           {
@@ -919,9 +891,10 @@ const normalizedTasks =
 
               showSuccessAlert(
                 'Tasks Deleted',
-                `${count} task${count === 1
-                  ? ''
-                  : 's'
+                `${count} task${
+                  count === 1
+                    ? ''
+                    : 's'
                 } removed successfully.`
               );
             },
@@ -1031,7 +1004,7 @@ const normalizedTasks =
         const duration =
           parseFloat(
             newDuration
-          ) || 1.0;
+          ) || 1;
 
         const backendTask =
           await taskService.createTask({
@@ -1061,81 +1034,27 @@ const normalizedTasks =
               newSubTasksList,
           });
 
-        const created: Task = {
-          id:
-            backendTask.id,
+        const created =
+          normalizeBackendTask(
+            backendTask
+          );
 
-          title:
-            backendTask.title,
+        const taskWithLocalFields: Task =
+          {
+            ...created,
+            category:
+              newCategory,
+            difficulty:
+              newDifficulty,
+            duration,
+            repeat:
+              newRepeat,
+          };
 
-          description:
-            backendTask.description ||
-            '',
-
-          subject:
-            backendTask.subject,
-
-          category:
-            newCategory,
-
-          priority:
-            backendTask.priority,
-
-          difficulty:
-            newDifficulty,
-
-          duration,
-
-          dueDate:
-            backendTask.dueDate,
-
-          dueTime:
-            backendTask.dueTime,
-
-          completed:
-            backendTask.completed,
-
-          hasReminder:
-            backendTask.hasReminder,
-
-          repeat:
-            newRepeat,
-
-          isPinned:
-            false,
-
-          isFavorite:
-            false,
-
-          attachments:
-            0,
-
-          subTasks:
-            backendTask.subTasks.map(
-              (subTask) => ({
-                id:
-                  subTask.id,
-
-                title:
-                  subTask.title,
-
-                completed:
-                  subTask.completed,
-              })
-            ),
-
-          createdAt:
-            Date.parse(
-              backendTask.createdAt
-            ) || Date.now(),
-        };
-
-        setTasks(
-          (prev) => [
-            created,
-            ...prev,
-          ]
-        );
+        setTasks((prev) => [
+          taskWithLocalFields,
+          ...prev,
+        ]);
 
         setNewTitle('');
         setNewDesc('');
@@ -1156,7 +1075,7 @@ const normalizedTasks =
         showErrorAlert(
           'Unable to Save Task',
           error?.response?.data?.message ||
-          'We could not save your task. Please try again.'
+            'We could not save your task. Please try again.'
         );
       }
     }, [
@@ -1187,43 +1106,10 @@ const normalizedTasks =
         const backendTasks =
           await taskService.getTasks();
 
-        console.log(
-          '========== TASK DEBUG =========='
-        );
-
-        console.log(
-          'backendTasks:',
-          backendTasks
-        );
-
-        console.log(
-          'backendTasks type:',
-          typeof backendTasks
-        );
-
-        console.log(
-          'isArray:',
-          Array.isArray(backendTasks)
-        );
-
-        console.log(
-          'keys:',
-          backendTasks &&
-            typeof backendTasks === 'object'
-            ? Object.keys(backendTasks)
-            : 'NO KEYS'
-        );
-
-        console.log(
-          '================================'
-        );
-
-        const taskArray = Array.isArray(backendTasks)
-          ? backendTasks
-          : [];
-
         const normalizedTasks =
-          taskArray.map(normalizeBackendTask);
+          backendTasks.map(
+            normalizeBackendTask
+          );
 
         localDb.setTasks(
           normalizedTasks

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { FlatList, ViewToken, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -13,17 +13,21 @@ export function useOnboarding() {
 
   const isLastSlide = currentIndex === ONBOARDING_SLIDES.length - 1;
 
-  const onViewableItemsChanged = useRef(
+  const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index !== null) {
         setCurrentIndex(viewableItems[0].index);
       }
-    }
-  ).current;
+    },
+    []
+  );
 
-  const viewabilityConfig = useRef({
-    viewAreaCoveragePercentThreshold: 50,
-  }).current;
+  const viewabilityConfig = useMemo(
+    () => ({
+      viewAreaCoveragePercentThreshold: 50,
+    }),
+    []
+  );
 
   const handleNext = useCallback(() => {
     try {

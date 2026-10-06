@@ -1,29 +1,26 @@
-import React from 'react';
-import { View, FlatList } from 'react-native';
+import { FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
+import { useAppTheme } from '@/app/context/ThemeContext';
 import {
-  OnboardingHeader,
-  OnboardingSlideItem,
-  OnboardingPagination,
   OnboardingControls,
+  OnboardingHeader,
+  OnboardingPagination,
+  OnboardingSlideItem,
 } from './components';
 import { useOnboarding } from './hooks';
 import { onboardingStyles as styles } from './styles';
 
 export default function OnboardingScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
 
-  // Theme Colors matching GabAi Design Language
-  const primaryBrown = '#A97C50';
-  const bgTheme = isDark ? '#121212' : '#FFFFFF';
-  const cardBg = isDark ? '#1E1E1E' : '#F8FAFC';
-  const borderCol = isDark ? '#2E2E2E' : '#E2E8F0';
-  const textPrimary = isDark ? '#ECEDEE' : '#11181C';
-  const textSecondary = isDark ? '#9BA1A6' : '#666666';
-  const dotInactiveColor = isDark ? '#2E2E2E' : '#E2E8F0';
+  const primaryBrown = colors.primary;
+  const bgTheme = colors.background;
+  const cardBg = colors.card;
+  const borderCol = colors.border;
+  const textPrimary = colors.text;
+  const textSecondary = colors.secondaryText;
+  const dotInactiveColor = colors.border;
 
   const {
     currentIndex,

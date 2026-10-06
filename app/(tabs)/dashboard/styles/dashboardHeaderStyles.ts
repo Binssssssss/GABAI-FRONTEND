@@ -7,10 +7,10 @@ export const dashboardHeaderStyles = StyleSheet.create({
 
   container: {
     width: '100%',
-    minHeight: 82,
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 12,
+    minHeight: 88,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 14,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -27,7 +27,7 @@ export const dashboardHeaderStyles = StyleSheet.create({
   menuButton: {
     width: 42,
     height: 42,
-    borderRadius: 13,
+    borderRadius: 15,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -88,7 +88,7 @@ export const dashboardHeaderStyles = StyleSheet.create({
   notificationButton: {
     width: 42,
     height: 42,
-    borderRadius: 13,
+    borderRadius: 15,
     borderWidth: 1,
 
     alignItems: 'center',

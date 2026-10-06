@@ -1,18 +1,19 @@
+import api from '@/app/services/api';
+import { useFocusEffect } from 'expo-router';
 import {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
+    useCallback,
+    useMemo,
+    useState,
 } from 'react';
 import { Alert } from 'react-native';
-import api from '@/app/services/api';
 
 import {
-  CalendarEvent,
-  EventCategory,
-  EventPriority,
-  CalendarViewMode,
+    CalendarEvent,
+    CalendarViewMode,
+    EventCategory,
+    EventPriority,
 } from '../types';
+import { getDayWorkload, getLocalDateKey, toCalendarDateKey } from '../utils/calendarHelpers';
 
 interface BackendChecklistItem {
   id: string;
@@ -24,38 +25,60 @@ interface BackendCalendarEvent {
   id: string;
   title: string;
   description?: string;
-  category: string;
-  date: string;
-  time: string | null;
+  category?: string;
+  subject?: string;
+  date?: string;
+  dueDate?: string;
+  time?: string | null;
+  dueTime?: string | null;
   priority: EventPriority;
-  isAllDay: boolean;
-  duration: number | null;
-  checklist: BackendChecklistItem[];
-  progress: number;
-  completed: boolean;
-  hasReminder: boolean;
+  isAllDay?: boolean;
+  duration?: number | null;
+  checklist?: BackendChecklistItem[];
+  subTasks?: BackendChecklistItem[];
+  progress?: number;
+  completed?: boolean;
+  hasReminder?: boolean;
+}
+
+interface AcademicPressureSnapshot {
+  level: 'LOW' | 'MEDIUM' | 'HIGH';
+  label: string;
+  score: number;
 }
 
 function mapBackendEvent(
   event: BackendCalendarEvent,
 ): CalendarEvent {
+  const eventTime = event.time ?? event.dueTime ?? '';
+  const checklist = event.checklist ?? event.subTasks ?? [];
+  const knownCategories: EventCategory[] = ['Assignment', 'Exam', 'Class', 'Meeting', 'Personal'];
+  const categoryValue = event.category ?? event.subject ?? '';
+  const category = knownCategories.includes(categoryValue as EventCategory)
+    ? categoryValue as EventCategory
+    : 'Assignment';
+
   return {
     id: event.id,
     title: event.title,
     description: event.description || '',
-    category: event.category as EventCategory,
-    date: event.date,
-    time: event.time || '',
+    category,
+    subject: event.subject,
+    date: toCalendarDateKey(event.date ?? event.dueDate ?? ''),
+    time: eventTime,
     duration: event.duration || 0,
     priority: event.priority,
-    isAllDay: event.isAllDay,
-    hasReminder: event.hasReminder,
+    isAllDay: event.isAllDay ?? false,
+    hasReminder: event.hasReminder ?? false,
     reminderTime: '',
     isRecurring: false,
     recurrenceRule: '',
-    progress: event.progress,
+    progress: event.progress ?? (checklist.length
+      ? Math.round(checklist.filter((item) => item.completed).length / checklist.length * 100)
+      : 0),
+    completed: event.completed ?? false,
 
-    checklist: event.checklist.map(
+    checklist: checklist.map(
       (item) => ({
         id: item.id,
         text: item.title,
@@ -69,13 +92,17 @@ export function useCalendarData() {
   const [events, setEvents] =
     useState<CalendarEvent[]>([]);
 
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [eventsLoadFailed, setEventsLoadFailed] = useState(false);
+
   const [upcomingDeadlines, setUpcomingDeadlines] =
     useState<CalendarEvent[]>([]);
 
+  const [academicPressure, setAcademicPressure] =
+    useState<AcademicPressureSnapshot | null>(null);
+
   const [selectedDate, setSelectedDate] =
-    useState<string>(
-      new Date().toISOString().split('T')[0],
-    );
+    useState<string>(getLocalDateKey);
 
   const [viewMode, setViewMode] =
     useState<CalendarViewMode>('month');
@@ -151,15 +178,14 @@ export function useCalendarData() {
       const response =
         await api.get('/tasks');
 
-      const backendEvents =
-        response.data?.data || [];
+      const backendEvents = response.data?.data ?? response.data ?? [];
 
-      const mappedEvents =
-        backendEvents.map(
-          mapBackendEvent,
-        );
+      const mappedEvents = (Array.isArray(backendEvents) ? backendEvents : [])
+        .map(mapBackendEvent)
+        .filter((event: CalendarEvent) => Boolean(event.date));
 
       setEvents(mappedEvents);
+      setEventsLoadFailed(false);
 
       /*
        * Keep selected event synchronized
@@ -179,10 +205,13 @@ export function useCalendarData() {
         return updatedEvent || null;
       });
     } catch (error) {
+      setEventsLoadFailed(true);
       console.error(
         'Failed to load calendar events:',
         error,
       );
+    } finally {
+      setIsLoadingEvents(false);
     }
   }, []);
 
@@ -195,16 +224,16 @@ export function useCalendarData() {
         const response =
           await api.get('/tasks/upcoming');
 
-        const backendDeadlines =
-          response.data?.data || [];
+        const backendDeadlines = response.data?.data ?? response.data ?? [];
 
-        const mappedDeadlines =
-          backendDeadlines
+        const mappedDeadlines = (Array.isArray(backendDeadlines) ? backendDeadlines : [])
             .map(mapBackendEvent)
             .filter(
               (event: CalendarEvent) =>
-                event.category === 'Assignment' ||
-                event.category === 'Exam',
+                !event.completed && (
+                  event.category === 'Assignment' ||
+                  event.category === 'Exam'
+                ),
             );
 
         setUpcomingDeadlines(
@@ -218,16 +247,18 @@ export function useCalendarData() {
       }
     }, []);
 
-  /*
-   * INITIAL LOAD
-   */
-  useEffect(() => {
-    loadEvents();
-    loadUpcomingDeadlines();
-  }, [
-    loadEvents,
-    loadUpcomingDeadlines,
-  ]);
+  const loadAcademicPressure = useCallback(async () => {
+    try {
+      const response = await api.get('/academic-pressure');
+      const pressure = response.data?.data ?? response.data;
+
+      if (pressure?.level && pressure?.label && typeof pressure.score === 'number') {
+        setAcademicPressure(pressure as AcademicPressureSnapshot);
+      }
+    } catch (error) {
+      console.error('Failed to load academic pressure:', error);
+    }
+  }, []);
 
   /*
    * REFRESH CALENDAR
@@ -242,6 +273,20 @@ export function useCalendarData() {
       loadEvents,
       loadUpcomingDeadlines,
     ]);
+
+  useFocusEffect(useCallback(() => {
+    let isActive = true;
+
+    void Promise.resolve().then(() => {
+      if (!isActive) return;
+      void refreshCalendar();
+      void loadAcademicPressure();
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [refreshCalendar, loadAcademicPressure]));
 
   /*
    * RESET FORM
@@ -560,53 +605,72 @@ export function useCalendarData() {
           return;
         }
 
-        try {
-          const response = await api.patch(
-            `/api/tasks/${event.id}/reschedule`,
-            {
-              dueDate: targetDate,
-              dueTime: event.isAllDay
-                ? ''
-                : event.time,
-            },
-          );
-
-          const updatedEvent =
-            mapBackendEvent(
-              response.data.data,
+        const persistReschedule = async () => {
+          try {
+            const response = await api.patch(
+              `/api/tasks/${event.id}/reschedule`,
+              {
+                dueDate: targetDate,
+                dueTime: event.isAllDay
+                  ? ''
+                  : event.time,
+              },
             );
 
-          setEvents((prev) =>
-            prev.map((item) =>
-              item.id ===
-                activeReschedulingId
-                ? updatedEvent
-                : item,
-            ),
-          );
+            const updatedEvent =
+              mapBackendEvent(
+                response.data.data,
+              );
 
-          await loadUpcomingDeadlines();
+            setEvents((prev) =>
+              prev.map((item) =>
+                item.id === activeReschedulingId
+                  ? updatedEvent
+                  : item,
+              ),
+            );
 
+            await loadUpcomingDeadlines();
+
+            Alert.alert(
+              'Event Rescheduled',
+              `"${event.title}" has been moved to ${targetDate}.`,
+            );
+
+            setRescheduleMode(false);
+            setActiveReschedulingId(null);
+          } catch (error: any) {
+            console.error('Failed to reschedule event:', error);
+
+            Alert.alert(
+              'Error',
+              error?.response?.data?.message || 'Failed to reschedule event.',
+            );
+          }
+        };
+
+        const targetEvents = events.filter(
+          (item) => item.date === targetDate && item.id !== event.id,
+        );
+        const currentWorkload = getDayWorkload(targetEvents);
+        const projectedWorkload = getDayWorkload([
+          ...targetEvents,
+          { ...event, date: targetDate },
+        ]);
+
+        if (projectedWorkload.weight > currentWorkload.weight) {
           Alert.alert(
-            'Event Rescheduled',
-            `"${event.title}" has been moved to ${targetDate}.`,
+            'Workload impact',
+            `Moving "${event.title}" to ${targetDate} changes that date's workload from ${currentWorkload.level} to ${projectedWorkload.level}.`,
+            [
+              { text: 'Keep current date', style: 'cancel', onPress: cancelRescheduling },
+              { text: 'Move anyway', onPress: () => { void persistReschedule(); } },
+            ],
           );
-
-          setRescheduleMode(false);
-          setActiveReschedulingId(null);
-        } catch (error: any) {
-          console.error(
-            'Failed to reschedule event:',
-            error,
-          );
-
-          Alert.alert(
-            'Error',
-            error?.response?.data
-              ?.message ||
-            'Failed to reschedule event.',
-          );
+          return;
         }
+
+        await persistReschedule();
       },
       [
         activeReschedulingId,
@@ -696,6 +760,8 @@ export function useCalendarData() {
 
   return {
     events,
+    isLoadingEvents,
+    eventsLoadFailed,
 
     selectedDate,
     setSelectedDate,
@@ -726,6 +792,8 @@ export function useCalendarData() {
     completeRescheduling,
 
     upcomingDeadlines,
+
+    academicPressure,
 
     filteredEvents,
 

@@ -1,12 +1,12 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { calendarStyles as styles } from '../styles/calendar.styles';
 
 export interface CalendarHeaderProps {
   textTheme: string;
   rescheduleMode?: boolean;
   onOpenDrawer: () => void;
+  onAddEvent: () => void;
   onCancelReschedule?: () => void;
 }
 
@@ -14,6 +14,7 @@ export default function CalendarHeader({
   textTheme,
   rescheduleMode = false,
   onOpenDrawer,
+  onAddEvent,
   onCancelReschedule,
 }: CalendarHeaderProps) {
   return (
@@ -24,6 +25,17 @@ export default function CalendarHeader({
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: textTheme }]}>Calendar</Text>
       </View>
+
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Add calendar item"
+        onPress={onAddEvent}
+        style={styles.headerAddButton}
+        activeOpacity={0.8}
+      >
+        <Feather name="plus" size={18} color="#FFFFFF" />
+        <Text style={styles.headerAddButtonText}>Add</Text>
+      </TouchableOpacity>
 
       {/* Reschedule Banner Indicator */}
       {rescheduleMode && onCancelReschedule && (

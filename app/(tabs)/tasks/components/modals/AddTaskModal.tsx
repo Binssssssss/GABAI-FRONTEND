@@ -1,20 +1,20 @@
 
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useState } from 'react';
+import {
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
-import { TaskTheme } from '../../types';
-import type { useTaskData } from '../../hooks/useTaskData';
 import { SUBJECTS } from '../../constants/taskConfig';
+import type { useTaskData } from '../../hooks/useTaskData';
+import { TaskTheme } from '../../types';
 
 interface AddTaskModalProps {
   taskData: ReturnType<typeof useTaskData>;
@@ -222,7 +222,9 @@ export default function AddTaskModal({
         style={{
           flex: 1,
           justifyContent: 'flex-end',
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: theme.isDark
+            ? 'rgba(0,0,0,0.68)'
+            : 'rgba(44, 34, 26, 0.32)',
         }}
       >
         <KeyboardAvoidingView
@@ -235,8 +237,8 @@ export default function AddTaskModal({
           <View
             style={{
               backgroundColor: cardBg,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
+              borderTopLeftRadius: 26,
+              borderTopRightRadius: 26,
               maxHeight: '90%',
               borderTopWidth: 1,
               borderColor: borderCol,
@@ -249,7 +251,8 @@ export default function AddTaskModal({
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: 18,
+                paddingHorizontal: 20,
+                paddingVertical: 18,
                 borderBottomWidth: 1,
                 borderColor: borderCol,
               }}
@@ -279,7 +282,7 @@ export default function AddTaskModal({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{
-                padding: 18,
+                padding: 20,
                 paddingBottom: 30,
               }}
             >
@@ -293,9 +296,11 @@ export default function AddTaskModal({
                 style={{
                   backgroundColor: inputBg,
                   color: textPrimary,
-                  borderRadius: 12,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: borderCol,
                   paddingHorizontal: 14,
-                  height: 48,
+                  height: 50,
                   fontSize: 15,
                   marginBottom: 16,
                 }}
@@ -334,10 +339,12 @@ export default function AddTaskModal({
                       style={{
                         paddingHorizontal: 13,
                         paddingVertical: 8,
-                        borderRadius: 20,
+                        borderRadius: 12,
                         backgroundColor: active
                           ? primaryBrown
                           : inputBg,
+                        borderWidth: 1,
+                        borderColor: active ? primaryBrown : borderCol,
                         marginRight: 7,
                       }}
                     >
@@ -397,6 +404,8 @@ export default function AddTaskModal({
                         backgroundColor: active
                           ? primaryBrown
                           : inputBg,
+                        borderWidth: 1,
+                        borderColor: active ? primaryBrown : borderCol,
                         marginRight:
                           priority !== 'Low'
                             ? 6
@@ -451,7 +460,7 @@ export default function AddTaskModal({
                     flexDirection: 'row',
                     alignItems: 'center',
                     paddingHorizontal: 12,
-                    borderRadius: 10,
+                    borderRadius: 13,
                     backgroundColor: inputBg,
                     borderWidth: 1,
                     borderColor: borderCol,
@@ -503,7 +512,7 @@ export default function AddTaskModal({
                     flexDirection: 'row',
                     alignItems: 'center',
                     paddingHorizontal: 12,
-                    borderRadius: 10,
+                    borderRadius: 13,
                     backgroundColor: inputBg,
                     borderWidth: 1,
                     borderColor: borderCol,
@@ -569,7 +578,9 @@ export default function AddTaskModal({
                 style={{
                   backgroundColor: inputBg,
                   color: textPrimary,
-                  borderRadius: 12,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: borderCol,
                   padding: 13,
                   minHeight: 72,
                   fontSize: 14,
@@ -611,7 +622,9 @@ export default function AddTaskModal({
               <View
                 style={{
                   backgroundColor: inputBg,
-                  borderRadius: 12,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: borderCol,
                   paddingHorizontal: 12,
                   marginBottom: 16,
                 }}
@@ -803,7 +816,7 @@ export default function AddTaskModal({
                   right: 18,
                   top: 70,
                   backgroundColor: cardBg,
-                  borderRadius: 16,
+                  borderRadius: 18,
                   borderWidth: 1,
                   borderColor: borderCol,
                   padding: 14,
@@ -1020,7 +1033,7 @@ export default function AddTaskModal({
                   right: 18,
                   top: 70,
                   backgroundColor: cardBg,
-                  borderRadius: 16,
+                  borderRadius: 18,
                   borderWidth: 1,
                   borderColor: borderCol,
                   padding: 18,

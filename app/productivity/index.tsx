@@ -1,46 +1,45 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import {
+    ScrollView,
+    StatusBar,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  TimerRingDisplay,
-  FocusModeTabs,
-  SubjectSelector,
-  StrictControls,
-  AmbientNoiseWidget,
-  FocusStatsOverview,
-  SessionCompletionModal,
+    AmbientNoiseWidget,
+    FocusModeTabs,
+    FocusStatsOverview,
+    SessionCompletionModal,
+    StrictControls,
+    SubjectSelector,
+    TimerRingDisplay,
 } from './components';
 
+import { useAppTheme } from '@/app/context/ThemeContext';
 import { useFocusTimer } from './hooks/useFocusTimer';
 import { focusStyles as styles } from './styles/focus.styles';
-import { useAppTheme } from '@/app/context/ThemeContext';
 
 export default function StrictFocusSessionScreen() {
   const router = useRouter();
 
-  const { colorScheme } = useAppTheme();
-const isDark = colorScheme === 'dark';
+  const { colors, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
 
 const COLORS = {
   primary: '#A97C50',
 
-  background: isDark ? '#121212' : '#FFFFFF',
-  card: isDark ? '#1E1E1E' : '#F8FAFC',
-  border: isDark ? '#2C2C2C' : '#E2E8F0',
+  background: colors.background,
+  card: colors.surface,
+  border: colors.border,
 
-  text: isDark ? '#F5F5F5' : '#11181C',
-  subtext: isDark ? '#A1A1AA' : '#64748B',
+  text: colors.text,
+  subtext: colors.icon,
 
-  danger: '#EF4444',
+  danger: colors.danger,
   zenBackground: '#0B0F19',
 };
 

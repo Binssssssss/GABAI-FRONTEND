@@ -1,4 +1,4 @@
-import { StyleSheet, Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const noteStyles = StyleSheet.create({
   container: {
@@ -80,7 +80,7 @@ export const noteStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 44,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 12,
   },
@@ -189,7 +189,7 @@ export const noteStyles = StyleSheet.create({
 
   // Note Card
   noteCard: {
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 14,
     justifyContent: 'space-between',
@@ -724,7 +724,7 @@ export const noteStyles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     padding: 20,
   },

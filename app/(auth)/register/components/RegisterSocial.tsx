@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
+import { FontAwesome } from '@expo/vector-icons';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { registerStyles as styles } from '../styles';
 
 interface RegisterSocialProps {
@@ -34,10 +33,7 @@ export function RegisterSocial({
         disabled={isLoading}
         activeOpacity={0.8}
       >
-        <Image
-          source="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.png"
-          style={styles.googleIcon}
-        />
+        <FontAwesome name="google" size={18} color="#4285F4" style={styles.googleIcon} />
         <Text style={[styles.googleButtonText, { color: textPrimary }]}>
           Continue with Google
         </Text>

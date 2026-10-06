@@ -1,6 +1,4 @@
-import { StyleSheet, Dimensions } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { StyleSheet } from 'react-native';
 
 export const focusStyles = StyleSheet.create({
   container: {
@@ -47,7 +45,7 @@ export const focusStyles = StyleSheet.create({
   affirmationBox: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 20,
     flexDirection: 'row',
@@ -63,7 +61,7 @@ export const focusStyles = StyleSheet.create({
   modeTabsContainer: {
     flexDirection: 'row',
     padding: 4,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 24,
   },
@@ -235,7 +233,7 @@ export const focusStyles = StyleSheet.create({
   statCard: {
     flex: 1,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
   },

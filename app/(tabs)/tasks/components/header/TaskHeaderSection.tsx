@@ -1,10 +1,9 @@
-import React from 'react';
 import { View } from 'react-native';
-import TaskHeader from './TaskHeader';
-import TaskSubNavTabs from './TaskSubNavTabs';
-import TaskSearchBar from './TaskSearchBar';
-import { TaskTheme } from '../../types';
 import type { useTaskData } from '../../hooks/useTaskData';
+import { TaskTheme } from '../../types';
+import TaskHeader from './TaskHeader';
+import TaskSearchBar from './TaskSearchBar';
+import TaskSubNavTabs from './TaskSubNavTabs';
 
 interface TaskHeaderSectionProps {
   onOpenDrawer: () => void;
@@ -27,6 +26,8 @@ export default function TaskHeaderSection({
         textPrimary={theme.textPrimary}
         textSecondary={theme.textSecondary}
         primaryBrown={theme.primaryBrown}
+        cardBg={theme.cardBg}
+        borderCol={theme.borderCol}
       />
 
       {/* 2. Search Bar */}

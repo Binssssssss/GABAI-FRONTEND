@@ -11,6 +11,23 @@ import 'react-native-reanimated';
 import { ThemeProvider, useAppTheme } from '@/app/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 
+function createGabaiNavigationTheme(colorScheme: 'light' | 'dark', colors: any) {
+  const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+
+  return {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      background: colors.background,
+      card: colors.card,
+      border: colors.border,
+      text: colors.text,
+      primary: colors.primary,
+      notification: colors.primary,
+    },
+  };
+}
+
 export default function RootLayout() {
   return (
     <ThemeProvider>
@@ -22,7 +39,7 @@ export default function RootLayout() {
 }
 
 function AppNavigation() {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, colors } = useAppTheme();
   const { session, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -44,11 +61,7 @@ function AppNavigation() {
 
   return (
     <NavigationThemeProvider
-      value={
-        colorScheme === 'dark'
-          ? DarkTheme
-          : DefaultTheme
-      }
+      value={createGabaiNavigationTheme(colorScheme, colors)}
     >
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />

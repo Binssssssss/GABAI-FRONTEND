@@ -32,8 +32,8 @@ export const drawerStyles = StyleSheet.create({
 
     borderRightWidth: 1,
 
-    borderTopRightRadius: 26,
-    borderBottomRightRadius: 26,
+    borderTopRightRadius: 22,
+    borderBottomRightRadius: 22,
 
     overflow: 'hidden',
 
@@ -41,17 +41,18 @@ export const drawerStyles = StyleSheet.create({
 
     shadowColor: '#000',
     shadowOffset: {
-      width: 8,
+      width: 4,
       height: 0,
     },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
 
-    elevation: 18,
+    elevation: 12,
   },
 
   drawerContent: {
-    paddingBottom: 30,
+    flexGrow: 1,
+    paddingBottom: 20,
   },
 
   /* ========================================
@@ -60,8 +61,8 @@ export const drawerStyles = StyleSheet.create({
 
   brandHeader: {
     paddingHorizontal: 20,
-    paddingTop: 58,
-    paddingBottom: 18,
+    paddingTop: 52,
+    paddingBottom: 16,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -76,10 +77,10 @@ export const drawerStyles = StyleSheet.create({
   },
 
   brandMark: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
 
-    borderRadius: 11,
+    borderRadius: 9,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -89,22 +90,26 @@ export const drawerStyles = StyleSheet.create({
 
   brandMarkText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '800',
   },
 
   brandName: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 
-    letterSpacing: -0.4,
+  brandSubtitle: {
+    fontSize: 10,
+    marginTop: 2,
+    letterSpacing: 0.2,
   },
   
   closeButton: {
     width: 34,
     height: 34,
 
-    borderRadius: 11,
+    borderRadius: 10,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -115,15 +120,15 @@ export const drawerStyles = StyleSheet.create({
   ======================================== */
 
   profileCard: {
-    marginHorizontal: 16,
-    marginTop: 18,
+    marginHorizontal: 14,
+    marginTop: 14,
 
-    minHeight: 76,
+    minHeight: 66,
 
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
 
-    borderRadius: 16,
+    borderRadius: 14,
 
     borderWidth: 1,
 
@@ -132,15 +137,16 @@ export const drawerStyles = StyleSheet.create({
   },
 
   avatar: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
 
-    borderRadius: 14,
+    borderRadius: 12,
+    borderWidth: 1,
 
     alignItems: 'center',
     justifyContent: 'center',
 
-    marginRight: 11,
+    marginRight: 10,
   },
 
   avatarText: {
@@ -171,11 +177,8 @@ export const drawerStyles = StyleSheet.create({
   },
 
   profileName: {
-    fontSize: 14,
-
+    fontSize: 13,
     fontWeight: '700',
-
-    letterSpacing: -0.2,
   },
 
   profileCourse: {
@@ -201,11 +204,8 @@ export const drawerStyles = StyleSheet.create({
   },
 
   statusText: {
-    fontSize: 8.5,
-
-    fontWeight: '600',
-
-    letterSpacing: 0.05,
+    fontSize: 9,
+    fontWeight: '500',
   },
 
   /* ========================================
@@ -213,39 +213,36 @@ export const drawerStyles = StyleSheet.create({
   ======================================== */
 
   navigation: {
-    paddingHorizontal: 14,
-    paddingTop: 24,
+    paddingHorizontal: 16,
+    paddingTop: 20,
   },
 
   productivitySection: {
-    paddingHorizontal: 14,
-    paddingTop: 18,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
 
   sectionLabel: {
-    fontSize: 9,
-
-    fontWeight: '800',
-
-    letterSpacing: 1.4,
-
-    marginLeft: 12,
-    marginBottom: 9,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+    marginLeft: 10,
+    marginBottom: 8,
   },
 
   menuItem: {
     position: 'relative',
 
-    height: 47,
+    height: 46,
 
-    borderRadius: 13,
+    borderRadius: 10,
 
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
 
     flexDirection: 'row',
     alignItems: 'center',
 
-    marginBottom: 3,
+    marginBottom: 2,
 
     overflow: 'hidden',
   },
@@ -262,10 +259,10 @@ export const drawerStyles = StyleSheet.create({
   },
 
   menuIcon: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
 
-    borderRadius: 10,
+    borderRadius: 8,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,11 +271,9 @@ export const drawerStyles = StyleSheet.create({
   menuText: {
     flex: 1,
 
-    fontSize: 13,
+    fontSize: 14,
 
-    marginLeft: 11,
-
-    letterSpacing: -0.1,
+    marginLeft: 10,
   },
 
   /* ========================================
@@ -286,12 +281,12 @@ export const drawerStyles = StyleSheet.create({
   ======================================== */
 
   badge: {
-    minWidth: 21,
-    height: 21,
+    minWidth: 20,
+    height: 20,
 
     paddingHorizontal: 6,
 
-    borderRadius: 10.5,
+    borderRadius: 8,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -300,11 +295,8 @@ export const drawerStyles = StyleSheet.create({
   },
 
   badgeText: {
-    color: '#FFFFFF',
-
-    fontSize: 9,
-
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
   },
 
   /* ========================================
@@ -312,20 +304,20 @@ export const drawerStyles = StyleSheet.create({
   ======================================== */
 
   footer: {
-    marginTop: 20,
+    marginTop: 'auto',
 
-    paddingHorizontal: 14,
-    paddingTop: 15,
+    paddingHorizontal: 16,
+    paddingTop: 14,
 
     borderTopWidth: 1,
   },
 
   footerItem: {
-    height: 47,
+    height: 44,
 
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
 
-    borderRadius: 13,
+    borderRadius: 10,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,10 +326,10 @@ export const drawerStyles = StyleSheet.create({
   },
 
   footerIcon: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
 
-    borderRadius: 10,
+    borderRadius: 8,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -346,9 +338,9 @@ export const drawerStyles = StyleSheet.create({
   footerText: {
     flex: 1,
 
-    fontSize: 13,
+    fontSize: 14,
 
-    marginLeft: 11,
+    marginLeft: 10,
 
     fontWeight: '500',
   },

@@ -229,7 +229,7 @@ export default function TaskSubjectsView({
             </View>
 
             {/* Counts Grid */}
-            <View style={styles.subjectMetricsRow}>
+            <View style={[styles.subjectMetricsRow, { borderTopColor: borderCol }]}>
               {/* Assignments */}
               <View style={styles.metricItem}>
                 <Feather

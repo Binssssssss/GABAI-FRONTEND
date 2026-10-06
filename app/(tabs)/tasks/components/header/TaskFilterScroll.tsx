@@ -1,6 +1,5 @@
-import React from 'react';
-import { ScrollView, TouchableOpacity, Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { ScrollView, Text, TouchableOpacity } from 'react-native';
 import { FILTERS } from '../../constants/taskConfig';
 import { taskStyles as styles } from '../../styles/task.styles';
 
@@ -25,6 +24,8 @@ export default function TaskFilterScroll({
   textSecondary,
   primaryBrown,
 }: TaskFilterScrollProps) {
+  const selectedBackground = `${primaryBrown}20`;
+
   return (
     <ScrollView
       horizontal
@@ -36,21 +37,21 @@ export default function TaskFilterScroll({
         style={[
           styles.filterPill,
           {
-            backgroundColor: isMultiSelectMode ? primaryBrown : cardBg,
-            borderColor: borderCol,
+            backgroundColor: isMultiSelectMode ? selectedBackground : cardBg,
+            borderColor: isMultiSelectMode ? primaryBrown : borderCol,
           },
         ]}
       >
         <Feather
           name="list"
           size={13}
-          color={isMultiSelectMode ? '#FFFFFF' : textSecondary}
+          color={isMultiSelectMode ? primaryBrown : textSecondary}
           style={{ marginRight: 4 }}
         />
         <Text
           style={[
             styles.filterPillText,
-            { color: isMultiSelectMode ? '#FFFFFF' : textSecondary },
+            { color: isMultiSelectMode ? primaryBrown : textSecondary },
           ]}
         >
           Select
@@ -65,8 +66,8 @@ export default function TaskFilterScroll({
             style={[
               styles.filterPill,
               {
-                backgroundColor: isActive ? primaryBrown : cardBg,
-                borderColor: borderCol,
+                backgroundColor: isActive ? selectedBackground : cardBg,
+                borderColor: isActive ? primaryBrown : borderCol,
               },
             ]}
             onPress={() => onSelectFilter(filter)}
@@ -74,7 +75,7 @@ export default function TaskFilterScroll({
             <Text
               style={[
                 styles.filterPillText,
-                { color: isActive ? '#FFFFFF' : textSecondary },
+                { color: isActive ? primaryBrown : textSecondary },
               ]}
             >
               {filter}

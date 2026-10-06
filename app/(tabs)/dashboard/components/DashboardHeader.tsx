@@ -1,20 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import { Colors } from '@/constants/theme';
+import { Feather } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
   Modal,
   Pressable,
-  Image,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { dashboardHeaderStyles as styles } from '../styles/dashboardHeaderStyles';
 
 import {
   getNotifications,
-  subscribeToNotifications,
   markNotificationAsRead,
+  subscribeToNotifications,
 } from '@/app/notifications/notificationService';
 
 import { Notification } from '@/app/notifications/types';
@@ -34,8 +33,6 @@ export default function DashboardHeader({
   textPrimary,
   textSecondary,
 }: DashboardHeaderProps) {
-  const router = useRouter();
-
   const [notificationsVisible, setNotificationsVisible] =
     useState(false);
 
@@ -86,18 +83,22 @@ export default function DashboardHeader({
     day: 'numeric',
   });
 
-  const isDark = textPrimary === '#ECEDEE';
+  const isDark = textPrimary === Colors.dark.text;
 
   const headerSurface = isDark
-    ? '#1A1A1A'
-    : '#F8F6F3';
+    ? Colors.dark.subtleSurface
+    : 'rgba(255, 255, 255, 0.5)';
 
   const softSurface = isDark
-    ? '#242424'
-    : '#FFFFFF';
+    ? Colors.dark.surfaceStrong
+    : Colors.light.surfaceStrong;
+
+  const modalSurface = isDark ? '#191919' : '#FFFFFF';
+  const notificationItemSurface = isDark ? '#242427' : '#F7F4F0';
+  const modalIconSurface = isDark ? '#2A2521' : '#F4EAE0';
 
   const iconColor = isDark
-    ? '#E6D5C4'
+    ? Colors.dark.tint
     : '#5C4033';
 
   const accentBrown = '#A97C50';
@@ -195,9 +196,7 @@ export default function DashboardHeader({
               styles.notificationButton,
               {
                 backgroundColor: softSurface,
-                borderColor: isDark
-                  ? '#303030'
-                  : '#E8E1D9',
+                borderColor: isDark ? Colors.dark.border : Colors.light.border,
               },
             ]}
             onPress={() =>
@@ -249,9 +248,7 @@ export default function DashboardHeader({
             style={[
               styles.notificationPanel,
               {
-                backgroundColor: isDark
-                  ? '#1E1E1E'
-                  : '#FFFFFF',
+                backgroundColor: modalSurface,
               },
             ]}
             onPress={(event) =>
@@ -265,9 +262,7 @@ export default function DashboardHeader({
                   style={[
                     styles.modalTitleIcon,
                     {
-                      backgroundColor: isDark
-                        ? '#30271F'
-                        : '#F3EAE1',
+                      backgroundColor: modalIconSurface,
                     },
                   ]}
                 >
@@ -332,12 +327,10 @@ export default function DashboardHeader({
                     style={[
                       styles.notificationItem,
                       {
-                        backgroundColor: isDark
-                          ? '#262626'
-                          : '#F8FAFC',
+                        backgroundColor: notificationItemSurface,
                         borderColor: isDark
-                          ? '#303030'
-                          : '#EDF0F2',
+                          ? Colors.dark.border
+                          : Colors.light.border,
                         opacity: notification.read
                           ? 0.58
                           : 1,
@@ -352,7 +345,7 @@ export default function DashboardHeader({
                           backgroundColor:
                             notification.iconColor
                               ? `${notification.iconColor}15`
-                              : '#F59E0B15',
+                              : `${Colors.light.warning}20`,
                         },
                       ]}
                     >
@@ -363,7 +356,7 @@ export default function DashboardHeader({
                         size={17}
                         color={
                           notification.iconColor ||
-                          '#F59E0B'
+                          Colors.light.warning
                         }
                       />
                     </View>
@@ -427,16 +420,14 @@ export default function DashboardHeader({
                   style={[
                     styles.emptyIcon,
                     {
-                      backgroundColor: isDark
-                        ? '#1D3029'
-                        : '#ECFDF5',
+                      backgroundColor: modalIconSurface,
                     },
                   ]}
                 >
                   <Feather
                     name="check"
                     size={24}
-                    color="#10B981"
+                    color={Colors.light.success}
                   />
                 </View>
 
@@ -448,7 +439,7 @@ export default function DashboardHeader({
                     },
                   ]}
                 >
-                  You're all caught up
+                  You&apos;re all caught up
                 </Text>
 
                 <Text
@@ -472,8 +463,8 @@ export default function DashboardHeader({
                   styles.footer,
                   {
                     borderTopColor: isDark
-                      ? '#303030'
-                      : '#EDF0F2',
+                      ? Colors.dark.border
+                      : Colors.light.border,
                   },
                 ]}
               >
