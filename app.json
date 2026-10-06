@@ -26,20 +26,25 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": " ./assets/images/Gabai Logo FINAL WHITE.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#121212",
-          "dark": {
-            "backgroundColor": "#121212"
-          }
-        }
-      ]
-    ],
+  "expo-router",
+  [
+    "expo-splash-screen",
+    {
+      "image": "./assets/images/Gabai Logo FINAL WHITE.png",
+      "imageWidth": 200,
+      "resizeMode": "contain",
+      "backgroundColor": "#121212",
+      "dark": {
+        "backgroundColor": "#121212"
+      }
+    }
+  ],
+  "expo-font",
+  "expo-image",
+  "expo-status-bar",
+  "expo-web-browser",
+  "@react-native-google-signin/google-signin"
+],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
