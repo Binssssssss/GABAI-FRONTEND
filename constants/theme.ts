@@ -1,29 +1,50 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * GabAi app theme palette.
+ * The app uses a single centralized theme source for both light and dark modes.
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColor = '#A97C50';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    background: '#FFFFFF',
+    card: '#F8FAFC',
+    surface: '#F8FAFC',
+    surfaceStrong: '#F3F4F6',
+    subtleSurface: 'rgba(169, 124, 80, 0.08)',
+    border: '#E5E7EB',
+    text: '#171717',
+    secondaryText: '#6B7280',
+    icon: '#6B7280',
+    primary: '#A97C50',
+    tint: tintColor,
+    tabIconDefault: '#6B7280',
+    tabIconSelected: tintColor,
+    success: '#22C55E',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    info: '#3B82F6',
   },
   dark: {
+    background: '#121212',
+    card: '#1E1E1E',
+    surface: '#1E1E1E',
+    surfaceStrong: '#242424',
+    subtleSurface: 'rgba(169, 124, 80, 0.12)',
+    border: '#2E2E2E',
     text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
+    secondaryText: '#9BA1A6',
     icon: '#9BA1A6',
+    primary: '#A97C50',
+    tint: tintColor,
     tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    tabIconSelected: tintColor,
+    success: '#22C55E',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    info: '#3B82F6',
   },
 };
 

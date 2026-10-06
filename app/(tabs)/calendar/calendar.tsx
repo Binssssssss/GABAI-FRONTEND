@@ -1,60 +1,49 @@
 
 import { useDrawer } from '@/app/(tabs)/_layout';
 import { useAppTheme } from '@/app/context/ThemeContext';
-import { Feather } from '@expo/vector-icons';
-import React from 'react';
-import { ScrollView, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  AgendaSection,
-  CalendarFilterSection,
-  CalendarHeader,
-  CalendarViewToggle,
-  DayView,
-  EventDetailModal,
-  MonthView,
-  QuickAddEventModal,
-  UpcomingDeadlinesWidget,
-  WeekView,
+    AgendaSection,
+    CalendarFilterSection,
+    CalendarHeader,
+    CalendarRangeNavigation,
+    CalendarViewToggle,
+    DayView,
+    EventDetailModal,
+    MonthView,
+    QuickAddEventModal,
+    UpcomingDeadlinesWidget,
+    WeekView,
 } from './components';
 
 import { useCalendarData } from './hooks/useCalendarData';
 import { calendarStyles as styles } from './styles/calendar.styles';
+import { getLocalDateKey, shiftCalendarDate } from './utils/calendarHelpers';
 
 export default function SmartCalendarScreen() {
   // GabAi manual theme
-  const { colorScheme } = useAppTheme();
-
-  const isDark = colorScheme === 'dark';
+  const { colors, colorScheme } = useAppTheme();
 
   // Theme Colors
   const primaryAccent = '#A97C50';
 
-  const textTheme = isDark
-    ? '#ECEDEE'
-    : '#11181C';
-
-  const textSubTheme = isDark
-    ? '#9BA1A6'
-    : '#666666';
-
-  const cardTheme = isDark
-    ? '#1E1E1E'
-    : '#F8FAFC';
-
-  const borderTheme = isDark
-    ? '#2E2E2E'
-    : '#E2E8F0';
-
-  const bgTheme = isDark
-    ? '#121212'
-    : '#FFFFFF';
+  const textTheme = colors.text;
+  const textSubTheme = colors.icon;
+  const cardTheme = colors.surface;
+  const borderTheme = colors.border;
+  const bgTheme = colors.background;
+  const modalSurface = colorScheme === 'dark' ? '#191919' : '#FFFFFF';
 
   const { openDrawer } = useDrawer();
+  const router = useRouter();
 
   const {
     events,
+    isLoadingEvents,
+    eventsLoadFailed,
     selectedDate,
     setSelectedDate,
     viewMode,
@@ -75,6 +64,7 @@ export default function SmartCalendarScreen() {
     cancelRescheduling,
     completeRescheduling,
     upcomingDeadlines,
+    academicPressure,
     filteredEvents,
 
     // Form fields
@@ -128,6 +118,7 @@ export default function SmartCalendarScreen() {
         textTheme={textTheme}
         rescheduleMode={rescheduleMode}
         onOpenDrawer={openDrawer}
+        onAddEvent={openQuickAdd}
         onCancelReschedule={cancelRescheduling}
       />
 
@@ -152,6 +143,18 @@ export default function SmartCalendarScreen() {
         borderTheme={borderTheme}
         textTheme={textTheme}
         textSubTheme={textSubTheme}
+      />
+
+      <CalendarRangeNavigation
+        date={selectedDate}
+        viewMode={viewMode}
+        textTheme={textTheme}
+        textSubTheme={textSubTheme}
+        borderTheme={borderTheme}
+        onNavigate={(direction) =>
+          setSelectedDate((date) => shiftCalendarDate(date, viewMode, direction))
+        }
+        onToday={() => setSelectedDate(getLocalDateKey())}
       />
 
       {/* Main Calendar Content */}
@@ -218,6 +221,10 @@ export default function SmartCalendarScreen() {
         {/* Today's Agenda */}
         <AgendaSection
           events={filteredEvents}
+          allEvents={events}
+          academicPressure={academicPressure}
+          isLoadingEvents={isLoadingEvents}
+          eventsLoadFailed={eventsLoadFailed}
           selectedDate={selectedDate}
           rescheduleMode={rescheduleMode}
           activeReschedulingId={activeReschedulingId}
@@ -247,24 +254,6 @@ export default function SmartCalendarScreen() {
         />
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          {
-            backgroundColor: primaryAccent,
-          },
-        ]}
-        onPress={openQuickAdd}
-        activeOpacity={0.8}
-      >
-        <Feather
-          name="plus"
-          size={24}
-          color="#FFFFFF"
-        />
-      </TouchableOpacity>
-
       {/* Event Details Modal */}
       <EventDetailModal
         visible={isDetailModalOpen}
@@ -273,6 +262,13 @@ export default function SmartCalendarScreen() {
         onToggleChecklistItem={toggleChecklistItem}
         onStartRescheduling={startRescheduling}
         onDeleteEvent={deleteEvent}
+        onStartFocusSession={(eventId) => {
+          setIsDetailModalOpen(false);
+          router.push({
+            pathname: '/(tabs)/tasks/task',
+            params: { focusTaskId: eventId },
+          });
+        }}
         cardTheme={cardTheme}
         borderTheme={borderTheme}
         textTheme={textTheme}
@@ -313,7 +309,7 @@ export default function SmartCalendarScreen() {
         onAddChecklistItem={addChecklistItem}
         onRemoveChecklistItem={removeChecklistItem}
         onSave={saveEvent}
-        cardTheme={cardTheme}
+        modalSurface={modalSurface}
         borderTheme={borderTheme}
         textTheme={textTheme}
         textSubTheme={textSubTheme}

@@ -1,14 +1,13 @@
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { useAppTheme } from '@/app/context/ThemeContext';
 import { Tabs, usePathname, useRouter } from 'expo-router';
-import React, {
-  useEffect,
-  useState,
+import {
+    useEffect,
+    useState,
 } from 'react';
 import {
-  Alert,
-  StyleSheet,
-  View,
+    Alert,
+    StyleSheet,
+    View,
 } from 'react-native';
 
 import { localDb } from '@/app/services/localDb';
@@ -16,11 +15,11 @@ import FloatingAssistant from '@/components/FloatingAssistant';
 
 import AppDrawer from '@/components/drawer/AppDrawer';
 
-import {
-  DrawerContext,
-  useDrawer,
-} from '@/app/context/DrawerContext';
 import { useAuth } from '@/app/context/AuthContext';
+import {
+    DrawerContext,
+    useDrawer,
+} from '@/app/context/DrawerContext';
 
 export { useDrawer };
 
@@ -29,32 +28,18 @@ export default function TabLayout() {
   const pathname = usePathname();
   const { signOut } = useAuth();
 
-  // Theme
-  const colorScheme =
-    useColorScheme() ?? 'light';
-
-  const theme =
-    colorScheme === 'dark'
-      ? Colors.dark
-      : Colors.light;
+  const { colors: theme } = useAppTheme();
 
   const primaryBrown = '#A97C50';
-  const successGreen = '#10B981';
-  const errorRed = '#EF4444';
+  const successGreen = theme.success;
+  const errorRed = theme.danger;
 
   const bgTheme = theme.background;
   const textPrimary = theme.text;
   const textSecondary = theme.icon;
 
-  const cardBg =
-    colorScheme === 'dark'
-      ? '#1E1E1E'
-      : '#F8FAFC';
-
-  const borderCol =
-    colorScheme === 'dark'
-      ? '#2E2E2E'
-      : '#E2E8F0';
+  const cardBg = theme.surface;
+  const borderCol = theme.border;
 
   // Counts
   const [notesCount, setNotesCount] =

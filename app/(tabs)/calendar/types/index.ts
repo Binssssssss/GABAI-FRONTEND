@@ -23,6 +23,8 @@ export interface CalendarEvent {
   recurrenceRule: string; // "Daily" | "Weekly" | ""
   progress: number; // 0 - 100
   checklist: ChecklistItem[];
+  completed: boolean;
+  subject?: string;
   description?: string;
 }
 

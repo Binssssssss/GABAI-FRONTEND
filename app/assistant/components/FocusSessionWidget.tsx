@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useEffect, useRef, useState } from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { assistantStyles as styles } from '../styles';
 import { formatTimerTime } from '../utils';
 
@@ -19,8 +20,9 @@ export function FocusSessionWidget({
   const isDark = colorScheme === 'dark';
   const primaryBrown = '#A97C50';
   const textPrimary = isDark ? '#ECEDEE' : '#11181C';
-  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const borderCol = isDark ? '#2E2E2E' : '#E2E8F0';
+  const palette = isDark ? Colors.dark : Colors.light;
+  const cardBg = palette.surface;
+  const borderCol = palette.border;
 
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(true);

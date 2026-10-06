@@ -1,4 +1,4 @@
-import React from 'react';
+import { useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -6,30 +6,27 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
+import { useAppTheme } from '@/app/context/ThemeContext';
 import {
-  RegisterHeader,
-  RegisterForm,
-  RegisterSocial,
   RegisterFooter,
+  RegisterForm,
+  RegisterHeader,
+  RegisterSocial,
 } from './components';
 import { useRegister } from './hooks';
 import { registerStyles as styles } from './styles';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
 
-  // Theme Colors matching Login screen
-  const primaryBrown = '#A97C50';
-  const errorRed = '#EF4444';
-  const inputBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const textPrimary = isDark ? '#ECEDEE' : '#11181C';
-  const textSecondary = isDark ? '#9BA1A6' : '#666666';
-  const borderColorDefault = isDark ? '#2E2E2E' : '#E2E8F0';
+  const primaryBrown = colors.primary;
+  const errorRed = colors.danger;
+  const inputBg = colors.card;
+  const textPrimary = colors.text;
+  const textSecondary = colors.secondaryText;
+  const borderColorDefault = colors.border;
 
   const {
     name,
@@ -59,7 +56,7 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: isDark ? '#121212' : '#FFFFFF' }]}
+      style={[styles.container, { backgroundColor: palette.background }]}
       edges={['top', 'bottom']}
     >
       <KeyboardAvoidingView
@@ -80,7 +77,15 @@ export default function RegisterScreen() {
           />
 
           {/* Form Fields & Submit */}
-          <View style={styles.formContainer}>
+          <View
+            style={[
+              styles.formContainer,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+          >
             <RegisterForm
               name={name}
               setName={setName}

@@ -1,16 +1,15 @@
-import React from 'react';
-import { View, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/app/context/ThemeContext';
+import { useRouter } from 'expo-router';
+import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  AssistantHeader,
-  TypingIndicator,
-  MessageBubble,
-  EmptyStateView,
-  QuickActionsBar,
-  ChatInputBar,
+    AssistantHeader,
+    ChatInputBar,
+    EmptyStateView,
+    MessageBubble,
+    QuickActionsBar,
+    TypingIndicator,
 } from './components';
 import { useAssistant } from './hooks';
 import { assistantStyles as styles } from './styles';
@@ -19,17 +18,16 @@ export default function AssistantScreen() {
   const router = useRouter();
 
   // Use GabAi manual theme
-  const { colorScheme } = useAppTheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
 
   // GabAi Design Colors
   const primaryBrown = '#A97C50';
-  const bgTheme = isDark ? '#121212' : '#FFFFFF';
-  const textPrimary = isDark ? '#ECEDEE' : '#11181C';
-  const textSecondary = isDark ? '#9BA1A6' : '#666666';
-  const cardBg = isDark ? '#1E1E1E' : '#F8FAFC';
-  const borderCol = isDark ? '#2E2E2E' : '#E2E8F0';
-  const inputBg = isDark ? '#1C1C1E' : '#FFFFFF';
+  const bgTheme = colors.background;
+  const textPrimary = colors.text;
+  const textSecondary = colors.icon;
+  const cardBg = colors.surface;
+  const borderCol = colors.border;
+  const inputBg = colors.surfaceStrong;
 
   const {
     messages,

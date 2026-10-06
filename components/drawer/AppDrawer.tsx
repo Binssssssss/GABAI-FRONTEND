@@ -1,4 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
 import {
   Animated,
   Dimensions,
@@ -8,10 +11,36 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { Colors } from '@/constants/theme';
 import { drawerStyles as styles } from './drawer.style';
+
+const DRAWER_PALETTES = {
+  dark: {
+    background: '#151515',
+    surface: '#1C1C1C',
+    hover: '#242424',
+    active: '#2A211B',
+    primaryText: '#F2F2F2',
+    secondaryText: '#9B9B9B',
+    mutedText: '#6F6F6F',
+    border: '#2A2A2A',
+    highlight: '#C59A6B',
+  },
+  light: {
+    background: '#F7F3EE',
+    surface: '#EEE7DE',
+    hover: '#E8E0D6',
+    active: '#F0E3D4',
+    primaryText: '#29231E',
+    secondaryText: '#65584E',
+    mutedText: '#817366',
+    border: '#DED3C6',
+    highlight: '#8A5B34',
+  },
+};
+
+type DrawerPalette = typeof DRAWER_PALETTES.dark;
 
 interface MenuItem {
   label: string;
@@ -46,23 +75,22 @@ export default function AppDrawer({
   handleLogout,
   isActiveRoute,
   menuItems,
-
   primaryBrown,
   successGreen,
   errorRed,
-
   textPrimary,
-  textSecondary,
-  cardBg,
-  borderCol,
 }: AppDrawerProps) {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = React.useState<Record<string, string>>({});
   const screenWidth = Dimensions.get('window').width;
   const drawerWidth = screenWidth * 0.78;
+  const isDark = textPrimary === Colors.dark.text;
+  const drawerColors = isDark ? DRAWER_PALETTES.dark : DRAWER_PALETTES.light;
 
-  const slideAnim = useRef(
-    new Animated.Value(-drawerWidth)
-  ).current;
+  const slideAnim = React.useMemo(
+    () => new Animated.Value(-drawerWidth),
+    [drawerWidth]
+  );
 
   useEffect(() => {
     AsyncStorage.getItem('gabai_user').then((storedUser) => {
@@ -92,19 +120,12 @@ export default function AppDrawer({
     }
   }, [isDrawerOpen, drawerWidth, slideAnim]);
 
-  // Separate menu items visually without changing your actual menuItems.
-  const mainItems = menuItems.filter(
-    (item) =>
-      ![
-        'Focus Session',
-        'Virtual Assistant',
-      ].includes(item.label)
+  const personalLabels = ['Expenses', 'Focus Session', 'Virtual Assistant'];
+  const workspaceItems = menuItems.filter(
+    (item) => !personalLabels.includes(item.label)
   );
-
-  const productivityItems = menuItems.filter(
-    (item) =>
-      item.label === 'Focus Session' ||
-      item.label === 'Virtual Assistant'
+  const personalItems = menuItems.filter(
+    (item) => personalLabels.includes(item.label)
   );
 
   return (
@@ -139,8 +160,8 @@ export default function AppDrawer({
           styles.drawer,
           {
             width: drawerWidth,
-            backgroundColor: cardBg,
-            borderColor: borderCol,
+            backgroundColor: drawerColors.background,
+            borderColor: drawerColors.border,
             transform: [
               {
                 translateX: slideAnim,
@@ -155,24 +176,41 @@ export default function AppDrawer({
             styles.drawerContent
           }
         >
-          {/* =====================================
-              PROFILE CARD
-          ====================================== */}
-
           <View
+            style={[
+              styles.brandHeader,
+              { borderBottomColor: drawerColors.border },
+            ]}
+          >
+            <View style={styles.brandInfo}>
+              <View style={[styles.brandMark, { backgroundColor: primaryBrown }]}>
+                <Text style={styles.brandMarkText}>G</Text>
+              </View>
+              <View>
+                <Text style={[styles.brandName, { color: drawerColors.primaryText }]}>GabAi</Text>
+                <Text style={[styles.brandSubtitle, { color: drawerColors.mutedText }]}>Student Workspace</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* =====================================
+    PROFILE CARD
+====================================== */}
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+  closeDrawer();
+
+  setTimeout(() => {
+    router.push('/(tabs)/profile/profile');
+  }, 150);
+}}
             style={[
               styles.profileCard,
               {
-                backgroundColor:
-                  colorWithOpacity(
-                    primaryBrown,
-                    0.08
-                  ),
-                borderColor:
-                  colorWithOpacity(
-                    primaryBrown,
-                    0.16
-                  ),
+                backgroundColor: drawerColors.surface,
+                borderColor: drawerColors.border,
               },
             ]}
           >
@@ -180,12 +218,17 @@ export default function AppDrawer({
               style={[
                 styles.avatar,
                 {
-                  backgroundColor: primaryBrown,
+                  backgroundColor: drawerColors.hover,
+                  borderColor: drawerColors.border,
                 },
               ]}
             >
-              <Text style={styles.avatarText}>
-                {currentUser.initials || currentUser.name?.slice(0, 2).toUpperCase() || 'U'}
+              <Text style={[styles.avatarText, { color: drawerColors.highlight }]}>
+                {currentUser.initials ||
+                  currentUser.name
+                    ?.slice(0, 2)
+                    .toUpperCase() ||
+                  'U'}
               </Text>
 
               <View
@@ -193,7 +236,7 @@ export default function AppDrawer({
                   styles.avatarStatus,
                   {
                     backgroundColor: successGreen,
-                    borderColor: cardBg,
+                    borderColor: drawerColors.surface,
                   },
                 ]}
               />
@@ -204,21 +247,26 @@ export default function AppDrawer({
                 style={[
                   styles.profileName,
                   {
-                    color: textPrimary,
+                    color: drawerColors.primaryText,
                   },
                 ]}
                 numberOfLines={1}
               >
-                {currentUser.name || currentUser.fullName || currentUser.userName || currentUser.email || 'User'}
+                {currentUser.name ||
+                  currentUser.fullName ||
+                  currentUser.userName ||
+                  currentUser.email ||
+                  'User'}
               </Text>
 
               <Text
                 style={[
                   styles.profileCourse,
                   {
-                    color: textSecondary,
+                    color: drawerColors.secondaryText,
                   },
                 ]}
+                numberOfLines={1}
               >
                 {currentUser.course || ''}
               </Text>
@@ -228,8 +276,7 @@ export default function AppDrawer({
                   style={[
                     styles.statusDot,
                     {
-                      backgroundColor:
-                        successGreen,
+                      backgroundColor: successGreen,
                     },
                   ]}
                 />
@@ -250,9 +297,9 @@ export default function AppDrawer({
             <Feather
               name="chevron-right"
               size={17}
-              color={textSecondary}
+              color={drawerColors.secondaryText}
             />
-          </View>
+          </TouchableOpacity>
 
           {/* =====================================
               MAIN NAVIGATION
@@ -263,20 +310,19 @@ export default function AppDrawer({
               style={[
                 styles.sectionLabel,
                 {
-                  color: textSecondary,
+                  color: drawerColors.mutedText,
                 },
               ]}
             >
-              MAIN
+              WORKSPACE
             </Text>
 
-            {mainItems.map((item) => (
+            {workspaceItems.map((item) => (
               <DrawerMenuItem
                 key={item.label}
                 item={item}
                 primaryBrown={primaryBrown}
-                textPrimary={textPrimary}
-                textSecondary={textSecondary}
+                colors={drawerColors}
                 onPress={() =>
                   handleNavigate(item.route)
                 }
@@ -288,26 +334,25 @@ export default function AppDrawer({
               PRODUCTIVITY
           ====================================== */}
 
-          {productivityItems.length > 0 && (
+          {personalItems.length > 0 && (
             <View style={styles.productivitySection}>
               <Text
                 style={[
                   styles.sectionLabel,
                   {
-                    color: textSecondary,
+                    color: drawerColors.mutedText,
                   },
                 ]}
               >
-                PRODUCTIVITY
+                  PERSONAL
               </Text>
 
-              {productivityItems.map((item) => (
+              {personalItems.map((item) => (
                 <DrawerMenuItem
                   key={item.label}
                   item={item}
                   primaryBrown={primaryBrown}
-                  textPrimary={textPrimary}
-                  textSecondary={textSecondary}
+                  colors={drawerColors}
                   onPress={() =>
                     handleNavigate(item.route)
                   }
@@ -324,10 +369,11 @@ export default function AppDrawer({
             style={[
               styles.footer,
               {
-                borderTopColor: borderCol,
+                borderTopColor: drawerColors.border,
               },
             ]}
           >
+            <Text style={[styles.sectionLabel, { color: drawerColors.mutedText }]}>ACCOUNT</Text>
             {/* Settings */}
 
             <TouchableOpacity
@@ -340,11 +386,7 @@ export default function AppDrawer({
               style={[
                 styles.footerItem,
                 isActiveRoute('profile') && {
-                  backgroundColor:
-                    colorWithOpacity(
-                      primaryBrown,
-                      0.08
-                    ),
+                  backgroundColor: drawerColors.active,
                 },
               ]}
             >
@@ -352,11 +394,7 @@ export default function AppDrawer({
                 style={[
                   styles.footerIcon,
                   {
-                    backgroundColor:
-                      colorWithOpacity(
-                        textSecondary,
-                        0.08
-                      ),
+                    backgroundColor: drawerColors.hover,
                   },
                 ]}
               >
@@ -366,7 +404,7 @@ export default function AppDrawer({
                   color={
                     isActiveRoute('profile')
                       ? primaryBrown
-                      : textSecondary
+                      : drawerColors.secondaryText
                   }
                 />
               </View>
@@ -376,8 +414,8 @@ export default function AppDrawer({
                   styles.footerText,
                   {
                     color: isActiveRoute('profile')
-                      ? textPrimary
-                      : textSecondary,
+                      ? drawerColors.primaryText
+                      : drawerColors.secondaryText,
                   },
                 ]}
               >
@@ -387,7 +425,7 @@ export default function AppDrawer({
               <Feather
                 name="chevron-right"
                 size={16}
-                color={textSecondary}
+                color={drawerColors.secondaryText}
               />
             </TouchableOpacity>
 
@@ -402,11 +440,7 @@ export default function AppDrawer({
                 style={[
                   styles.footerIcon,
                   {
-                    backgroundColor:
-                      colorWithOpacity(
-                        errorRed,
-                        0.08
-                      ),
+                    backgroundColor: `${errorRed}24`,
                   },
                 ]}
               >
@@ -442,16 +476,14 @@ export default function AppDrawer({
 interface DrawerMenuItemProps {
   item: MenuItem;
   primaryBrown: string;
-  textPrimary: string;
-  textSecondary: string;
+  colors: DrawerPalette;
   onPress: () => void;
 }
 
 function DrawerMenuItem({
   item,
   primaryBrown,
-  textPrimary,
-  textSecondary,
+  colors,
   onPress,
 }: DrawerMenuItemProps) {
   return (
@@ -461,11 +493,7 @@ function DrawerMenuItem({
       style={[
         styles.menuItem,
         item.active && {
-          backgroundColor:
-            colorWithOpacity(
-              primaryBrown,
-              0.11
-            ),
+          backgroundColor: colors.active,
         },
       ]}
     >
@@ -488,15 +516,7 @@ function DrawerMenuItem({
         style={[
           styles.menuIcon,
           {
-            backgroundColor: item.active
-              ? colorWithOpacity(
-                  primaryBrown,
-                  0.13
-                )
-              : colorWithOpacity(
-                  textSecondary,
-                  0.06
-                ),
+            backgroundColor: 'transparent',
           },
         ]}
       >
@@ -506,7 +526,7 @@ function DrawerMenuItem({
           color={
             item.active
               ? primaryBrown
-              : textSecondary
+              : colors.secondaryText
           }
         />
       </View>
@@ -518,8 +538,8 @@ function DrawerMenuItem({
           styles.menuText,
           {
             color: item.active
-              ? textPrimary
-              : textSecondary,
+              ? colors.primaryText
+              : colors.secondaryText,
             fontWeight: item.active
               ? '700'
               : '500',
@@ -538,11 +558,11 @@ function DrawerMenuItem({
             style={[
               styles.badge,
               {
-                backgroundColor: primaryBrown,
+                backgroundColor: colors.hover,
               },
             ]}
           >
-            <Text style={styles.badgeText}>
+            <Text style={[styles.badgeText, { color: colors.highlight }]}>
               {item.badge}
             </Text>
           </View>
@@ -551,32 +571,3 @@ function DrawerMenuItem({
   );
 }
 
-/* =========================================
-   COLOR HELPER
-========================================= */
-
-function colorWithOpacity(
-  hex: string,
-  opacity: number
-) {
-  const cleanHex = hex.replace('#', '');
-
-  if (cleanHex.length !== 6) {
-    return hex;
-  }
-
-  const r = parseInt(
-    cleanHex.substring(0, 2),
-    16
-  );
-  const g = parseInt(
-    cleanHex.substring(2, 4),
-    16
-  );
-  const b = parseInt(
-    cleanHex.substring(4, 6),
-    16
-  );
-
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Message } from '../types';
@@ -6,8 +6,8 @@ import { assistantStyles as styles } from '../styles';
 import { FocusSessionWidget } from './FocusSessionWidget';
 
 function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(15)).current;
+  const fadeAnim = useMemo(() => new Animated.Value(0), []);
+  const slideAnim = useMemo(() => new Animated.Value(15), []);
 
   useEffect(() => {
     Animated.parallel([

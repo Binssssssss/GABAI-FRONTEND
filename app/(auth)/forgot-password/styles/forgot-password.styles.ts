@@ -52,7 +52,7 @@ export const forgotPasswordStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     height: 56,
     paddingHorizontal: 16,
   },
@@ -67,7 +67,7 @@ export const forgotPasswordStyles = StyleSheet.create({
   },
   primaryButton: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',

@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated } from 'react-native';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useEffect, useMemo } from 'react';
+import { Animated, View } from 'react-native';
 import { assistantStyles as styles } from '../styles';
 
 function BouncingDot({ delay }: { delay: number }) {
-  const animatedValue = useRef(new Animated.Value(0)).current;
+  const animatedValue = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -41,8 +42,9 @@ function BouncingDot({ delay }: { delay: number }) {
 export function TypingIndicator() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const cardBg = isDark ? '#1E1E1E' : '#F8FAFC';
-  const borderCol = isDark ? '#2E2E2E' : '#E2E8F0';
+  const palette = isDark ? Colors.dark : Colors.light;
+  const cardBg = palette.surface;
+  const borderCol = palette.border;
 
   return (
     <View style={styles.assistantMessageContainer}>

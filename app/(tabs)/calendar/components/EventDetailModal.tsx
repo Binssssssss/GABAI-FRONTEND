@@ -1,10 +1,9 @@
-import React from 'react';
-import { View, Text, Modal, ScrollView, TouchableOpacity } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { CalendarEvent } from '../types';
+import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { CATEGORY_COLORS } from '../constants/calendarConfig';
-import { getPriorityColors } from '../utils/calendarHelpers';
 import { calendarStyles as styles } from '../styles/calendar.styles';
+import { CalendarEvent } from '../types';
+import { getPriorityColors } from '../utils/calendarHelpers';
 
 interface EventDetailModalProps {
   visible: boolean;
@@ -12,6 +11,7 @@ interface EventDetailModalProps {
   onClose: () => void;
   onToggleChecklistItem: (eventId: string, itemId: string) => void;
   onStartRescheduling: (eventId: string) => void;
+  onStartFocusSession: (eventId: string) => void;
   onDeleteEvent: (eventId: string) => void;
   cardTheme: string;
   borderTheme: string;
@@ -25,6 +25,7 @@ export default function EventDetailModal({
   onClose,
   onToggleChecklistItem,
   onStartRescheduling,
+  onStartFocusSession,
   onDeleteEvent,
   cardTheme,
   borderTheme,
@@ -80,6 +81,12 @@ export default function EventDetailModal({
                   {event.category}
                 </Text>
               </View>
+
+            {event.subject && event.subject !== event.category && (
+              <Text style={[styles.modalSubjectText, { color: textSubTheme }]}>
+                {event.subject}
+              </Text>
+            )}
               <View
                 style={[
                   styles.priorityBadge,
@@ -106,7 +113,7 @@ export default function EventDetailModal({
               <View style={styles.infoRowItem}>
                 <Feather name="calendar" size={16} color={textSubTheme} />
                 <Text style={[styles.infoRowText, { color: textTheme }]}>
-                  {new Date(event.date).toLocaleDateString("en-US", {
+                  {new Date(`${event.date}T00:00:00`).toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
                     day: "numeric",
@@ -119,7 +126,9 @@ export default function EventDetailModal({
                 <Text style={[styles.infoRowText, { color: textTheme }]}>
                   {event.isAllDay
                     ? "All Day Event"
-                    : `${event.time} (${event.duration} minutes)`}
+                    : event.time
+                      ? `${event.time}${event.duration ? ` (${event.duration} minutes)` : ''}`
+                      : 'Time not set'}
                 </Text>
               </View>
               {event.hasReminder && (
@@ -130,14 +139,14 @@ export default function EventDetailModal({
                   </Text>
                 </View>
               )}
-              {event.hasReminder && (
+              {event.hasReminder && event.reminderTime ? (
                 <View style={[styles.infoRowItem, { marginTop: 8 }]}>
                   <Feather name="bell" size={16} color={textSubTheme} />
                   <Text style={[styles.infoRowText, { color: textTheme }]}>
                     Reminder set: {event.reminderTime}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             {/* Description */}
@@ -223,6 +232,15 @@ export default function EventDetailModal({
 
             {/* Action buttons */}
             <View style={styles.modalActionButtonsRow}>
+              {!event.completed && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#A97C50' }]}
+                  onPress={() => onStartFocusSession(event.id)}
+                >
+                  <Feather name="play" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={[styles.actionBtnText, { color: '#FFFFFF' }]}>Focus</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[
                   styles.actionBtn,
@@ -230,12 +248,7 @@ export default function EventDetailModal({
                 ]}
                 onPress={() => onStartRescheduling(event.id)}
               >
-                <Feather
-                  name="move"
-                  size={16}
-                  color={textTheme}
-                  style={{ marginRight: 8 }}
-                />
+                <Feather name="move" size={16} color={textTheme} style={{ marginRight: 6 }} />
                 <Text style={[styles.actionBtnText, { color: textTheme }]}>
                   Reschedule
                 </Text>
@@ -245,12 +258,7 @@ export default function EventDetailModal({
                 style={[styles.actionBtn, { backgroundColor: "#7F1D1D" }]}
                 onPress={() => onDeleteEvent(event.id)}
               >
-                <Feather
-                  name="trash-2"
-                  size={16}
-                  color="#FFFFFF"
-                  style={{ marginRight: 8 }}
-                />
+                <Feather name="trash-2" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={[styles.actionBtnText, { color: "#FFFFFF" }]}>
                   Delete
                 </Text>

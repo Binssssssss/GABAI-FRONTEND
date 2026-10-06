@@ -6,20 +6,20 @@ export const dashboardStyles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 2,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 36,
   },
 
   section: {
-    marginBottom: 2,
+    marginBottom: 12,
   },
 
   sectionLarge: {
-    marginBottom: 3,
+    marginBottom: 16,
   },
 
   sectionSmall: {
-    marginBottom: 1,
+    marginBottom: 10,
   },
 });

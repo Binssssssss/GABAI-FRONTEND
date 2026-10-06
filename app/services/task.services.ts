@@ -51,10 +51,27 @@ export interface UpdateTaskPayload {
 /* ---------- API ---------- */
 
 class TaskService {
-  async getTasks(): Promise<Task[]> {
-    const response = await api.get('/tasks');
-    return response.data;
+ async getTasks(): Promise<Task[]> {
+  const response = await api.get('/tasks');
+
+  const result = response.data;
+
+  // Backend response:
+  // {
+  //   data: Task[],
+  //   success: boolean
+  // }
+
+  if (Array.isArray(result)) {
+    return result;
   }
+
+  if (Array.isArray(result?.data)) {
+    return result.data;
+  }
+
+  return [];
+}
 
   async getTask(id: string): Promise<Task> {
     const response = await api.get(`/tasks/${id}`);

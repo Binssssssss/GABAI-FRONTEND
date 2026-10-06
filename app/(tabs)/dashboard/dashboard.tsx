@@ -11,7 +11,6 @@ import {
   DashboardTask,
   FocusSessionWidget,
   Footer,
-  // QuickActions,
   QuickOverview,
   RecentActivity,
   SmartReminders,
@@ -19,8 +18,10 @@ import {
   TodaysFocus,
   TodaysSchedule,
   UpcomingDeadlines,
+  WhatShouldIDoNow,
 } from './components';
 
+import { useExpensesData } from '../expenses/hooks/useExpensesData';
 import { useDashboardData } from './hooks/useDashboardData';
 
 import {
@@ -31,27 +32,28 @@ import {
 import { dashboardStyles as styles } from './styles/dashboard.styles';
 
 export default function DashboardScreen() {
-  const { colorScheme } = useAppTheme();
+  const { colors } = useAppTheme();
 
-  const isDark = colorScheme === 'dark';
+  // ============================================================
+  // THEME
+  // ============================================================
 
-  // GabAi Theme Colors
   const primaryBrown = '#A97C50';
-  const successGreen = '#10B981';
-  const errorRed = '#EF4444';
-  const warningOrange = '#F59E0B';
 
-  const bgTheme = isDark ? '#121212' : '#FFFFFF';
+  const successGreen = colors.success;
+  const errorRed = colors.danger;
+  const warningOrange = colors.warning;
 
-  const textPrimary = isDark ? '#ECEDEE' : '#11181C';
+  const bgTheme = colors.background;
+  const textPrimary = colors.text;
+  const textSecondary = colors.icon;
+  const cardBg = colors.surface;
+  const borderCol = colors.border;
 
-  const textSecondary = isDark ? '#9BA1A6' : '#666666';
+  // ============================================================
+  // DRAWER + AUTH
+  // ============================================================
 
-  const cardBg = isDark ? '#1E1E1E' : '#F8FAFC';
-
-  const borderCol = isDark ? '#2E2E2E' : '#E2E8F0';
-
-  // Drawer + Auth
   const { openDrawer } = useDrawer();
   const { user } = useAuth();
 
@@ -70,9 +72,13 @@ export default function DashboardScreen() {
   const userName =
     fullUserName.trim().split(/\s+/)[0] || 'User';
 
-  // Dashboard Data
+  // ============================================================
+  // DASHBOARD DATA
+  // ============================================================
+
   const {
     greeting,
+    tasks,
     focusTasks,
     deadlines,
     subjects,
@@ -82,14 +88,33 @@ export default function DashboardScreen() {
     handleToggleComplete,
   } = useDashboardData();
 
+  // ============================================================
+  // EXPENSE DATA
+  // ============================================================
+
+  const {
+    netBalance,
+    totalIncome,
+    totalExpenses,
+    isLoading: isMoneyLoading,
+  } = useExpensesData();
+
+  // ============================================================
+  // PRIORITY COLOR HELPER
+  // ============================================================
+
   const priorityColorHelper = (
-    pr: DashboardTask['priority']
+    priority: DashboardTask['priority']
   ) =>
-    getPriorityColor(pr, {
+    getPriorityColor(priority, {
       errorRed,
       warningOrange,
       successGreen,
     });
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <SafeAreaView
@@ -101,7 +126,10 @@ export default function DashboardScreen() {
       ]}
       edges={['top']}
     >
-      {/* HEADER */}
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <DashboardHeader
         greeting={greeting}
         userName={userName}
@@ -109,6 +137,10 @@ export default function DashboardScreen() {
         textPrimary={textPrimary}
         textSecondary={textSecondary}
       />
+
+      {/* ======================================================
+          MAIN DASHBOARD
+      ====================================================== */}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -122,23 +154,25 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* QUICK ACTIONS
-        <View style={styles.section}>
-          <QuickActions
-            primaryBrown={primaryBrown}
-            borderCol={borderCol}
-          />
-        </View> */}
+        {/* ====================================================
+            SMART REMINDERS
+        ==================================================== */}
 
-        {/* SMART REMINDERS */}
         <View style={styles.sectionSmall}>
           <SmartReminders
-            warningOrange={warningOrange}
-            textPrimary={textPrimary}
+            tasks={tasks}
+            primaryBrown={primaryBrown}
+            textColor={textPrimary}
+            secondaryText={textSecondary}
+            cardColor={cardBg}
+            borderColor={borderCol}
           />
         </View>
 
-        {/* TODAY'S FOCUS */}
+        {/* ====================================================
+            TODAY'S FOCUS
+        ==================================================== */}
+
         <View style={styles.sectionLarge}>
           <TodaysFocus
             tasks={focusTasks}
@@ -152,7 +186,22 @@ export default function DashboardScreen() {
           />
         </View>
 
-        {/* ACADEMIC PRESSURE */}
+        {/* SMART RECOMMENDATION */}
+<View style={styles.section}>
+  <WhatShouldIDoNow
+    tasks={tasks}
+    primaryBrown={primaryBrown}
+    textColor={textPrimary}
+    secondaryText={textSecondary}
+    cardColor={cardBg}
+    borderColor={borderCol}
+  />
+</View>
+
+        {/* ====================================================
+            ACADEMIC PRESSURE
+        ==================================================== */}
+
         <View style={styles.section}>
           <AcademicPressure
             cardBg={cardBg}
@@ -164,21 +213,29 @@ export default function DashboardScreen() {
           />
         </View>
 
-        {/* QUICK OVERVIEW */}
+        {/* ====================================================
+            QUICK OVERVIEW
+        ==================================================== */}
+
         <View style={styles.section}>
           <QuickOverview
             cardBg={cardBg}
             borderCol={borderCol}
             textPrimary={textPrimary}
             textSecondary={textSecondary}
-            tasksCount={4}
-            deadlinesCount={5}
-            classesCount={2}
-            weeklySpend="₱1,250"
+            successGreen={successGreen}
+            errorRed={errorRed}
+            balance={netBalance}
+            income={totalIncome}
+            expenses={totalExpenses}
+            isLoading={isMoneyLoading}
           />
         </View>
 
-        {/* TODAY'S SCHEDULE */}
+        {/* ====================================================
+            TODAY'S SCHEDULE
+        ==================================================== */}
+
         <View style={styles.sectionLarge}>
           <TodaysSchedule
             items={timelineItems}
@@ -191,7 +248,10 @@ export default function DashboardScreen() {
           />
         </View>
 
-        {/* FOCUS SESSION */}
+        {/* ====================================================
+            FOCUS SESSION
+        ==================================================== */}
+
         <View style={styles.section}>
           <FocusSessionWidget
             cardBg={cardBg}
@@ -202,7 +262,10 @@ export default function DashboardScreen() {
           />
         </View>
 
-        {/* UPCOMING DEADLINES */}
+        {/* ====================================================
+            UPCOMING DEADLINES
+        ==================================================== */}
+
         <View style={styles.sectionLarge}>
           <UpcomingDeadlines
             deadlines={deadlines}
@@ -215,7 +278,10 @@ export default function DashboardScreen() {
           />
         </View>
 
-        {/* SUBJECT PROGRESS */}
+        {/* ====================================================
+            SUBJECT PROGRESS
+        ==================================================== */}
+
         <View style={styles.sectionLarge}>
           <SubjectProgress
             subjects={subjects}
@@ -227,17 +293,25 @@ export default function DashboardScreen() {
           />
         </View>
 
-        {/* RECENT ACTIVITY */}
+        {/* ====================================================
+            RECENT ACTIVITY
+        ==================================================== */}
+
         <View style={styles.section}>
           <RecentActivity
-            cardBg={cardBg}
-            borderCol={borderCol}
-            textSecondary={textSecondary}
+            tasks={tasks}
             primaryBrown={primaryBrown}
+            textColor={textPrimary}
+            secondaryText={textSecondary}
+            cardColor={cardBg}
+            borderColor={borderCol}
           />
         </View>
 
-        {/* FOOTER */}
+        {/* ====================================================
+            FOOTER
+        ==================================================== */}
+
         <Footer textSecondary={textSecondary} />
       </ScrollView>
     </SafeAreaView>

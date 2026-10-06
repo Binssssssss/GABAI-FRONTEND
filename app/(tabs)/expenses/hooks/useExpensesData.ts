@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '@/app/services/api';
-import { Transaction, TransactionType } from '../types';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
 } from '../constants/expenseCategories';
+import { Transaction, TransactionType } from '../types';
 
 interface TransactionResponse {
   id: string;
@@ -30,6 +31,8 @@ export function useExpensesData() {
 
   const [newTitle, setNewTitle] = useState('');
   const [newAmount, setNewAmount] = useState('');
+  const [newDate, setNewDate] = useState<Date>(() => new Date());
+
   const [transactionType, setTransactionType] =
     useState<TransactionType>('expense');
 
@@ -46,6 +49,9 @@ export function useExpensesData() {
       totalExpenses: 0,
     });
 
+  // =========================
+  // LOAD TRANSACTIONS
+  // =========================
   const loadTransactions = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -53,49 +59,44 @@ export function useExpensesData() {
       const response = await api.get('/transactions');
 
       if (response.data.success) {
-        const data: TransactionResponse[] =
-          response.data.data;
+        const data: TransactionResponse[] = response.data.data;
 
-        const mappedTransactions: Transaction[] = data.map(
-          (item) => ({
-            id: item.id,
-            title: item.title,
-            amount: Number(item.amount),
-            category: item.category,
-            date: item.date,
-            type: item.type,
-          }),
-        );
+        const mappedTransactions: Transaction[] = data.map((item) => ({
+          id: item.id,
+          title: item.title,
+          amount: Number(item.amount),
+          category: item.category,
+          date: item.date,
+          type: item.type,
+        }));
 
         setTransactions(mappedTransactions);
       }
     } catch (error) {
-      console.error(
-        'Failed to load transactions:',
-        error,
-      );
+      console.error('Failed to load transactions:', error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // =========================
+  // LOAD WALLET BALANCE
+  // =========================
   const loadWalletBalance = useCallback(async () => {
     try {
-      const response = await api.get(
-        '/transactions/balance',
-      );
+      const response = await api.get('/transactions/balance');
 
       if (response.data.success) {
         setWalletBalance(response.data.data);
       }
     } catch (error) {
-      console.error(
-        'Failed to load wallet balance:',
-        error,
-      );
+      console.error('Failed to load wallet balance:', error);
     }
   }, []);
 
+  // =========================
+  // REFRESH
+  // =========================
   const refreshWallet = useCallback(async () => {
     await Promise.all([
       loadTransactions(),
@@ -103,10 +104,15 @@ export function useExpensesData() {
     ]);
   }, [loadTransactions, loadWalletBalance]);
 
-  useEffect(() => {
-    refreshWallet();
-  }, [refreshWallet]);
+  useFocusEffect(
+    useCallback(() => {
+      refreshWallet();
+    }, [refreshWallet]),
+  );
 
+  // =========================
+  // WALLET VALUES
+  // =========================
   const totalIncome = useMemo(
     () => walletBalance.totalIncome,
     [walletBalance.totalIncome],
@@ -122,6 +128,9 @@ export function useExpensesData() {
     [walletBalance.netBalance],
   );
 
+  // =========================
+  // TRANSACTION TYPE
+  // =========================
   const handleTypeChange = useCallback(
     (type: TransactionType) => {
       setTransactionType(type);
@@ -135,18 +144,28 @@ export function useExpensesData() {
     [],
   );
 
+  // =========================
+  // OPEN ADD MODAL
+  // =========================
   const openAddModal = useCallback(() => {
     setNewTitle('');
     setNewAmount('');
+    setNewDate(new Date());
     setTransactionType('expense');
     setNewCategory(EXPENSE_CATEGORIES[0]);
     setIsAdding(true);
   }, []);
 
+  // =========================
+  // CLOSE ADD MODAL
+  // =========================
   const closeAddModal = useCallback(() => {
     setIsAdding(false);
   }, []);
 
+  // =========================
+  // ADD TRANSACTION
+  // =========================
   const handleAddTransaction = useCallback(async () => {
     if (!newTitle.trim() || !newAmount) {
       return;
@@ -159,32 +178,46 @@ export function useExpensesData() {
     }
 
     try {
-      const response = await api.post(
-        '/transactions',
-        {
-          title: newTitle.trim(),
-          amount,
-          type: transactionType,
-          category: newCategory,
-        },
-      );
+      const response = await api.post('/transactions', {
+        title: newTitle.trim(),
+        amount,
+        type: transactionType,
+        category: newCategory,
+
+        // Send the selected transaction date
+        date: newDate.toISOString(),
+      });
 
       if (response.data.success) {
         setNewTitle('');
         setNewAmount('');
+        setNewDate(new Date());
         setIsAdding(false);
 
         await refreshWallet();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Failed to create transaction:',
-        error,
+        error?.response?.data ||
+          error?.message ||
+          error,
+      );
+
+      console.error(
+        'Status:',
+        error?.response?.status,
+      );
+
+      console.error(
+        'Request data:',
+        error?.config?.data,
       );
     }
   }, [
     newTitle,
     newAmount,
+    newDate,
     newCategory,
     transactionType,
     refreshWallet,
@@ -208,6 +241,9 @@ export function useExpensesData() {
 
     newAmount,
     setNewAmount,
+
+    newDate,
+    setNewDate,
 
     transactionType,
 

@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Switch, Text, TouchableOpacity, View } from 'react-native';
 import { focusStyles as styles } from '../styles/focus.styles';
 
 interface StrictControlsProps {
@@ -65,7 +64,7 @@ export default function StrictControls({
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.controlMainBtn, { backgroundColor: '#EF4444' }]}
+            style={[styles.controlMainBtn, { backgroundColor: '#C97878' }]}
             onPress={onPause}
           >
             <Feather name="pause" size={28} color="#FFFFFF" />

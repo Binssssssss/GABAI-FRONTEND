@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Task } from '../../types';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { taskStyles as styles } from '../../styles/task.styles';
+import { Task } from '../../types';
 
 interface TaskItemCardProps {
   task: Task;
@@ -61,9 +60,9 @@ export default function TaskItemCard({
   const getDifficultyColor = (diff: Task['difficulty']) => {
     switch (diff) {
       case 'Hard':
-        return '#8B5CF6';
+        return errorRed;
       case 'Medium':
-        return '#3B82F6';
+        return warningOrange;
       case 'Easy':
         return successGreen;
       default:
@@ -81,7 +80,7 @@ export default function TaskItemCard({
         {
           backgroundColor: cardBg,
           borderColor: isSelected ? primaryBrown : borderCol,
-          opacity: task.completed ? 0.6 : 1,
+          opacity: task.completed ? 0.72 : 1,
         },
       ]}
     >
@@ -235,7 +234,12 @@ export default function TaskItemCard({
 
       {/* Right Edge: Priority Dot, Focus shortcut, Delete */}
       <View style={styles.taskCardRight}>
-        <View style={[styles.priorityDot, { backgroundColor: getPriorityColor(task.priority) }]} />
+        <View style={styles.priorityBadge}>
+          <View style={[styles.priorityDot, { backgroundColor: getPriorityColor(task.priority) }]} />
+          <Text style={[styles.priorityText, { color: getPriorityColor(task.priority) }]}>
+            {task.priority}
+          </Text>
+        </View>
 
         {!task.completed && (
           <TouchableOpacity
