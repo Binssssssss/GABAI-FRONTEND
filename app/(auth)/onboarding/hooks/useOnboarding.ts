@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { FlatList, ViewToken, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -23,10 +23,15 @@ export function useOnboarding() {
         setCurrentIndex(index);
       }
     },
-    [],
+    []
   );
 
-  const viewabilityConfig = VIEWABILITY_CONFIG;
+  const viewabilityConfig = useMemo(
+    () => ({
+      viewAreaCoveragePercentThreshold: 50,
+    }),
+    []
+  );
 
   const handleNext = useCallback(() => {
     try {

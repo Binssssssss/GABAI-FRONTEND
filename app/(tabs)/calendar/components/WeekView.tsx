@@ -1,9 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { CalendarEvent } from '../types';
-import { CATEGORY_COLORS, WEEK_DAYS_DATA } from '../constants/calendarConfig';
-import { getPriorityColors } from '../utils/calendarHelpers';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { CATEGORY_COLORS } from '../constants/calendarConfig';
 import { calendarStyles as styles } from '../styles/calendar.styles';
+import { CalendarEvent } from '../types';
+import { getDayWorkload, getLocalDateKey, getPriorityColors, getWeekDateKeys } from '../utils/calendarHelpers';
 
 interface WeekViewProps {
   events: CalendarEvent[];
@@ -36,23 +35,26 @@ export default function WeekView({
   bgTheme,
   primaryAccent,
 }: WeekViewProps) {
+  const weekDates = getWeekDateKeys(selectedDate);
+
   return (
     <View style={[styles.calendarCard, { backgroundColor: cardTheme, borderColor: borderTheme }]}>
-      <Text style={[styles.monthLabel, { color: textTheme, marginBottom: 12 }]}>July 19 - 25, 2026</Text>
-
       {/* Week row navigation headers */}
       <View style={styles.weekRowContainer}>
-        {WEEK_DAYS_DATA.map((day) => {
-          const isSelected = selectedDate === day.full;
-          const isToday = day.full === '2026-07-24';
+        {weekDates.map((dateKey) => {
+          const dayDate = new Date(`${dateKey}T00:00:00`);
+          const dayEvents = events.filter((event) => event.date === dateKey);
+          const workload = getDayWorkload(dayEvents);
+          const isSelected = selectedDate === dateKey;
+          const isToday = dateKey === getLocalDateKey();
           return (
             <TouchableOpacity
-              key={day.full}
+              key={dateKey}
               onPress={() => {
                 if (rescheduleMode) {
-                  onCompleteRescheduling(day.full);
+                  onCompleteRescheduling(dateKey);
                 } else {
-                  onSelectDate(day.full);
+                  onSelectDate(dateKey);
                 }
               }}
               style={[
@@ -60,8 +62,8 @@ export default function WeekView({
                 { backgroundColor: isSelected ? primaryAccent : 'transparent' },
               ]}
             >
-              <Text style={[styles.weekDayLabel, { color: isSelected ? '#FFFFFF' : textSubTheme }]}>
-                {day.label}
+                <Text style={[styles.weekDayLabel, { color: isSelected ? '#FFFFFF' : textSubTheme }]}>
+                  {dayDate.toLocaleDateString('en-US', { weekday: 'short' })}
               </Text>
               <Text
                 style={[
@@ -69,8 +71,11 @@ export default function WeekView({
                   { color: isSelected ? '#FFFFFF' : isToday ? primaryAccent : textTheme },
                 ]}
               >
-                {day.date}
+                {dayDate.getDate()}
               </Text>
+              {dayEvents.length > 0 && (
+                <View style={[styles.workloadDot, { backgroundColor: workload.color }]} />
+              )}
             </TouchableOpacity>
           );
         })}
@@ -81,16 +86,16 @@ export default function WeekView({
         Events in selected week
       </Text>
       <View style={styles.weeklyTimelineContainer}>
-        {WEEK_DAYS_DATA.map((d) => {
-          const dayEvts = events.filter((e) => e.date === d.full);
+        {weekDates.map((dateKey) => {
+          const dayEvts = events.filter((e) => e.date === dateKey);
           if (dayEvts.length === 0) return null;
-          const dayLabel = new Date(d.full).toLocaleDateString('en-US', {
+          const dayLabel = new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-US', {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
           });
           return (
-            <View key={d.full} style={styles.weekTimelineDayBlock}>
+            <View key={dateKey} style={styles.weekTimelineDayBlock}>
               <Text style={[styles.weekTimelineDayTitle, { color: primaryAccent }]}>{dayLabel}</Text>
               {dayEvts.map((evt) => {
                 const priorityColors = getPriorityColors(evt.priority);

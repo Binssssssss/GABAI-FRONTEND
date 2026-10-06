@@ -1,3 +1,4 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {
   createContext,
@@ -8,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 
+import { localDb } from '@/app/services/localDb';
 import api from '@/app/services/api';
 
 type AuthUser = Record<string, unknown>;
@@ -17,6 +19,14 @@ type AuthSession = {
   refreshToken?: string;
   user?: AuthUser;
 };
+
+function getUserId(user?: AuthUser | null) {
+  const id = user?.id || user?.userId || user?.sub;
+
+  return typeof id === 'string' || typeof id === 'number'
+    ? String(id)
+    : null;
+}
 
 interface AuthContextValue {
   session: AuthSession | null;
@@ -31,24 +41,50 @@ const LEGACY_TOKEN_KEY = 'gabai_token';
 const LEGACY_USER_KEY = 'gabai_user';
 const REFRESH_TOKEN_KEY = 'gabai_refresh_token';
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(
+  undefined,
+);
 
-function isSessionValid(session: AuthSession | null) {
-  if (!session?.token) return false;
-
+function decodeJwtPayload(token: string): AuthUser | null {
   try {
-    const payload = session.token.split('.')[1];
+    const payload = token.split('.')[1];
 
-    if (!payload) return true;
+    if (!payload) {
+      return null;
+    }
 
-    const decoded = JSON.parse(
+    return JSON.parse(
       atob(
         payload
           .replace(/-/g, '+')
           .replace(/_/g, '/')
-          .padEnd(Math.ceil(payload.length / 4) * 4, '='),
+          .padEnd(
+            Math.ceil(payload.length / 4) * 4,
+            '=',
+          ),
       ),
     );
+  } catch {
+    return null;
+  }
+}
+
+function isSessionValid(session: AuthSession | null) {
+  if (!session?.token) {
+    return false;
+  }
+
+  try {
+    const decoded = decodeJwtPayload(session.token);
+
+    /*
+     * If the token cannot be decoded, don't immediately
+     * destroy the session. The backend remains the final
+     * authority for token validity.
+     */
+    if (!decoded) {
+      return true;
+    }
 
     return (
       typeof decoded.exp !== 'number' ||
@@ -64,17 +100,25 @@ export function AuthProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [session, setSession] = useState<AuthSession | null>(null);
+  const [session, setSession] =
+    useState<AuthSession | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadSession = async () => {
       try {
-        const storedSession = await AsyncStorage.getItem(SESSION_KEY);
-        const storedToken = await AsyncStorage.getItem(LEGACY_TOKEN_KEY);
+        const storedSession =
+          await AsyncStorage.getItem(SESSION_KEY);
+
+        const storedToken =
+          await AsyncStorage.getItem(LEGACY_TOKEN_KEY);
+
         const storedRefreshToken =
           await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
-        const storedUser = await AsyncStorage.getItem(LEGACY_USER_KEY);
+
+        const storedUser =
+          await AsyncStorage.getItem(LEGACY_USER_KEY);
 
         const parsedSession = storedSession
           ? JSON.parse(storedSession)
@@ -89,19 +133,49 @@ export function AuthProvider({
             ? {
                 token: parsedSession.token,
                 refreshToken:
-                  parsedSession.refreshToken || storedRefreshToken || undefined,
-                user: parsedSession.user || parsedUser,
+                  parsedSession.refreshToken ||
+                  storedRefreshToken ||
+                  undefined,
+                user:
+                  parsedSession.user ||
+                  parsedUser,
               }
             : storedToken
               ? {
                   token: storedToken,
-                  refreshToken: storedRefreshToken || undefined,
+                  refreshToken:
+                    storedRefreshToken ||
+                    undefined,
                   user: parsedUser,
                 }
               : null;
 
+        if (savedSession) {
+          const tokenUser =
+            decodeJwtPayload(savedSession.token);
+
+          savedSession.user = {
+            ...tokenUser,
+            ...savedSession.user,
+          };
+        }
+
         if (isSessionValid(savedSession)) {
-          setSession(savedSession);
+          const userId = getUserId(
+            savedSession?.user,
+          );
+
+          if (userId) {
+            localDb.activateUser(userId);
+            setSession(savedSession);
+          } else {
+            await AsyncStorage.multiRemove([
+              SESSION_KEY,
+              LEGACY_TOKEN_KEY,
+              LEGACY_USER_KEY,
+              REFRESH_TOKEN_KEY,
+            ]);
+          }
         } else {
           await AsyncStorage.multiRemove([
             SESSION_KEY,
@@ -111,7 +185,10 @@ export function AuthProvider({
           ]);
         }
       } catch (error) {
-        console.error('Failed to load auth session:', error);
+        console.error(
+          'Failed to load auth session:',
+          error,
+        );
 
         await AsyncStorage.multiRemove([
           SESSION_KEY,
@@ -127,54 +204,99 @@ export function AuthProvider({
     loadSession();
   }, []);
 
- const signIn = useCallback(async (nextSession: AuthSession) => {
-  console.log('AUTH SIGN IN CALLED');
-  console.log(
-    'TOKEN RECEIVED:',
-    nextSession?.token
-      ? `${nextSession.token.substring(0, 20)}...`
-      : 'NO TOKEN',
+  const signIn = useCallback(
+    async (nextSession: AuthSession) => {
+      console.log('AUTH SIGN IN CALLED');
+
+      console.log(
+        'TOKEN RECEIVED:',
+        nextSession?.token
+          ? `${nextSession.token.substring(0, 20)}...`
+          : 'NO TOKEN',
+      );
+
+      if (!isSessionValid(nextSession)) {
+        throw new Error(
+          'Cannot save an invalid auth session.',
+        );
+      }
+
+      /*
+       * Merge user information from the JWT with
+       * user information returned by the backend.
+       */
+      const tokenUser = decodeJwtPayload(
+        nextSession.token,
+      );
+
+      const normalizedSession: AuthSession = {
+        ...nextSession,
+        user: {
+          ...tokenUser,
+          ...nextSession.user,
+        },
+      };
+
+      const userId = getUserId(
+        normalizedSession.user,
+      );
+
+      if (!userId) {
+        throw new Error(
+          'Login session does not contain an authenticated user ID.',
+        );
+      }
+
+      localDb.activateUser(userId);
+
+      /*
+       * Save the current session.
+       */
+      await AsyncStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify(normalizedSession),
+      );
+
+      /*
+       * Keep legacy storage for compatibility
+       * with existing GabAi screens/services.
+       */
+      await AsyncStorage.setItem(
+        LEGACY_TOKEN_KEY,
+        normalizedSession.token,
+      );
+
+      if (normalizedSession.refreshToken) {
+        await AsyncStorage.setItem(
+          REFRESH_TOKEN_KEY,
+          normalizedSession.refreshToken,
+        );
+      }
+
+      if (normalizedSession.user) {
+        await AsyncStorage.setItem(
+          LEGACY_USER_KEY,
+          JSON.stringify(
+            normalizedSession.user,
+          ),
+        );
+      }
+
+      console.log('AUTH SESSION SAVED');
+
+      setSession(normalizedSession);
+    },
+    [],
   );
-
-  if (!isSessionValid(nextSession)) {
-    throw new Error('Cannot save an invalid auth session.');
-  }
-
-  await AsyncStorage.setItem(
-    SESSION_KEY,
-    JSON.stringify(nextSession),
-  );
-
-  await AsyncStorage.setItem(
-    LEGACY_TOKEN_KEY,
-    nextSession.token,
-  );
-
-  if (nextSession.refreshToken) {
-    await AsyncStorage.setItem(
-      REFRESH_TOKEN_KEY,
-      nextSession.refreshToken,
-    );
-  }
-
-  if (nextSession.user) {
-    await AsyncStorage.setItem(
-      LEGACY_USER_KEY,
-      JSON.stringify(nextSession.user),
-    );
-  }
-
-  console.log('AUTH SESSION SAVED');
-
-  setSession(nextSession);
-}, []);
 
   const signOut = useCallback(async () => {
     /*
-     * Tell the backend that the authenticated user is logging out.
+     * Tell the backend that the authenticated user
+     * is logging out.
      *
-     * The backend currently uses stateless JWT authentication,
-     * so there is no database session to delete.
+     * The backend currently uses stateless JWT
+     * authentication, but keeping this request
+     * allows the backend to handle logout if needed.
      */
     try {
       if (session?.token) {
@@ -182,11 +304,8 @@ export function AuthProvider({
       }
     } catch (error) {
       /*
-       * Even if the backend request fails, continue clearing
-       * local authentication data.
-       *
-       * This prevents the user from being trapped in the
-       * authenticated state.
+       * Even if the backend request fails, continue
+       * clearing the local authentication data.
        */
       console.warn(
         'Backend logout request failed. Clearing local session anyway.',
@@ -200,6 +319,8 @@ export function AuthProvider({
         REFRESH_TOKEN_KEY,
       ]);
 
+      localDb.clearActiveUser();
+
       setSession(null);
     }
   }, [session]);
@@ -212,7 +333,12 @@ export function AuthProvider({
       signIn,
       signOut,
     }),
-    [isLoading, session, signIn, signOut],
+    [
+      isLoading,
+      session,
+      signIn,
+      signOut,
+    ],
   );
 
   return (

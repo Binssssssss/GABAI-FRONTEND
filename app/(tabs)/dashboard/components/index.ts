@@ -10,4 +10,5 @@ export { default as UpcomingDeadlines } from './UpcomingDeadlines';
 export { default as SubjectProgress } from './SubjectProgress';
 export { default as RecentActivity } from './RecentActivity';
 export { default as Footer } from './Footer';
+export { default as WhatShouldIDoNow } from './WhatShouldIDoNow';
 export * from './types';

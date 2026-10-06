@@ -26,7 +26,7 @@ interface ForgotPasswordFormProps {
   errorRed: string;
 }
 
-export function ForgotPasswordForm({
+export default function ForgotPasswordForm({
   email,
   setEmail,
   isFocused,

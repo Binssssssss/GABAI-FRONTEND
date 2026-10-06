@@ -54,9 +54,19 @@ export default function FilterSortSheet({
 
           <View style={styles.sheetHeader}>
             <Text style={[styles.sheetTitle, { color: textPrimary }]}>Filters & Sort</Text>
-            <TouchableOpacity onPress={onResetFilters}>
-              <Text style={[styles.sheetResetBtn, { color: primaryBrown }]}>Reset All</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={onResetFilters}>
+                <Text style={[styles.sheetResetBtn, { color: primaryBrown }]}>Reset All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close filters and sort"
+                style={{ marginLeft: 16, padding: 4 }}
+              >
+                <Feather name="x" size={20} color={textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>

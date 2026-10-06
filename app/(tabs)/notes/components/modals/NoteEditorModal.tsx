@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { CATEGORIES } from '../../constants/notesConfig';
 import { countWords } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface NoteEditorModalProps {
   visible: boolean;
@@ -116,7 +117,7 @@ export default function NoteEditorModal({
             onPress={onClose}
             style={[styles.editorHeaderBtn, { backgroundColor: cardBg, borderColor: borderCol }]}
           >
-            <Feather name="arrow-left" size={18} color={textPrimary} />
+            <Feather name="x" size={18} color={textPrimary} />
           </TouchableOpacity>
 
           {/* Auto-save status */}
@@ -423,6 +424,14 @@ export default function NoteEditorModal({
               <Text style={[styles.sheetTitle, { color: textPrimary, marginBottom: 12 }]}>
                 Note Options
               </Text>
+              <TouchableOpacity
+                onPress={() => onToggleMoreMenu(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close note options"
+                style={{ position: 'absolute', top: 12, right: 16, padding: 4 }}
+              >
+                <Feather name="x" size={20} color={textSecondary} />
+              </TouchableOpacity>
 
               <View style={styles.moreMenuList}>
                 {/* Convert to Task */}

@@ -1,11 +1,12 @@
-  import { create } from 'axios';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   'http://192.168.254.104:8000';
 
-const api = create({
+const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
   headers: {
@@ -15,13 +16,22 @@ const api = create({
 
 api.interceptors.request.use(
   async (config) => {
+    console.log('========== API REQUEST ==========');
+    console.log('BASE URL:', config.baseURL);
+    console.log('URL:', config.url);
+    console.log('METHOD:', config.method?.toUpperCase());
+
     try {
+      /*
+       * Primary GabAi session storage.
+       */
       const storedSession = await AsyncStorage.getItem(
         'gabai.auth.session',
       );
 
-      const legacyToken = await AsyncStorage.getItem(
-        'gabai_token',
+      console.log(
+        'AUTH SESSION EXISTS:',
+        !!storedSession,
       );
 
       let token: string | null = null;
@@ -33,6 +43,11 @@ api.interceptors.request.use(
         try {
           const session = JSON.parse(storedSession);
 
+          console.log(
+            'SESSION USER:',
+            session?.user?.email || 'No user',
+          );
+
           if (
             session &&
             typeof session.token === 'string' &&
@@ -40,70 +55,87 @@ api.interceptors.request.use(
           ) {
             token = session.token;
           }
-        } catch {
-          /*
-           * Invalid session JSON.
-           * Fall back to the legacy token.
-           */
+        } catch (error) {
+          console.log(
+            'SESSION PARSE ERROR:',
+            error,
+          );
         }
       }
 
       /*
-       * Fallback for older stored sessions.
+       * Fallback for older stored token.
        */
-      if (!token && legacyToken) {
-        token = legacyToken;
+      if (!token) {
+        const legacyToken = await AsyncStorage.getItem(
+          'gabai_token',
+        );
+
+        if (legacyToken) {
+          token = legacyToken;
+        }
+
+        console.log(
+          'LEGACY TOKEN EXISTS:',
+          !!legacyToken,
+        );
       }
 
       /*
-       * Attach JWT when available.
+       * Attach JWT Authorization header.
        */
-      /*
- * Attach JWT when available.
- */
-if (token) {
-  console.log(
-    'API REQUEST:',
-    config.method?.toUpperCase(),
-    config.url,
-  );
+      if (token) {
+        config.headers = config.headers || {};
 
-  console.log(
-    'AUTH TOKEN:',
-    `${token.substring(0, 20)}...`,
-  );
+        config.headers.Authorization = `Bearer ${token}`;
 
-  config.headers.Authorization = `Bearer ${token}`;
-} else {
-  console.log(
-    'API REQUEST:',
-    config.method?.toUpperCase(),
-    config.url,
-  );
+        console.log(
+          'AUTH TOKEN:',
+          `${token.substring(0, 20)}...`,
+        );
 
-  console.log('AUTH TOKEN: NO TOKEN');
-}
-
-      /*
-       * Only use JSON Content-Type when a request
-       * actually has a body.
-       *
-       * This is important for requests such as:
-       *
-       * POST /api/auth/logout
-       *
-       * where there is no request body.
-       */
-      if (config.data !== undefined && config.data !== null) {
-        config.headers['Content-Type'] = 'application/json';
+        console.log(
+          'AUTH HEADER ATTACHED: YES',
+        );
       } else {
-        delete config.headers['Content-Type'];
+        console.log(
+          'AUTH TOKEN: NO TOKEN',
+        );
+
+        console.log(
+          'AUTH HEADER ATTACHED: NO TOKEN',
+        );
       }
+
+      /*
+       * Only set JSON Content-Type when
+       * the request actually contains a body.
+       */
+      if (
+        config.data !== undefined &&
+        config.data !== null
+      ) {
+        config.headers = config.headers || {};
+
+        config.headers['Content-Type'] =
+          'application/json';
+      } else {
+        delete config.headers?.['Content-Type'];
+      }
+
+      console.log(
+        'FULL REQUEST URL:',
+        `${config.baseURL}${config.url}`,
+      );
+
+      console.log(
+        '================================',
+      );
 
       return config;
     } catch (error) {
       console.error(
-        'Failed to prepare API request:',
+        'API AUTH INTERCEPTOR ERROR:',
         error,
       );
 
@@ -111,6 +143,11 @@ if (token) {
     }
   },
   (error) => {
+    console.log(
+      'API REQUEST INTERCEPTOR ERROR:',
+      error,
+    );
+
     return Promise.reject(error);
   },
 );

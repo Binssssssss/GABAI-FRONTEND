@@ -1,19 +1,20 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {
+    createContext,
+    useContext,
+    useEffect,
+    useState,
+} from 'react';
 
 type ThemeMode = 'system' | 'light' | 'dark';
+type ResolvedColorScheme = 'light' | 'dark';
 
 interface ThemeContextType {
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
-  colorScheme: 'light' | 'dark';
+  colorScheme: ResolvedColorScheme;
   colors: typeof Colors.light;
 }
 
@@ -27,7 +28,7 @@ export function ThemeProvider({
   children: React.ReactNode;
 }) {
   const systemColorScheme =
-    useColorScheme() === 'dark' ? 'dark' : 'light';
+    useColorScheme() ?? 'light';
 
   const [themeMode, setThemeModeState] =
     useState<ThemeMode>('system');
@@ -67,10 +68,12 @@ export function ThemeProvider({
     }
   };
 
-  const colorScheme =
+  const colorScheme: ResolvedColorScheme =
     themeMode === 'system'
-      ? systemColorScheme
-      : themeMode;
+      ? resolvedSystemColorScheme
+      : themeMode === 'dark'
+        ? 'dark'
+        : 'light';
 
   const colors =
     colorScheme === 'dark'

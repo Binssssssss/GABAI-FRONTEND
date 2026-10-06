@@ -1,4 +1,4 @@
-import { StyleSheet, Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const expenseStyles = StyleSheet.create({
   container: {
@@ -31,13 +31,13 @@ export const expenseStyles = StyleSheet.create({
     marginHorizontal: 24,
     marginBottom: 20,
     padding: 20,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
   },
   dashboardLabel: {
     fontSize: 13,
@@ -98,7 +98,7 @@ export const expenseStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 12,
     shadowColor: '#000',
@@ -193,7 +193,7 @@ export const expenseStyles = StyleSheet.create({
   input: {
     height: 48,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 16,
     fontSize: 14,
@@ -223,7 +223,7 @@ export const expenseStyles = StyleSheet.create({
   },
   submitButton: {
     height: 50,
-    borderRadius: 10,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -53,6 +53,9 @@ export const registerStyles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
+    padding: 20,
+    borderRadius: 22,
+    borderWidth: 1,
   },
   inputLabel: {
     fontSize: 14,
@@ -63,7 +66,7 @@ export const registerStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     height: 56,
     paddingHorizontal: 16,
   },
@@ -81,7 +84,7 @@ export const registerStyles = StyleSheet.create({
   },
   registerButton: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
@@ -113,11 +116,11 @@ export const registerStyles = StyleSheet.create({
   googleButton: {
     flexDirection: 'row',
     height: 56,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     width: '100%',
   },
   googleIcon: {

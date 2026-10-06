@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { View, Text, Image } from 'react-native';
+import { useAppTheme } from '@/app/context/ThemeContext';
 import { loginStyles as styles } from '../styles';
 
 interface LoginHeaderProps {
@@ -14,23 +14,22 @@ export function LoginHeader({
   textSecondary,
   primaryBrown,
 }: LoginHeaderProps) {
+  const { colorScheme } = useAppTheme();
+  const logoSource =
+    colorScheme === 'dark'
+      ? require('@/assets/images/GABAI-LOGO-WHITE.png')
+      : require('@/assets/images/GABAI-LOGO-BLACK.png');
+
   return (
     <>
-      {/* Logo Section */}
       <View style={styles.logoContainer}>
-        <FontAwesome5
-          name="graduation-cap"
-          size={68}
-          color={textPrimary}
-          style={styles.logoIcon}
+        <Image
+          source={logoSource}
+          style={styles.logoImage}
+          resizeMode="contain"
         />
-        <View style={styles.logoTextContainer}>
-          <Text style={[styles.logoTextGab, { color: textPrimary }]}>Gab</Text>
-          <Text style={[styles.logoTextAi, { color: primaryBrown }]}>Ai</Text>
-        </View>
       </View>
 
-      {/* Welcome Text */}
       <View style={styles.welcomeContainer}>
         <Text style={[styles.welcomeTitle, { color: textPrimary }]}>Welcome Back!</Text>
         <Text style={[styles.welcomeSubtitle, { color: textSecondary }]}>
@@ -40,3 +39,4 @@ export function LoginHeader({
     </>
   );
 }
+

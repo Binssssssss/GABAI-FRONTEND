@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { TaskTheme } from '../../types';
+import { TaskTheme, Task } from '../../types';
 import type { useTaskData } from '../../hooks/useTaskData';
 import { taskStyles as styles } from '../../styles/task.styles';
+import { TaskTheme } from '../../types';
 
 interface TaskOverviewViewProps {
   taskData: ReturnType<typeof useTaskData>;
@@ -34,89 +35,25 @@ export default function TaskOverviewView({
   } = theme;
 
   const workload = getWorkloadLevel();
+  const pinnedTasks = tasks.filter((t) => t.isPinned && !t.completed);
 
-  /*
-   * Pinned tasks are currently frontend-only because
-   * isPinned is not stored in the backend Task model yet.
-   */
-  const pinnedTasks = tasks.filter(
-    (task) => task.isPinned && !task.completed,
-  );
-
-  /*
-   * Generate the last 14 days dynamically.
-   *
-   * The heatmap load is based on the number of actual tasks
-   * scheduled/due on each date.
-   */
-  const heatmapDays = useMemo(() => {
-    const days: {
-      date: string;
-      full: string;
-      load: number;
-    }[] = [];
-
-    const today = new Date();
-
-    // Remove the time portion so date comparison is consistent.
-    today.setHours(0, 0, 0, 0);
-
-    for (let i = 13; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-
-      const fullDate = `${year}-${month}-${day}`;
-
-      const taskCount = tasks.filter((task) => {
-        return task.dueDate === fullDate;
-      }).length;
-
-      days.push({
-        date: String(date.getDate()),
-        full: fullDate,
-        load: taskCount,
-      });
-    }
-
-    return days;
-  }, [tasks]);
-
-  /*
-   * Get the highest task count so the heatmap can
-   * calculate its intensity dynamically.
-   */
-  const maxHeatmapLoad = useMemo(() => {
-    return Math.max(
-      ...heatmapDays.map((day) => day.load),
-      1,
-    );
-  }, [heatmapDays]);
-
-  const getHeatmapColor = (load: number) => {
-    if (load === 0) {
-      return theme.isDark ? '#1A1A1A' : '#F3F4F6';
-    }
-
-    const intensity = load / maxHeatmapLoad;
-
-    if (intensity <= 0.25) {
-      return primaryBrown + '20';
-    }
-
-    if (intensity <= 0.5) {
-      return primaryBrown + '40';
-    }
-
-    if (intensity <= 0.75) {
-      return primaryBrown + '70';
-    }
-
-    return primaryBrown;
-  };
+  // Mock heatmap 14 days
+  const heatmapDays = [
+    { date: '12', full: '2026-07-12', load: 1 },
+    { date: '13', full: '2026-07-13', load: 3 },
+    { date: '14', full: '2026-07-14', load: 2 },
+    { date: '15', full: '2026-07-15', load: 0 },
+    { date: '16', full: '2026-07-16', load: 4 },
+    { date: '17', full: '2026-07-17', load: 2 },
+    { date: '18', full: '2026-07-18', load: 1 },
+    { date: '19', full: '2026-07-19', load: 0 },
+    { date: '20', full: '2026-07-20', load: 2 },
+    { date: '21', full: '2026-07-21', load: 3 },
+    { date: '22', full: '2026-07-22', load: 4 },
+    { date: '23', full: '2026-07-23', load: 1 },
+    { date: '24', full: '2026-07-24', load: 2 },
+    { date: '25', full: '2026-07-25', load: 3 },
+  ];
 
   return (
     <View style={styles.overviewContainer}>
@@ -275,62 +212,38 @@ export default function TaskOverviewView({
         </View>
       </View>
 
-      {/* Workload Heatmap */}
-      <View
-        style={[
-          styles.heatmapCard,
-          {
-            backgroundColor: cardBg,
-            borderColor: borderCol,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.sectionHeadingTitle,
-            {
-              color: textPrimary,
-              marginBottom: 12,
-            },
-          ]}
-        >
+      {/* Workload Heatmap Card */}
+      <View style={[styles.heatmapCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+        <Text style={[styles.sectionHeadingTitle, { color: textPrimary, marginBottom: 12 }]}>
           📅 Workload Heatmap
         </Text>
-
         <View style={styles.heatmapGrid}>
-          {heatmapDays.map((day) => {
-            const isToday =
-              day.full ===
-              new Date().toISOString().split('T')[0];
-
-            const cellColor = getHeatmapColor(day.load);
+          {heatmapDays.map((day, idx) => {
+            let cellColor = theme.isDark ? '#1A1A1A' : '#F3F4F6';
+            if (day.load > 0) {
+              if (day.load === 1) cellColor = primaryBrown + '20';
+              else if (day.load === 2) cellColor = primaryBrown + '40';
+              else if (day.load === 3) cellColor = primaryBrown + '70';
+              else cellColor = primaryBrown;
+            }
+            const isToday = day.full === '2026-07-25';
 
             return (
-              <View
-                key={day.full}
-                style={styles.heatmapCellContainer}
-              >
+              <View key={idx} style={styles.heatmapCellContainer}>
                 <View
                   style={[
                     styles.heatmapCell,
                     {
                       backgroundColor: cellColor,
-                      borderColor: isToday
-                        ? primaryBrown
-                        : 'transparent',
+                      borderColor: isToday ? primaryBrown : 'transparent',
                       borderWidth: isToday ? 1.5 : 0,
                     },
                   ]}
                 />
-
                 <Text
                   style={[
                     styles.heatmapCellText,
-                    {
-                      color: isToday
-                        ? primaryBrown
-                        : textSecondary,
-                    },
+                    { color: isToday ? primaryBrown : textSecondary },
                   ]}
                 >
                   {day.date}
@@ -339,70 +252,21 @@ export default function TaskOverviewView({
             );
           })}
         </View>
-
         <View style={styles.heatmapLegend}>
-          <Text
-            style={[
-              styles.legendText,
-              { color: textSecondary },
-            ]}
-          >
-            Light
-          </Text>
-
-          <View
-            style={[
-              styles.legendBox,
-              { backgroundColor: primaryBrown + '20' },
-            ]}
-          />
-
-          <View
-            style={[
-              styles.legendBox,
-              { backgroundColor: primaryBrown + '40' },
-            ]}
-          />
-
-          <View
-            style={[
-              styles.legendBox,
-              { backgroundColor: primaryBrown + '70' },
-            ]}
-          />
-
-          <View
-            style={[
-              styles.legendBox,
-              { backgroundColor: primaryBrown },
-            ]}
-          />
-
-          <Text
-            style={[
-              styles.legendText,
-              { color: textSecondary },
-            ]}
-          >
-            Heavy
-          </Text>
+          <Text style={[styles.legendText, { color: textSecondary }]}>Light</Text>
+          <View style={[styles.legendBox, { backgroundColor: primaryBrown + '20' }]} />
+          <View style={[styles.legendBox, { backgroundColor: primaryBrown + '40' }]} />
+          <View style={[styles.legendBox, { backgroundColor: primaryBrown + '70' }]} />
+          <View style={[styles.legendBox, { backgroundColor: primaryBrown }]} />
+          <Text style={[styles.legendText, { color: textSecondary }]}>Heavy</Text>
         </View>
       </View>
 
       {/* Today's Focus */}
       <View style={styles.focusBlock}>
-        <Text
-          style={[
-            styles.sectionHeadingTitle,
-            {
-              color: textPrimary,
-              marginBottom: 12,
-            },
-          ]}
-        >
+        <Text style={[styles.sectionHeadingTitle, { color: textPrimary, marginBottom: 12 }]}>
           ⭐️ Today&apos;s Focus (Top Pinned)
         </Text>
-
         {pinnedTasks.slice(0, 3).map((task) => (
           <TouchableOpacity
             key={task.id}

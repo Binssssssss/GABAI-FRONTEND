@@ -22,7 +22,7 @@ export const profileStyles = StyleSheet.create({
   profileCard: {
     flexDirection: 'row',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     marginBottom: 24,
@@ -76,7 +76,7 @@ export const profileStyles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     shadowColor: '#000',
@@ -105,7 +105,7 @@ export const profileStyles = StyleSheet.create({
     marginLeft: 4,
   },
   settingsGroup: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     overflow: 'hidden',
   },

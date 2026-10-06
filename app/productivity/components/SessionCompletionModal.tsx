@@ -39,6 +39,15 @@ export default function SessionCompletionModal({
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+          <TouchableOpacity
+            onPress={onDismiss}
+            accessibilityRole="button"
+            accessibilityLabel="Close session completion"
+            style={{ alignSelf: 'flex-end', padding: 6, marginBottom: 4 }}
+          >
+            <Feather name="x" size={20} color={textSecondary} />
+          </TouchableOpacity>
+
           {/* Badge Icon */}
           <View style={[styles.modalBadgeIcon, { backgroundColor: primaryAccent + '20' }]}>
             <Feather name="award" size={32} color={primaryAccent} />

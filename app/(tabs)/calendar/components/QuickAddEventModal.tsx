@@ -1,18 +1,17 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Switch,
-} from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { EventCategory, EventPriority } from '../types';
+import {
+    Modal,
+    ScrollView,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { CATEGORY_COLORS, REMINDER_OPTIONS } from '../constants/calendarConfig';
-import { getPriorityColors } from '../utils/calendarHelpers';
 import { calendarStyles as styles } from '../styles/calendar.styles';
+import { EventCategory, EventPriority } from '../types';
+import { getPriorityColors } from '../utils/calendarHelpers';
 
 interface QuickAddEventModalProps {
   visible: boolean;
@@ -47,7 +46,7 @@ interface QuickAddEventModalProps {
   onAddChecklistItem: () => void;
   onRemoveChecklistItem: (idx: number) => void;
   onSave: () => void;
-  cardTheme: string;
+  modalSurface: string;
   borderTheme: string;
   textTheme: string;
   textSubTheme: string;
@@ -91,7 +90,7 @@ export default function QuickAddEventModal({
   onAddChecklistItem,
   onRemoveChecklistItem,
   onSave,
-  cardTheme,
+  modalSurface,
   borderTheme,
   textTheme,
   textSubTheme,
@@ -106,8 +105,8 @@ export default function QuickAddEventModal({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.addModalContainer, { backgroundColor: cardTheme }]}>
-          <View style={styles.addModalHeader}>
+        <View style={[styles.addModalContainer, { backgroundColor: modalSurface }]}>
+          <View style={[styles.addModalHeader, { borderBottomColor: borderTheme }]}>
             <Text style={[styles.modalHeaderTitle, { color: textTheme }]}>Quick Add Academic Event</Text>
             <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={24} color={textTheme} />
@@ -192,7 +191,7 @@ export default function QuickAddEventModal({
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>Date (YYYY-MM-DD)</Text>
                 <TextInput
-                  placeholder="2026-07-24"
+                  placeholder="YYYY-MM-DD"
                   placeholderTextColor={textSubTheme}
                   style={[styles.formInput, { color: textTheme, borderColor: borderTheme }]}
                   value={date}

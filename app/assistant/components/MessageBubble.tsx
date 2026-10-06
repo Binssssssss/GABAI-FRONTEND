@@ -1,13 +1,13 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, useAnimatedValue } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Message } from '../types';
 import { assistantStyles as styles } from '../styles';
 import { FocusSessionWidget } from './FocusSessionWidget';
 
 function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
-  const fadeAnim = useAnimatedValue(0);
-  const slideAnim = useAnimatedValue(15);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(15)).current;
 
   useEffect(() => {
     Animated.parallel([

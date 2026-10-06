@@ -34,7 +34,7 @@ export function useRegister() {
 
     setIsLoading(true);
     try {
-      await api.post('/api/auth/register', {
+      await api.post('/auth/register', {
         fullName: name,
         email: email,
         password: password,

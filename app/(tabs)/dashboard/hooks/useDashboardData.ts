@@ -3,16 +3,17 @@ import { localDb } from '@/app/services/localDb';
 import { DashboardTask, DashboardDeadline, DashboardSubject, DashboardTimelineItem } from '../types';
 import { INITIAL_DEADLINES, INITIAL_SUBJECTS, INITIAL_TIMELINE_ITEMS } from '../constants/dashboardData';
 
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
 export function useDashboardData() {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [greeting] = useState(getGreeting);
+  const [greeting, setGreeting] = useState('Hello');
+
+  // Dynamic Greeting based on current hour
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting('Good morning');
+    else if (hour < 18) setGreeting('Good afternoon');
+    else setGreeting('Good evening');
+  }, []);
 
   // Today's Focus State loaded from central database
   const getMappedTasks = useCallback((): DashboardTask[] => {
@@ -54,12 +55,25 @@ export function useDashboardData() {
 
   return {
     greeting,
+
+    tasks,
+
     focusTasks,
+
     deadlines,
+
     subjects,
+
     timelineItems,
+
+    isLoading,
+
     isRefreshing,
+
+    error,
+
     onRefresh,
+
     handleToggleComplete,
   };
 }

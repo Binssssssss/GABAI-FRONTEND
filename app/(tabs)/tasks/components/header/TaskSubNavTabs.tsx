@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { TaskSubTab } from '../../types';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { taskStyles as styles } from '../../styles/task.styles';
+import { TaskSubTab } from '../../types';
 
 interface TaskSubNavTabsProps {
   activeSubTab: TaskSubTab;
@@ -43,7 +42,10 @@ export default function TaskSubNavTabs({
             <Text
               style={[
                 styles.subTabText,
-                { color: isSelected ? primaryBrown : textSecondary, fontWeight: isSelected ? 'bold' : 'normal' },
+                {
+                  color: isSelected ? primaryBrown : textSecondary,
+                  fontWeight: isSelected ? 'bold' : 'normal',
+                },
               ]}
             >
               {tab.label}

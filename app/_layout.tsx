@@ -1,3 +1,8 @@
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider as NavigationThemeProvider,
+} from 'expo-router/react-navigation';
 import { Stack, useSegments, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +18,23 @@ import {
   useAuth,
 } from '@/app/context/AuthContext';
 
+function createGabaiNavigationTheme(colorScheme: 'light' | 'dark', colors: any) {
+  const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+
+  return {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      background: colors.background,
+      card: colors.card,
+      border: colors.border,
+      text: colors.text,
+      primary: colors.primary,
+      notification: colors.primary,
+    },
+  };
+}
+
 export default function RootLayout() {
   return (
     <ThemeProvider>
@@ -24,7 +46,7 @@ export default function RootLayout() {
 }
 
 function AppNavigation() {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, colors } = useAppTheme();
   const { session, isLoading } = useAuth();
 
   const segments = useSegments();
@@ -61,7 +83,9 @@ function AppNavigation() {
   }
 
   return (
-    <>
+    <NavigationThemeProvider
+      value={createGabaiNavigationTheme(colorScheme, colors)}
+    >
       <Stack>
   <Stack.Screen
     name="index"

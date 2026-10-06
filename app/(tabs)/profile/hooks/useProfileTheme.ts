@@ -3,31 +3,22 @@ import { useAppTheme } from '@/app/context/ThemeContext';
 import { ProfileTheme } from '../types';
 
 export function useProfileTheme(): ProfileTheme {
-  const { colorScheme } = useAppTheme();
-
+  const { colorScheme, colors } = useAppTheme();
   const isDark = colorScheme === 'dark';
 
   return {
     isDark,
     primaryAccent: '#A97C50',
-    errorRed: '#EF4444',
+    errorRed: colors.danger,
 
-    bgTheme: isDark ? '#121212' : '#FFFFFF',
+    bgTheme: colors.background,
 
-    textTheme: isDark
-      ? '#ECEDEE'
-      : '#11181C',
+    textTheme: colors.text,
 
-    textSubTheme: isDark
-      ? '#9BA1A6'
-      : '#666666',
+    textSubTheme: colors.icon,
 
-    cardTheme: isDark
-      ? '#1E1E1E'
-      : '#F8FAFC',
+    cardTheme: colors.surface,
 
-    borderTheme: isDark
-      ? '#2E2E2E'
-      : '#E2E8F0',
+    borderTheme: colors.border,
   };
 }

@@ -1,28 +1,29 @@
-
-import React from 'react';
-import { ScrollView, RefreshControl } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAppTheme } from '@/app/context/ThemeContext';
 import { useDrawer } from '@/app/(tabs)/_layout';
+import { useAuth } from '@/app/context/AuthContext';
+import { useAppTheme } from '@/app/context/ThemeContext';
 
 import {
-  DashboardHeader,
-  QuickActions,
-  SmartReminders,
   AcademicPressure,
-  TodaysFocus,
-  QuickOverview,
-  TodaysSchedule,
-  FocusSessionWidget,
-  UpcomingDeadlines,
-  SubjectProgress,
-  RecentActivity,
-  Footer,
+  DashboardHeader,
   DashboardTask,
+  FocusSessionWidget,
+  Footer,
+  QuickOverview,
+  RecentActivity,
+  SmartReminders,
+  SubjectProgress,
+  TodaysFocus,
+  TodaysSchedule,
+  UpcomingDeadlines,
+  WhatShouldIDoNow,
 } from './components';
 
+import { useExpensesData } from '../expenses/hooks/useExpensesData';
 import { useDashboardData } from './hooks/useDashboardData';
+
 import {
   getPriorityColor,
   getTimelineIcon,
@@ -31,48 +32,53 @@ import {
 import { dashboardStyles as styles } from './styles/dashboard.styles';
 
 export default function DashboardScreen() {
-  /*
-   * GabAi Theme
-   *
-   * Uses the selected theme from ThemeContext:
-   * System / Light / Dark
-   */
-  const { colorScheme } = useAppTheme();
+  const { colors } = useAppTheme();
 
-  const isDark = colorScheme === 'dark';
+  // ============================================================
+  // THEME
+  // ============================================================
 
-  // GabAi Theme Colors
   const primaryBrown = '#A97C50';
-  const successGreen = '#10B981';
-  const errorRed = '#EF4444';
-  const warningOrange = '#F59E0B';
 
-  const bgTheme = isDark
-    ? '#121212'
-    : '#FFFFFF';
+  const successGreen = colors.success;
+  const errorRed = colors.danger;
+  const warningOrange = colors.warning;
 
-  const textPrimary = isDark
-    ? '#ECEDEE'
-    : '#11181C';
+  const bgTheme = colors.background;
+  const textPrimary = colors.text;
+  const textSecondary = colors.icon;
+  const cardBg = colors.surface;
+  const borderCol = colors.border;
 
-  const textSecondary = isDark
-    ? '#9BA1A6'
-    : '#666666';
+  // ============================================================
+  // DRAWER + AUTH
+  // ============================================================
 
-  const cardBg = isDark
-    ? '#1E1E1E'
-    : '#F8FAFC';
-
-  const borderCol = isDark
-    ? '#2E2E2E'
-    : '#E2E8F0';
-
-  // Drawer
   const { openDrawer } = useDrawer();
+  const { user } = useAuth();
 
-  // Dashboard Data
+  const fullUserName = String(
+    user?.name ||
+      user?.fullName ||
+      user?.userName ||
+      user?.username ||
+      user?.preferred_username ||
+      user?.firstName ||
+      user?.first_name ||
+      user?.email ||
+      'User'
+  );
+
+  const userName =
+    fullUserName.trim().split(/\s+/)[0] || 'User';
+
+  // ============================================================
+  // DASHBOARD DATA
+  // ============================================================
+
   const {
     greeting,
+    tasks,
     focusTasks,
     deadlines,
     subjects,
@@ -82,15 +88,33 @@ export default function DashboardScreen() {
     handleToggleComplete,
   } = useDashboardData();
 
-  // Priority Color Helper
+  // ============================================================
+  // EXPENSE DATA
+  // ============================================================
+
+  const {
+    netBalance,
+    totalIncome,
+    totalExpenses,
+    isLoading: isMoneyLoading,
+  } = useExpensesData();
+
+  // ============================================================
+  // PRIORITY COLOR HELPER
+  // ============================================================
+
   const priorityColorHelper = (
-    pr: DashboardTask['priority']
+    priority: DashboardTask['priority']
   ) =>
-    getPriorityColor(pr, {
+    getPriorityColor(priority, {
       errorRed,
       warningOrange,
       successGreen,
     });
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <SafeAreaView
@@ -102,14 +126,22 @@ export default function DashboardScreen() {
       ]}
       edges={['top']}
     >
-      {/* 1. Header Bar */}
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <DashboardHeader
-        onOpenDrawer={openDrawer}
         greeting={greeting}
-        userName="Student"
+        userName={userName}
+        onOpenDrawer={openDrawer}
         textPrimary={textPrimary}
         textSecondary={textSecondary}
       />
+
+      {/* ======================================================
+          MAIN DASHBOARD
+      ====================================================== */}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -118,108 +150,169 @@ export default function DashboardScreen() {
             refreshing={isRefreshing}
             onRefresh={onRefresh}
             colors={[primaryBrown]}
+            tintColor={primaryBrown}
           />
         }
       >
-        {/* 2. Quick Actions */}
-        <QuickActions
-          primaryBrown={primaryBrown}
-          borderCol={borderCol}
-        />
+        {/* ====================================================
+            SMART REMINDERS
+        ==================================================== */}
 
-        {/* 3. Smart Reminders */}
-        <SmartReminders
-          warningOrange={warningOrange}
-          textPrimary={textPrimary}
-        />
+        <View style={styles.sectionSmall}>
+          <SmartReminders
+            tasks={tasks}
+            primaryBrown={primaryBrown}
+            textColor={textPrimary}
+            secondaryText={textSecondary}
+            cardColor={cardBg}
+            borderColor={borderCol}
+          />
+        </View>
 
-        {/* 4. Academic Pressure Widget */}
-        <AcademicPressure
-  cardBg={cardBg}
-  borderCol={borderCol}
-  textPrimary={textPrimary}
-  textSecondary={textSecondary}
-  errorRed={errorRed}
-  primaryBrown={primaryBrown}
-/>
+        {/* ====================================================
+            TODAY'S FOCUS
+        ==================================================== */}
 
-        {/* 5. Today's Focus Card */}
-        <TodaysFocus
-          tasks={focusTasks}
-          onToggleComplete={handleToggleComplete}
-          getPriorityColor={priorityColorHelper}
-          cardBg={cardBg}
-          borderCol={borderCol}
-          textPrimary={textPrimary}
-          textSecondary={textSecondary}
-          primaryBrown={primaryBrown}
-        />
+        <View style={styles.sectionLarge}>
+          <TodaysFocus
+            tasks={focusTasks}
+            onToggleComplete={handleToggleComplete}
+            getPriorityColor={priorityColorHelper}
+            cardBg={cardBg}
+            borderCol={borderCol}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            primaryBrown={primaryBrown}
+          />
+        </View>
 
-        {/* 6. Quick Overview Stats */}
-        <QuickOverview
-          cardBg={cardBg}
-          borderCol={borderCol}
-          textPrimary={textPrimary}
-          textSecondary={textSecondary}
-          tasksCount={4}
-          deadlinesCount={5}
-          classesCount={2}
-          weeklySpend="₱1,250"
-        />
+        {/* SMART RECOMMENDATION */}
+<View style={styles.section}>
+  <WhatShouldIDoNow
+    tasks={tasks}
+    primaryBrown={primaryBrown}
+    textColor={textPrimary}
+    secondaryText={textSecondary}
+    cardColor={cardBg}
+    borderColor={borderCol}
+  />
+</View>
 
-        {/* 7. Today's Schedule Timeline */}
-        <TodaysSchedule
-          items={timelineItems}
-          getTimelineIcon={getTimelineIcon}
-          cardBg={cardBg}
-          borderCol={borderCol}
-          textPrimary={textPrimary}
-          textSecondary={textSecondary}
-          primaryBrown={primaryBrown}
-        />
+        {/* ====================================================
+            ACADEMIC PRESSURE
+        ==================================================== */}
 
-        {/* 8. Focus Session */}
-        <FocusSessionWidget
-          cardBg={cardBg}
-          borderCol={borderCol}
-          textPrimary={textPrimary}
-          textSecondary={textSecondary}
-          primaryBrown={primaryBrown}
-        />
+        <View style={styles.section}>
+          <AcademicPressure
+            cardBg={cardBg}
+            borderCol={borderCol}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            errorRed={errorRed}
+            primaryBrown={primaryBrown}
+          />
+        </View>
 
-        {/* 9. Upcoming Deadlines */}
-        <UpcomingDeadlines
-          deadlines={deadlines}
-          getPriorityColor={priorityColorHelper}
-          cardBg={cardBg}
-          borderCol={borderCol}
-          textPrimary={textPrimary}
-          textSecondary={textSecondary}
-          primaryBrown={primaryBrown}
-        />
+        {/* ====================================================
+            QUICK OVERVIEW
+        ==================================================== */}
 
-        {/* 10. Subject Progress */}
-        <SubjectProgress
-          subjects={subjects}
-          cardBg={cardBg}
-          borderCol={borderCol}
-          textPrimary={textPrimary}
-          textSecondary={textSecondary}
-          primaryBrown={primaryBrown}
-        />
+        <View style={styles.section}>
+          <QuickOverview
+            cardBg={cardBg}
+            borderCol={borderCol}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            successGreen={successGreen}
+            errorRed={errorRed}
+            balance={netBalance}
+            income={totalIncome}
+            expenses={totalExpenses}
+            isLoading={isMoneyLoading}
+          />
+        </View>
 
-        {/* 12. Recent Activity */}
-        <RecentActivity
-          cardBg={cardBg}
-          borderCol={borderCol}
-          textSecondary={textSecondary}
-          primaryBrown={primaryBrown}
-        />
+        {/* ====================================================
+            TODAY'S SCHEDULE
+        ==================================================== */}
 
-        {/* 13. Footer */}
-        <Footer
-          textSecondary={textSecondary}
-        />
+        <View style={styles.sectionLarge}>
+          <TodaysSchedule
+            items={timelineItems}
+            getTimelineIcon={getTimelineIcon}
+            cardBg={cardBg}
+            borderCol={borderCol}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            primaryBrown={primaryBrown}
+          />
+        </View>
+
+        {/* ====================================================
+            FOCUS SESSION
+        ==================================================== */}
+
+        <View style={styles.section}>
+          <FocusSessionWidget
+            cardBg={cardBg}
+            borderCol={borderCol}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            primaryBrown={primaryBrown}
+          />
+        </View>
+
+        {/* ====================================================
+            UPCOMING DEADLINES
+        ==================================================== */}
+
+        <View style={styles.sectionLarge}>
+          <UpcomingDeadlines
+            deadlines={deadlines}
+            getPriorityColor={priorityColorHelper}
+            cardBg={cardBg}
+            borderCol={borderCol}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            primaryBrown={primaryBrown}
+          />
+        </View>
+
+        {/* ====================================================
+            SUBJECT PROGRESS
+        ==================================================== */}
+
+        <View style={styles.sectionLarge}>
+          <SubjectProgress
+            subjects={subjects}
+            cardBg={cardBg}
+            borderCol={borderCol}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+            primaryBrown={primaryBrown}
+          />
+        </View>
+
+        {/* ====================================================
+            RECENT ACTIVITY
+        ==================================================== */}
+
+        <View style={styles.section}>
+          <RecentActivity
+            tasks={tasks}
+            primaryBrown={primaryBrown}
+            textColor={textPrimary}
+            secondaryText={textSecondary}
+            cardColor={cardBg}
+            borderColor={borderCol}
+          />
+        </View>
+
+        {/* ====================================================
+            FOOTER
+        ==================================================== */}
+
+        <Footer textSecondary={textSecondary} />
       </ScrollView>
     </SafeAreaView>
   );
