@@ -36,7 +36,7 @@ export function RegisterHeader({
       <View style={styles.logoContainer}>
         <Image
           source={logoSource}
-          style={styles.logoImage}
+          style={styles.logoIcon}
           resizeMode="contain"
         />
       </View>

@@ -3,7 +3,11 @@ import {
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from 'expo-router/react-navigation';
-import { Stack, useSegments, useRouter } from 'expo-router';
+import {
+  Stack,
+  useRouter,
+  useSegments,
+} from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -18,8 +22,14 @@ import {
   useAuth,
 } from '@/app/context/AuthContext';
 
-function createGabaiNavigationTheme(colorScheme: 'light' | 'dark', colors: any) {
-  const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+function createGabaiNavigationTheme(
+  colorScheme: 'light' | 'dark',
+  colors: any,
+) {
+  const baseTheme =
+    colorScheme === 'dark'
+      ? DarkTheme
+      : DefaultTheme;
 
   return {
     ...baseTheme,
@@ -46,14 +56,23 @@ export default function RootLayout() {
 }
 
 function AppNavigation() {
-  const { colorScheme, colors } = useAppTheme();
-  const { session, isLoading } = useAuth();
+  const {
+    colorScheme,
+    colors,
+  } = useAppTheme();
+
+  const {
+    session,
+    isLoading,
+  } = useAuth();
 
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading) {
+      return;
+    }
 
     const isAuthRoute =
       segments[0] === '(auth)';
@@ -64,12 +83,20 @@ function AppNavigation() {
       segments[0] === 'productivity';
 
     if (!session && isAppRoute) {
-      router.replace('/(auth)/login/login');
-    } else if (
+      router.replace(
+        '/(auth)/login/login',
+      );
+      return;
+    }
+
+    if (
       session &&
-      (segments[0] === undefined || isAuthRoute)
+      (segments[0] === undefined ||
+        isAuthRoute)
     ) {
-      router.replace('/(tabs)/dashboard/dashboard');
+      router.replace(
+        '/(tabs)/dashboard/dashboard',
+      );
     }
   }, [
     isLoading,
@@ -84,46 +111,49 @@ function AppNavigation() {
 
   return (
     <NavigationThemeProvider
-      value={createGabaiNavigationTheme(colorScheme, colors)}
+      value={createGabaiNavigationTheme(
+        colorScheme,
+        colors,
+      )}
     >
       <Stack>
-  <Stack.Screen
-    name="index"
-    options={{
-      headerShown: false,
-    }}
-  />
+        <Stack.Screen
+          name="index"
+          options={{
+            headerShown: false,
+          }}
+        />
 
-  <Stack.Screen
-    name="(auth)"
-    options={{
-      headerShown: false,
-    }}
-  />
+        <Stack.Screen
+          name="(auth)"
+          options={{
+            headerShown: false,
+          }}
+        />
 
-  <Stack.Screen
-    name="(tabs)"
-    options={{
-      headerShown: false,
-    }}
-  />
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
 
-  <Stack.Screen
-    name="productivity/index"
-    options={{
-      headerShown: false,
-      presentation: 'card',
-    }}
-  />
+        <Stack.Screen
+          name="productivity/index"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
 
-  <Stack.Screen
-    name="assistant/index"
-    options={{
-      presentation: 'modal',
-      headerShown: false,
-    }}
-  />
-</Stack>
+        <Stack.Screen
+          name="assistant/index"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+      </Stack>
 
       <StatusBar
         style={
@@ -132,6 +162,6 @@ function AppNavigation() {
             : 'dark'
         }
       />
-    </>
+    </NavigationThemeProvider>
   );
 }

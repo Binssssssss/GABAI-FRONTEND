@@ -55,25 +55,15 @@ export function useDashboardData() {
 
   return {
     greeting,
-
-    tasks,
-
+    tasks: focusTasks,
     focusTasks,
-
     deadlines,
-
     subjects,
-
     timelineItems,
-
-    isLoading,
-
+    isLoading: false,
     isRefreshing,
-
-    error,
-
+    error: null,
     onRefresh,
-
     handleToggleComplete,
   };
 }

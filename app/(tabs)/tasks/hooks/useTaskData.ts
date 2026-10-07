@@ -1,6 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
 import { Alert } from 'react-native';
+
 import { localDb, Task, SubTask } from '@/app/services/localDb';
+import api from '@/app/services/api';
+
 import {
   TaskSubTab,
   TaskCategory,
@@ -8,6 +16,15 @@ import {
   TaskDifficulty,
   TaskRepeat,
 } from '../types';
+
+// ------------------------------------------------------
+// API TYPES
+// ------------------------------------------------------
+
+type ApiTask = Partial<Task> & {
+  id: string;
+  title: string;
+};
 
 // ------------------------------------------------------
 // DATE HELPERS
@@ -34,6 +51,106 @@ const getTodayAndTomorrow = () => {
 };
 
 // ------------------------------------------------------
+// API HELPERS
+// ------------------------------------------------------
+
+const mapApiTaskToTask = (task: ApiTask): Task => {
+  return {
+    id: task.id,
+    title: task.title,
+
+    description:
+      task.description ??
+      'No detailed description provided.',
+
+    subject:
+      task.subject ??
+      'General',
+
+    category:
+      task.category ??
+      'Academic',
+
+    priority:
+      task.priority ??
+      'Medium',
+
+    difficulty:
+      task.difficulty ??
+      'Medium',
+
+    duration:
+      typeof task.duration === 'number'
+        ? task.duration
+        : 1,
+
+    dueDate:
+      task.dueDate ??
+      formatLocalDate(new Date()),
+
+    dueTime:
+      task.dueTime ??
+      '12:00',
+
+    completed:
+      task.completed ?? false,
+
+    hasReminder:
+      task.hasReminder ?? false,
+
+    repeat:
+      task.repeat ??
+      'None',
+
+    isPinned:
+      task.isPinned ?? false,
+
+    isFavorite:
+      task.isFavorite ?? false,
+
+    attachments:
+      task.attachments ?? 0,
+
+    subTasks:
+      task.subTasks ?? [],
+
+    createdAt:
+      task.createdAt ?? Date.now(),
+  };
+};
+
+const getApiErrorMessage = (
+  error: unknown,
+  fallback: string,
+): string => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error
+  ) {
+    const response = (
+      error as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+      }
+    ).response;
+
+    if (response?.data?.message) {
+      return response.data.message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
+// ------------------------------------------------------
 // TASK DATA HOOK
 // ------------------------------------------------------
 
@@ -45,21 +162,36 @@ export function useTaskData() {
   const [activeSubTab, setActiveSubTab] =
     useState<TaskSubTab>('overview');
 
-  const [tasks, setTasksState] = useState<Task[]>(
-    () => localDb.getTasks()
-  );
+  const [tasks, setTasksState] =
+    useState<Task[]>(() => localDb.getTasks());
 
-  const [activeFilter, setActiveFilter] = useState<string>('All');
-  const [isAdding, setIsAdding] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] =
+    useState<string>('All');
+
+  const [isAdding, setIsAdding] =
+    useState(false);
+
+  const [isRefreshing, setIsRefreshing] =
+    useState(false);
+
+  const [isLoading, setIsLoading] =
+    useState(false);
 
   // ----------------------------------------------------
   // ANALYTICS
   // ----------------------------------------------------
 
+  const [analytics, setAnalytics] =
+    useState<any>(null);
+
   const setTasks = useCallback(
-    (newTasks: Task[] | ((prev: Task[]) => Task[])) => {
-      const currentTasks = localDb.getTasks();
+    (
+      newTasks:
+        | Task[]
+        | ((prev: Task[]) => Task[]),
+    ) => {
+      const currentTasks =
+        localDb.getTasks();
 
       const updated =
         typeof newTasks === 'function'
@@ -69,14 +201,17 @@ export function useTaskData() {
       localDb.setTasks(updated);
       setTasksState(updated);
     },
-    []
+    [],
   );
 
   // Keep hook synchronized with local database
   useEffect(() => {
-    const unsubscribe = localDb.subscribe(() => {
-      setTasksState(localDb.getTasks());
-    });
+    const unsubscribe =
+      localDb.subscribe(() => {
+        setTasksState(
+          localDb.getTasks(),
+        );
+      });
 
     return unsubscribe;
   }, []);
@@ -145,13 +280,17 @@ export function useTaskData() {
     useState('1.5');
 
   const [newDueDate, setNewDueDate] =
-    useState(() => formatLocalDate(new Date()));
+    useState(() =>
+      formatLocalDate(new Date()),
+    );
 
   const [newDueTime, setNewDueTime] =
     useState('12:00');
 
-  const [newHasReminder, setNewHasReminder] =
-    useState(false);
+  const [
+    newHasReminder,
+    setNewHasReminder,
+  ] = useState(false);
 
   const [newRepeat, setNewRepeat] =
     useState<TaskRepeat>('None');
@@ -180,11 +319,13 @@ export function useTaskData() {
   // DATE VALUES
   // ----------------------------------------------------
 
-  const { todayStr, tomorrowStr } =
-    useMemo(
-      () => getTodayAndTomorrow(),
-      [],
-    );
+  const {
+    todayStr,
+    tomorrowStr,
+  } = useMemo(
+    () => getTodayAndTomorrow(),
+    [],
+  );
 
   // ----------------------------------------------------
   // LOAD TASK ANALYTICS
@@ -194,7 +335,9 @@ export function useTaskData() {
     async () => {
       try {
         const response =
-          await api.get('/api/tasks/analytics');
+          await api.get(
+            '/api/tasks/analytics',
+          );
 
         if (
           response.data?.success &&
@@ -219,14 +362,18 @@ export function useTaskData() {
   // ----------------------------------------------------
 
   const loadTasks = useCallback(
-    async (showLoading = true) => {
+    async (
+      showLoading = true,
+    ) => {
       try {
         if (showLoading) {
           setIsLoading(true);
         }
 
         const response =
-          await api.get('/api/tasks');
+          await api.get(
+            '/api/tasks',
+          );
 
         const responseData =
           response.data;
@@ -236,7 +383,9 @@ export function useTaskData() {
             responseData?.data,
           )
             ? responseData.data
-            : Array.isArray(responseData)
+            : Array.isArray(
+                responseData,
+              )
               ? responseData
               : [];
 
@@ -246,6 +395,10 @@ export function useTaskData() {
           );
 
         setTasksState(
+          mappedTasks,
+        );
+
+        localDb.setTasks(
           mappedTasks,
         );
 
@@ -275,40 +428,66 @@ export function useTaskData() {
   // ----------------------------------------------------
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-
-    if (isTimerRunning && pomodoroTime > 0) {
-      interval = setInterval(() => {
-        setPomodoroTime((prev) => prev - 1);
-      }, 1000);
-    }
-
-    if (pomodoroTime === 0) {
-      setIsTimerRunning(false);
-
-      Alert.alert(
-        'Focus Time Up!',
-        'Great job! Take a small rest break.'
-      );
-
-      setPomodoroTime(25 * 60);
-    }
-
-          return prev - 1;
-        });
-      }, 1000);
+    const timeoutId = setTimeout(() => {
+      loadTasks();
+    }, 0);
 
     return () => {
-      clearInterval(interval);
+      clearTimeout(timeoutId);
     };
-  }, [isTimerRunning, pomodoroTime]);
+  }, [loadTasks]);
 
   // ----------------------------------------------------
-  // DATE VALUES
+  // POMODORO TIMER
   // ----------------------------------------------------
 
-  const { todayStr, tomorrowStr } =
-    useMemo(() => getTodayAndTomorrow(), []);
+  useEffect(() => {
+    let interval:
+      ReturnType<typeof setInterval> | null =
+      null;
+
+    if (
+      isTimerRunning &&
+      pomodoroTime > 0
+    ) {
+      interval = setInterval(() => {
+        setPomodoroTime(
+          (prev) => prev - 1,
+        );
+      }, 1000);
+    }
+
+    if (pomodoroTime === 0 && isTimerRunning) {
+      const timeoutId = setTimeout(() => {
+        setIsTimerRunning(false);
+
+        Alert.alert(
+          'Focus Time Up!',
+          'Great job! Take a small rest break.',
+        );
+
+        setPomodoroTime(
+          25 * 60,
+        );
+      }, 0);
+
+      return () => {
+        clearTimeout(timeoutId);
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [
+    isTimerRunning,
+    pomodoroTime,
+  ]);
 
   // ----------------------------------------------------
   // OVERALL CALCULATIONS
@@ -317,23 +496,30 @@ export function useTaskData() {
   const totalTasks =
     tasks.length;
 
-  const completedTasks = tasks.filter(
-    (task) => task.completed
-  ).length;
+  const completedTasks =
+    tasks.filter(
+      (task) => task.completed,
+    ).length;
 
-  const activeTasks = tasks.filter(
-    (task) => !task.completed
-  );
+  const activeTasks =
+    tasks.filter(
+      (task) => !task.completed,
+    );
 
   const completionRate =
     totalTasks > 0
-      ? Math.round((completedTasks / totalTasks) * 100)
+      ? Math.round(
+          (completedTasks /
+            totalTasks) *
+            100,
+        )
       : 0;
 
   const estimatedRemainingHours =
     activeTasks.reduce(
-      (sum, task) => sum + task.duration,
-      0
+      (sum, task) =>
+        sum + task.duration,
+      0,
     );
 
   // ----------------------------------------------------
@@ -345,45 +531,63 @@ export function useTaskData() {
       const totalActive =
         activeTasks.length;
 
-    const highPriorityCount = activeTasks.filter(
-      (task) => task.priority === 'High'
-    ).length;
+      const highPriorityCount =
+        activeTasks.filter(
+          (task) =>
+            task.priority ===
+            'High',
+        ).length;
 
-    if (totalActive >= 6 || highPriorityCount >= 3) {
+      if (
+        totalActive >= 6 ||
+        highPriorityCount >= 3
+      ) {
+        return {
+          level: 'Heavy',
+          color: '#EF4444',
+          desc: 'High stress level detected. Prioritize critical deadlines first.',
+        };
+      }
+
+      if (
+        totalActive >= 3 ||
+        highPriorityCount >= 1
+      ) {
+        return {
+          level: 'Moderate',
+          color: '#F59E0B',
+          desc: 'Balanced workload. Keep steady study sessions.',
+        };
+      }
+
       return {
-        level: 'Heavy',
-        color: '#EF4444',
-        desc: 'High stress level detected. Prioritize critical deadlines first.',
+        level: 'Light',
+        color: '#10B981',
+        desc: 'Great job! Workload is well managed and relaxed.',
       };
-    }
-
-    if (totalActive >= 3 || highPriorityCount >= 1) {
-      return {
-        level: 'Moderate',
-        color: '#F59E0B',
-        desc: 'Balanced workload. Keep steady study sessions.',
-      };
-    }
-
-    return {
-      level: 'Light',
-      color: '#10B981',
-      desc: 'Great job! Workload is well managed and relaxed.',
-    };
-  }, [activeTasks]);
+    }, [activeTasks]);
 
   // ----------------------------------------------------
   // FILTERED TASKS
   // ----------------------------------------------------
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      // Search
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
+  const filteredTasks =
+    useMemo(() => {
+      return tasks.filter(
+        (task) => {
+          // Search
+          if (
+            searchQuery.trim()
+          ) {
+            const query =
+              searchQuery
+                .toLowerCase()
+                .trim();
 
-        const matchesTitle =
-          task.title.toLowerCase().includes(query);
+            const matchesTitle =
+              task.title
+                .toLowerCase()
+                .includes(query);
 
             const matchesSubject =
               task.subject
@@ -404,315 +608,419 @@ export function useTaskData() {
             }
           }
 
-      // Filters
-      if (activeFilter === 'Today') {
-        return (
-          task.dueDate === todayStr &&
-          !task.completed
-        );
-      }
+          // Filters
+          if (
+            activeFilter ===
+            'Today'
+          ) {
+            return (
+              task.dueDate ===
+                todayStr &&
+              !task.completed
+            );
+          }
 
-      if (activeFilter === 'Tomorrow') {
-        return (
-          task.dueDate === tomorrowStr &&
-          !task.completed
-        );
-      }
+          if (
+            activeFilter ===
+            'Tomorrow'
+          ) {
+            return (
+              task.dueDate ===
+                tomorrowStr &&
+              !task.completed
+            );
+          }
 
-      if (activeFilter === 'Priority') {
-        return (
-          task.priority === 'High' &&
-          !task.completed
-        );
-      }
+          if (
+            activeFilter ===
+            'Priority'
+          ) {
+            return (
+              task.priority ===
+                'High' &&
+              !task.completed
+            );
+          }
 
-      if (activeFilter === 'Difficulty') {
-        return (
-          task.difficulty === 'Hard' &&
-          !task.completed
-        );
-      }
+          if (
+            activeFilter ===
+            'Difficulty'
+          ) {
+            return (
+              task.difficulty ===
+                'Hard' &&
+              !task.completed
+            );
+          }
 
-      if (activeFilter === 'Completed') {
-        return task.completed;
-      }
+          if (
+            activeFilter ===
+            'Completed'
+          ) {
+            return task.completed;
+          }
 
-      return true;
-    });
-  }, [
-    tasks,
-    searchQuery,
-    activeFilter,
-    todayStr,
-    tomorrowStr,
-  ]);
+          return true;
+        },
+      );
+    }, [
+      tasks,
+      searchQuery,
+      activeFilter,
+      todayStr,
+      tomorrowStr,
+    ]);
 
   // ----------------------------------------------------
   // TIMELINE TASK GROUPS
   // ----------------------------------------------------
 
-  const overdueTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) =>
-          task.dueDate < todayStr &&
-          !task.completed
-      ),
-    [tasks, todayStr]
-  );
+  const overdueTasks =
+    useMemo(
+      () =>
+        tasks.filter(
+          (task) =>
+            task.dueDate <
+              todayStr &&
+            !task.completed,
+        ),
+      [tasks, todayStr],
+    );
 
-  const todayTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) =>
-          task.dueDate === todayStr &&
-          !task.completed
-      ),
-    [tasks, todayStr]
-  );
+  const todayTasks =
+    useMemo(
+      () =>
+        tasks.filter(
+          (task) =>
+            task.dueDate ===
+              todayStr &&
+            !task.completed,
+        ),
+      [tasks, todayStr],
+    );
 
-  const tomorrowTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) =>
-          task.dueDate === tomorrowStr &&
-          !task.completed
-      ),
-    [tasks, tomorrowStr]
-  );
+  const tomorrowTasks =
+    useMemo(
+      () =>
+        tasks.filter(
+          (task) =>
+            task.dueDate ===
+              tomorrowStr &&
+            !task.completed,
+        ),
+      [tasks, tomorrowStr],
+    );
 
-  const upcomingTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) =>
-          task.dueDate > tomorrowStr &&
-          !task.completed
-      ),
-    [tasks, tomorrowStr]
-  );
+  const upcomingTasks =
+    useMemo(
+      () =>
+        tasks.filter(
+          (task) =>
+            task.dueDate >
+              tomorrowStr &&
+            !task.completed,
+        ),
+      [tasks, tomorrowStr],
+    );
 
-  const completedTasksList = useMemo(
-    () => tasks.filter((task) => task.completed),
-    [tasks]
-  );
+  const completedTasksList =
+    useMemo(
+      () =>
+        tasks.filter(
+          (task) =>
+            task.completed,
+        ),
+      [tasks],
+    );
 
   // ----------------------------------------------------
   // TOGGLE TASK COMPLETION
   // ----------------------------------------------------
 
-  const toggleTask = useCallback(
-    (taskId: string) => {
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                completed: !task.completed,
-              }
-            : task
-        )
-      );
-    },
-    [setTasks]
-  );
+  const toggleTask =
+    useCallback(
+      (taskId: string) => {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  completed:
+                    !task.completed,
+                }
+              : task,
+          ),
+        );
+      },
+      [setTasks],
+    );
 
-  const toggleSubTask = useCallback(
-    (taskId: string, subTaskId: string) => {
-      setTasks((prev) =>
-        prev.map((task) => {
-          if (task.id !== taskId) {
-            return task;
-          }
+  const toggleSubTask =
+    useCallback(
+      (
+        taskId: string,
+        subTaskId: string,
+      ) => {
+        setTasks((prev) =>
+          prev.map((task) => {
+            if (
+              task.id !== taskId
+            ) {
+              return task;
+            }
 
-          const updatedSubs = task.subTasks.map(
-            (subTask) =>
-              subTask.id === subTaskId
-                ? {
-                    ...subTask,
-                    completed: !subTask.completed,
-                  }
-                : subTask
-          );
+            const updatedSubs =
+              task.subTasks.map(
+                (subTask) =>
+                  subTask.id ===
+                  subTaskId
+                    ? {
+                        ...subTask,
+                        completed:
+                          !subTask.completed,
+                      }
+                    : subTask,
+              );
 
-          return {
-            ...task,
-            subTasks: updatedSubs,
-          };
-        })
-      );
-    },
-    [setTasks]
-  );
+            return {
+              ...task,
+              subTasks:
+                updatedSubs,
+            };
+          }),
+        );
+      },
+      [setTasks],
+    );
 
   // ----------------------------------------------------
   // DELETE TASK
   // ----------------------------------------------------
 
-  const handleDeleteTask = useCallback(
-    (taskId: string) => {
+  const handleDeleteTask =
+    useCallback(
+      (taskId: string) => {
+        Alert.alert(
+          'Delete Task',
+          'Are you sure you want to delete this task?',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Delete',
+              style: 'destructive',
+              onPress: () => {
+                setTasks((prev) =>
+                  prev.filter(
+                    (task) =>
+                      task.id !==
+                      taskId,
+                  ),
+                );
+
+                if (
+                  focusedTask?.id ===
+                  taskId
+                ) {
+                  setIsFocusActive(
+                    false,
+                  );
+                  setFocusedTask(
+                    null,
+                  );
+                }
+              },
+            },
+          ],
+        );
+      },
+      [focusedTask, setTasks],
+    );
+
+  // ----------------------------------------------------
+  // PIN TASK
+  // ----------------------------------------------------
+
+  const handleTogglePin =
+    useCallback(
+      (taskId: string) => {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  isPinned:
+                    !task.isPinned,
+                }
+              : task,
+          ),
+        );
+      },
+      [setTasks],
+    );
+
+  // ----------------------------------------------------
+  // FAVORITE TASK
+  // ----------------------------------------------------
+
+  const handleToggleFavorite =
+    useCallback(
+      (taskId: string) => {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  isFavorite:
+                    !task.isFavorite,
+                }
+              : task,
+          ),
+        );
+      },
+      [setTasks],
+    );
+
+  // ----------------------------------------------------
+  // MULTI SELECT
+  // ----------------------------------------------------
+
+  const toggleSelectTask =
+    useCallback(
+      (taskId: string) => {
+        setSelectedTaskIds(
+          (prev) =>
+            prev.includes(taskId)
+              ? prev.filter(
+                  (id) =>
+                    id !== taskId,
+                )
+              : [
+                  ...prev,
+                  taskId,
+                ],
+        );
+      },
+      [],
+    );
+
+  const handleBulkComplete =
+    useCallback(() => {
+      if (
+        selectedTaskIds.length ===
+        0
+      ) {
+        return;
+      }
+
+      setTasks((prev) =>
+        prev.map((task) =>
+          selectedTaskIds.includes(
+            task.id,
+          )
+            ? {
+                ...task,
+                completed: true,
+              }
+            : task,
+        ),
+      );
+
+      setSelectedTaskIds([]);
+      setIsMultiSelectMode(
+        false,
+      );
+    }, [
+      selectedTaskIds,
+      setTasks,
+    ]);
+
+  const handleBulkDelete =
+    useCallback(() => {
+      if (
+        selectedTaskIds.length ===
+        0
+      ) {
+        return;
+      }
+
       Alert.alert(
-        'Delete Task',
-        'Are you sure you want to delete this task?',
+        'Bulk Delete',
+        `Delete ${selectedTaskIds.length} selected tasks?`,
         [
           {
             text: 'Cancel',
             style: 'cancel',
           },
           {
-            text: 'Delete',
+            text: 'Delete All',
             style: 'destructive',
             onPress: () => {
               setTasks((prev) =>
                 prev.filter(
-                  (task) => task.id !== taskId
-                )
+                  (task) =>
+                    !selectedTaskIds.includes(
+                      task.id,
+                    ),
+                ),
               );
 
-              if (focusedTask?.id === taskId) {
-                setIsFocusActive(false);
-                setFocusedTask(null);
-              }
+              setSelectedTaskIds([]);
+              setIsMultiSelectMode(
+                false,
+              );
             },
           },
-        ]
+        ],
       );
-    },
-    [focusedTask, setTasks]
-  );
-
-  // ----------------------------------------------------
-  // PIN TASK
-  // ----------------------------------------------------
-
-  const handleTogglePin = useCallback(
-    (taskId: string) => {
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                isPinned: !task.isPinned,
-              }
-            : task
-        )
-      );
-    },
-    [setTasks]
-  );
-
-  // ----------------------------------------------------
-  // FAVORITE TASK
-  // ----------------------------------------------------
-
-  const handleToggleFavorite = useCallback(
-    (taskId: string) => {
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                isFavorite: !task.isFavorite,
-              }
-            : task
-        )
-      );
-    },
-    [setTasks]
-  );
-
-  // ----------------------------------------------------
-  // MULTI SELECT
-  // ----------------------------------------------------
-
-  const toggleSelectTask = useCallback(
-    (taskId: string) => {
-      setSelectedTaskIds((prev) =>
-        prev.includes(taskId)
-          ? prev.filter((id) => id !== taskId)
-          : [...prev, taskId]
-      );
-    },
-    []
-  );
-
-  const handleBulkComplete = useCallback(() => {
-    if (selectedTaskIds.length === 0) {
-      return;
-    }
-
-    setTasks((prev) =>
-      prev.map((task) =>
-        selectedTaskIds.includes(task.id)
-          ? {
-              ...task,
-              completed: true,
-            }
-          : task
-      )
-    );
-
-    setSelectedTaskIds([]);
-    setIsMultiSelectMode(false);
-  }, [selectedTaskIds, setTasks]);
-
-  const handleBulkDelete = useCallback(() => {
-    if (selectedTaskIds.length === 0) {
-      return;
-    }
-
-    Alert.alert(
-      'Bulk Delete',
-      `Delete ${selectedTaskIds.length} selected tasks?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: () => {
-            setTasks((prev) =>
-              prev.filter(
-                (task) =>
-                  !selectedTaskIds.includes(task.id)
-              )
-            );
-
-            setSelectedTaskIds([]);
-            setIsMultiSelectMode(false);
-          },
-        },
-      ]
-    );
-  }, [selectedTaskIds, setTasks]);
+    }, [
+      selectedTaskIds,
+      setTasks,
+    ]);
 
   // ----------------------------------------------------
   // FOCUS MODE
   // ----------------------------------------------------
 
-  const handleFocusOnTask = useCallback(
-    (task: Task) => {
-      setFocusedTask(task);
-      setPomodoroTime(25 * 60);
-      setIsTimerRunning(false);
-      setIsFocusActive(true);
-    },
-    []
-  );
+  const handleFocusOnTask =
+    useCallback(
+      (task: Task) => {
+        setFocusedTask(task);
+        setPomodoroTime(
+          25 * 60,
+        );
+        setIsTimerRunning(
+          false,
+        );
+        setIsFocusActive(true);
+      },
+      [],
+    );
 
-  const handleToggleTimer = useCallback(() => {
-    setIsTimerRunning((prev) => !prev);
-  }, []);
+  const handleToggleTimer =
+    useCallback(() => {
+      setIsTimerRunning(
+        (prev) => !prev,
+      );
+    }, []);
 
-  const handleResetTimer = useCallback(() => {
-    setIsTimerRunning(false);
-    setPomodoroTime(25 * 60);
-  }, []);
+  const handleResetTimer =
+    useCallback(() => {
+      setIsTimerRunning(
+        false,
+      );
+      setPomodoroTime(
+        25 * 60,
+      );
+    }, []);
 
   const handleCloseFocus =
     useCallback(() => {
-      setIsTimerRunning(false);
+      setIsTimerRunning(
+        false,
+      );
       setIsFocusActive(false);
       setFocusedTask(null);
     }, []);
@@ -726,130 +1034,156 @@ export function useTaskData() {
       const value =
         newSubTaskInput.trim();
 
-    if (!value) {
-      return;
-    }
+      if (!value) {
+        return;
+      }
 
-    setNewSubTasksList((prev) => [
-      ...prev,
-      value,
-    ]);
+      setNewSubTasksList(
+        (prev) => [
+          ...prev,
+          value,
+        ],
+      );
 
       setNewSubTaskInput('');
     }, [newSubTaskInput]);
 
-  const handleRemoveSubTaskFromList = useCallback(
-    (index: number) => {
-      setNewSubTasksList((prev) =>
-        prev.filter((_, i) => i !== index)
-      );
-    },
-    []
-  );
+  const handleRemoveSubTaskFromList =
+    useCallback(
+      (index: number) => {
+        setNewSubTasksList(
+          (prev) =>
+            prev.filter(
+              (_, i) =>
+                i !== index,
+            ),
+        );
+      },
+      [],
+    );
 
   // ----------------------------------------------------
   // CREATE TASK
   // ----------------------------------------------------
 
-  const handleCreateTask = useCallback(() => {
-    if (!newTitle.trim()) {
-      Alert.alert(
-        'Error',
-        'Please enter a task title'
-      );
-      return;
-    }
+  const handleCreateTask =
+    useCallback(() => {
+      if (!newTitle.trim()) {
+        Alert.alert(
+          'Error',
+          'Please enter a task title',
+        );
+        return;
+      }
 
-    const duration =
-      parseFloat(newDuration) || 1.0;
+      const duration =
+        parseFloat(
+          newDuration,
+        ) || 1.0;
 
-    const subTasksFormatted: SubTask[] =
-      newSubTasksList.map((title, index) => ({
-        id: `${Date.now()}-${index}`,
-        title,
+      const subTasksFormatted: SubTask[] =
+        newSubTasksList.map(
+          (title, index) => ({
+            id: `${Date.now()}-${index}`,
+            title,
+            completed: false,
+          }),
+        );
+
+      const created: Task = {
+        id: Date.now().toString(),
+
+        title:
+          newTitle.trim(),
+
+        description:
+          newDesc.trim() ||
+          'No detailed description provided.',
+
+        subject:
+          newSubject,
+
+        category:
+          newCategory,
+
+        priority:
+          newPriority,
+
+        difficulty:
+          newDifficulty,
+
+        duration,
+
+        dueDate:
+          newDueDate,
+
+        dueTime:
+          newDueTime,
+
         completed: false,
-      }));
 
-    const created: Task = {
-      id: Date.now().toString(),
+        hasReminder:
+          newHasReminder,
 
-      title: newTitle.trim(),
+        repeat:
+          newRepeat,
 
-      description:
-        newDesc.trim() ||
-        'No detailed description provided.',
+        isPinned: false,
 
-      subject: newSubject,
+        isFavorite: false,
 
-      category: newCategory,
+        attachments: 0,
 
-      priority: newPriority,
+        subTasks:
+          subTasksFormatted,
 
-      difficulty: newDifficulty,
+        createdAt:
+          Date.now(),
+      };
 
-      duration,
+      setTasks((prev) => [
+        created,
+        ...prev,
+      ]);
 
-      dueDate: newDueDate,
-
-      dueTime: newDueTime,
-
-      completed: false,
-
-      hasReminder: newHasReminder,
-
-      repeat: newRepeat,
-
-      isPinned: false,
-
-      isFavorite: false,
-
-      attachments: 0,
-
-      subTasks: subTasksFormatted,
-
-      createdAt: Date.now(),
-    };
-
-    setTasks((prev) => [
-      created,
-      ...prev,
+      // Reset form
+      setNewTitle('');
+      setNewDesc('');
+      setNewSubTasksList([]);
+      setNewSubTaskInput('');
+      setIsAdding(false);
+    }, [
+      newTitle,
+      newDesc,
+      newSubject,
+      newCategory,
+      newPriority,
+      newDifficulty,
+      newDuration,
+      newDueDate,
+      newDueTime,
+      newHasReminder,
+      newRepeat,
+      newSubTasksList,
+      setTasks,
     ]);
-
-    // Reset form
-    setNewTitle('');
-    setNewDesc('');
-    setNewSubTasksList([]);
-    setNewSubTaskInput('');
-    setIsAdding(false);
-  }, [
-    newTitle,
-    newDesc,
-    newSubject,
-    newCategory,
-    newPriority,
-    newDifficulty,
-    newDuration,
-    newDueDate,
-    newDueTime,
-    newHasReminder,
-    newRepeat,
-    newSubTasksList,
-    setTasks,
-  ]);
 
   // ----------------------------------------------------
   // REFRESH
   // ----------------------------------------------------
 
-  const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
+  const handleRefresh =
+    useCallback(() => {
+      setIsRefreshing(true);
 
-    setTasksState(localDb.getTasks());
+      setTasksState(
+        localDb.getTasks(),
+      );
 
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 600);
-  }, []);
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 600);
+    }, []);
 
   // ----------------------------------------------------
   // RETURN
@@ -897,7 +1231,6 @@ export function useTaskData() {
 
     // Refresh
     isRefreshing,
-    isLoading,
     handleRefresh,
 
     // Focus mode
@@ -978,6 +1311,9 @@ export function useTaskData() {
 
     // Create
     handleCreateTask,
+
+    // Backend
+    loadTasks,
   };
 }
 

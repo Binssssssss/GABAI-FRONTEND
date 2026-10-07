@@ -7,8 +7,10 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useAnimatedValue,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/theme';
 import { drawerStyles as styles } from './drawer.style';
@@ -90,7 +92,7 @@ export default function AppDrawer({
   ).current;
 
   useEffect(() => {
-    AsyncStorage.getItem('gabai_user').then((storedUser) => {
+    AsyncStorage.getItem('gabai_user').then((storedUser: string | null) => {
       if (!storedUser) return;
 
       try {

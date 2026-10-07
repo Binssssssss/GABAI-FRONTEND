@@ -88,6 +88,11 @@ export default function DashboardScreen() {
     handleToggleComplete,
   } = useDashboardData();
 
+  const reminderTasks = tasks.map((task) => ({
+    ...task,
+    dueDate: task.dueDate ?? '2026-07-26',
+  }));
+
   // ============================================================
   // EXPENSE DATA
   // ============================================================
@@ -160,7 +165,7 @@ export default function DashboardScreen() {
 
         <View style={styles.sectionSmall}>
           <SmartReminders
-            tasks={tasks}
+            tasks={reminderTasks}
             primaryBrown={primaryBrown}
             textColor={textPrimary}
             secondaryText={textSecondary}

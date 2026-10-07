@@ -2,6 +2,7 @@ export interface DashboardTask {
   id: string;
   title: string;
   subject: string;
+  dueDate?: string;
   dueTime: string;
   priority: 'High' | 'Medium' | 'Low';
   countdown: string;

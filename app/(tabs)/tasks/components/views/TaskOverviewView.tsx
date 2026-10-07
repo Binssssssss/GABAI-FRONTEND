@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { TaskTheme, Task } from '../../types';
+import type { TaskTheme, Task } from '../../types';
 import type { useTaskData } from '../../hooks/useTaskData';
 import { taskStyles as styles } from '../../styles/task.styles';
-import { TaskTheme } from '../../types';
 
 interface TaskOverviewViewProps {
   taskData: ReturnType<typeof useTaskData>;

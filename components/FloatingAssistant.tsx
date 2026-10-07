@@ -1,12 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Animated,
   PanResponder,
   Dimensions,
-  Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
+import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -91,7 +93,7 @@ export default function FloatingAssistant({
         // Fallback
       }
     }
-  };
+  }, [router]);
 
   // Pan Responder for Dragging, Edge Docking & Tap Detection
   const panResponder = useRef(

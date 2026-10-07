@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useEffect, useMemo } from 'react';
-import { Animated, View } from 'react-native';
+import { Colors } from '@/constants/theme';
 import { assistantStyles as styles } from '../styles';
 
 function BouncingDot({ delay }: { delay: number }) {

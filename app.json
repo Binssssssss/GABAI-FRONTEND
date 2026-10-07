@@ -30,7 +30,7 @@
   [
     "expo-splash-screen",
     {
-      "image": "./assets/images/Gabai Logo FINAL WHITE.png",
+      "image": "./assets/images/GABAI-LOGO-WHITE.png",
       "imageWidth": 200,
       "resizeMode": "contain",
       "backgroundColor": "#121212",
@@ -43,6 +43,7 @@
   "expo-image",
   "expo-status-bar",
   "expo-web-browser",
+   "expo-notifications",
   "@react-native-google-signin/google-signin"
 ],
     "experiments": {

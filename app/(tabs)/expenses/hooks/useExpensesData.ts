@@ -1,6 +1,5 @@
 import api from '@/app/services/api';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,

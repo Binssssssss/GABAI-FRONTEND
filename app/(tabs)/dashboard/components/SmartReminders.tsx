@@ -10,7 +10,7 @@ interface ReminderTask {
   title: string;
   subject?: string;
   priority: 'High' | 'Medium' | 'Low';
-  dueDate: string;
+  dueDate?: string;
   dueTime?: string;
   completed: boolean;
 }
@@ -52,12 +52,10 @@ export default function SmartReminders({
   const reminder = useMemo(() => {
     const today = getToday();
 
-    const activeTasks =
-      tasks.filter(
-        (task) =>
-          !task.completed &&
-          task.dueDate
-      );
+    const activeTasks = tasks.filter(
+      (task): task is ReminderTask & { dueDate: string } =>
+        !task.completed && typeof task.dueDate === 'string' && task.dueDate.length > 0,
+    );
 
     if (activeTasks.length === 0) {
       return null;
@@ -66,17 +64,9 @@ export default function SmartReminders({
     /**
      * 1. Overdue tasks
      */
-    const overdue =
-      activeTasks
-        .filter(
-          (task) =>
-            task.dueDate < today
-        )
-        .sort((a, b) =>
-          a.dueDate.localeCompare(
-            b.dueDate
-          )
-        );
+    const overdue = activeTasks
+      .filter((task) => task.dueDate < today)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
     if (overdue.length > 0) {
       const task =
@@ -95,30 +85,18 @@ export default function SmartReminders({
     /**
      * 2. Tasks due today
      */
-    const todayTasks =
-      activeTasks.filter(
-        (task) =>
-          task.dueDate === today
-      );
+    const todayTasks = activeTasks.filter((task) => task.dueDate === today);
 
     if (todayTasks.length > 0) {
-      const task =
-        todayTasks.sort((a, b) => {
-          const priorityOrder = {
-            High: 0,
-            Medium: 1,
-            Low: 2,
-          };
+      const task = todayTasks.sort((a, b) => {
+        const priorityOrder = {
+          High: 0,
+          Medium: 1,
+          Low: 2,
+        };
 
-          return (
-            priorityOrder[
-              a.priority
-            ] -
-            priorityOrder[
-              b.priority
-            ]
-          );
-        })[0];
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      })[0];
 
       return {
         icon: 'clock',
@@ -135,19 +113,9 @@ export default function SmartReminders({
     /**
      * 3. High-priority upcoming tasks
      */
-    const highPriority =
-      activeTasks
-        .filter(
-          (task) =>
-            task.priority ===
-              'High' &&
-            task.dueDate > today
-        )
-        .sort((a, b) =>
-          a.dueDate.localeCompare(
-            b.dueDate
-          )
-        );
+    const highPriority = activeTasks
+      .filter((task) => task.priority === 'High' && task.dueDate > today)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
     if (
       highPriority.length > 0

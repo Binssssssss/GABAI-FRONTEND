@@ -30,6 +30,9 @@ export function ThemeProvider({
   const systemColorScheme =
     useColorScheme() ?? 'light';
 
+  const resolvedSystemScheme: ResolvedColorScheme =
+    systemColorScheme === 'dark' ? 'dark' : 'light';
+
   const [themeMode, setThemeModeState] =
     useState<ThemeMode>('system');
 
@@ -70,7 +73,7 @@ export function ThemeProvider({
 
   const colorScheme: ResolvedColorScheme =
     themeMode === 'system'
-      ? resolvedSystemColorScheme
+      ? resolvedSystemScheme
       : themeMode === 'dark'
         ? 'dark'
         : 'light';

@@ -1,4 +1,3 @@
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {
   createContext,
@@ -11,6 +10,11 @@ import React, {
 
 import { localDb } from '@/app/services/localDb';
 import api from '@/app/services/api';
+
+import {
+  initializeNotifications,
+  subscribeToTokenChanges,
+} from '@/app/services/notificationService';
 
 type AuthUser = Record<string, unknown>;
 
@@ -203,6 +207,64 @@ export function AuthProvider({
 
     loadSession();
   }, []);
+
+  /**
+   * Initialize push notifications whenever an
+   * authenticated session becomes available.
+   *
+   * This works for:
+   * 1. A fresh login
+   * 2. Google login
+   * 3. An existing session restored from AsyncStorage
+   */
+  useEffect(() => {
+    if (isLoading || !session?.token) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const initializeUserNotifications = async () => {
+      console.log(
+        '🔔 Authenticated user detected. Initializing notifications...',
+      );
+
+      const result =
+        await initializeNotifications();
+
+      if (cancelled) {
+        return;
+      }
+
+      console.log(
+        '🔔 Notification initialization result:',
+        {
+          permissionGranted:
+            result.permissionGranted,
+          deviceToken:
+            result.deviceToken
+              ? 'AVAILABLE'
+              : 'NOT AVAILABLE',
+          registered:
+            result.registered,
+        },
+      );
+    };
+
+    initializeUserNotifications();
+
+    const tokenSubscription =
+      subscribeToTokenChanges();
+
+    return () => {
+      cancelled = true;
+      tokenSubscription.remove();
+
+      console.log(
+        '🔕 Notification token listener removed.',
+      );
+    };
+  }, [isLoading, session?.token]);
 
   const signIn = useCallback(
     async (nextSession: AuthSession) => {
