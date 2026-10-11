@@ -56,7 +56,12 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: palette.background }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
       edges={['top', 'bottom']}
     >
       <KeyboardAvoidingView
@@ -81,10 +86,11 @@ export default function RegisterScreen() {
             style={[
               styles.formContainer,
               {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
+                backgroundColor: colors.card,
+                borderColor: colors.border,
               },
             ]}
+
           >
             <RegisterForm
               name={name}

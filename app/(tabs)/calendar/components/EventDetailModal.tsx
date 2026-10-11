@@ -6,6 +6,7 @@ import { CalendarEvent } from '../types';
 import { getPriorityColors } from '../utils/calendarHelpers';
 
 interface EventDetailModalProps {
+  onEdit: (event: CalendarEvent) => void;
   visible: boolean;
   event: CalendarEvent | null;
   onClose: () => void;
@@ -19,10 +20,13 @@ interface EventDetailModalProps {
   textSubTheme: string;
 }
 
+
+
 export default function EventDetailModal({
   visible,
   event,
   onClose,
+  onEdit,
   onToggleChecklistItem,
   onStartRescheduling,
   onStartFocusSession,
@@ -33,6 +37,7 @@ export default function EventDetailModal({
   textSubTheme,
 }: EventDetailModalProps) {
   if (!event) return null;
+  console.log('CALENDAR EVENT DETAILS:', event);
 
   const priorityColors = getPriorityColors(event.priority);
 

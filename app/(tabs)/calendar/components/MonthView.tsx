@@ -2,7 +2,11 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { CALENDAR_CATEGORIES, CATEGORY_COLORS, WEEKDAYS } from '../constants/calendarConfig';
 import { calendarStyles as styles } from '../styles/calendar.styles';
 import { CalendarEvent, EventCategory } from '../types';
-import { getDayWorkload } from '../utils/calendarHelpers';
+import {
+  getDayWorkload,
+  isEventOverdue,
+  isEventUpcoming,
+} from '../utils/calendarHelpers';
 
 interface MonthViewProps {
   events: CalendarEvent[];
@@ -127,6 +131,11 @@ export default function MonthView({
           );
           const workload = getDayWorkload(dayEvents);
 
+          const overdueEvents = dayEvents.filter(isEventOverdue);
+          const hasOverdueEvents = overdueEvents.length > 0;
+          const upcomingEvents = dayEvents.filter(isEventUpcoming);
+          const hasUpcomingEvents = upcomingEvents.length > 0;
+
           return (
             <TouchableOpacity
               key={index}
@@ -142,13 +151,22 @@ export default function MonthView({
                 {
                   backgroundColor: isSelected
                     ? primaryAccent
-                    : 'transparent',
+                    : workload.pendingCount > 0
+                      ? `${workload.color}18`
+                      : 'transparent',
 
-                  borderColor: todayDate
-                    ? primaryAccent
-                    : 'transparent',
+                  borderColor: hasOverdueEvents
+                    ? '#EF4444'
+                    : hasUpcomingEvents
+                      ? '#F59E0B'
+                      : todayDate
+                        ? primaryAccent
+                        : 'transparent',
 
-                  borderWidth: todayDate ? 1.5 : 0,
+                  borderWidth:
+                    hasOverdueEvents || hasUpcomingEvents || todayDate
+                      ? 1.5
+                      : 0,
                 },
               ]}
             >
@@ -182,10 +200,27 @@ export default function MonthView({
                     ]}
                   />
                 ))}
+
               </View>
               {workload.pendingCount > 0 && (
-                <View style={[styles.monthWorkloadMarker, { backgroundColor: workload.color }]} />
+                <View
+                  style={[
+                    styles.monthWorkloadMarker,
+                    {
+                      backgroundColor: workload.color,
+                      opacity:
+                        workload.level === 'VERY HIGH'
+                          ? 1
+                          : workload.level === 'HIGH'
+                            ? 0.85
+                            : workload.level === 'MEDIUM'
+                              ? 0.65
+                              : 0.45,
+                    },
+                  ]}
+                />
               )}
+
             </TouchableOpacity>
           );
         })}
@@ -199,8 +234,71 @@ export default function MonthView({
           </View>
         ))}
         <View style={styles.calendarLegendItem}>
-          <View style={[styles.calendarLegendBar, { backgroundColor: '#A8782E' }]} />
-          <Text style={[styles.calendarLegendText, { color: textSubTheme }]}>Workload</Text>
+          <View
+            style={[
+              styles.calendarLegendBar,
+              { backgroundColor: '#56846F', opacity: 0.45 },
+            ]}
+          />
+          <Text
+            style={[
+              styles.calendarLegendText,
+              { color: textSubTheme },
+            ]}
+          >
+            Low
+          </Text>
+        </View>
+
+        <View style={styles.calendarLegendItem}>
+          <View
+            style={[
+              styles.calendarLegendBar,
+              { backgroundColor: '#A8782E', opacity: 0.65 },
+            ]}
+          />
+          <Text
+            style={[
+              styles.calendarLegendText,
+              { color: textSubTheme },
+            ]}
+          >
+            Medium
+          </Text>
+        </View>
+
+        <View style={styles.calendarLegendItem}>
+          <View
+            style={[
+              styles.calendarLegendBar,
+              { backgroundColor: '#C0783C', opacity: 0.85 },
+            ]}
+          />
+          <Text
+            style={[
+              styles.calendarLegendText,
+              { color: textSubTheme },
+            ]}
+          >
+            High
+          </Text>
+        </View>
+
+        <View style={styles.calendarLegendItem}>
+          <View
+            style={[
+              styles.calendarLegendBar,
+              { backgroundColor: '#B85F61' },
+            ]}
+          />
+          <Text
+            style={[
+              styles.calendarLegendText,
+              { color: textSubTheme },
+            ]}
+          >
+            Very High
+          </Text>
         </View>
       </View>
     </View>

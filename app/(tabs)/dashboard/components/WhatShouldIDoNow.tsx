@@ -1,24 +1,20 @@
-import React, { useMemo } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-
-interface RecommendationTask {
-  id: string;
-  title: string;
-  subject?: string;
-  priority?: string;
-  dueDate?: string;
-  dueTime?: string;
-  completed?: boolean;
-}
+import { useRouter } from "expo-router";
+import {
+  taskService,
+  TaskRecommendation,
+} from '@/app/services/task.services';
 
 interface WhatShouldIDoNowProps {
-  tasks?: RecommendationTask[];
   primaryBrown?: string;
   textColor?: string;
   secondaryText?: string;
@@ -27,39 +23,64 @@ interface WhatShouldIDoNowProps {
   onPress?: (taskId: string) => void;
 }
 
-const getDaysDifference = (dueDate?: string): number => {
+
+const getDaysDifference = (
+  dueDate?: string,
+): number => {
   if (!dueDate) return 999;
 
   const today = new Date();
   const due = new Date(dueDate);
+  
 
   today.setHours(0, 0, 0, 0);
   due.setHours(0, 0, 0, 0);
 
   return Math.ceil(
     (due.getTime() - today.getTime()) /
-      (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24),
   );
 };
 
-const getPriorityWeight = (priority?: string): number => {
-  switch (priority?.toLowerCase()) {
-    case 'high':
-      return 3;
-
-    case 'medium':
-      return 2;
-
-    case 'low':
-      return 1;
-
-    default:
-      return 0;
+const formatDeadline = (
+  dueDate?: string,
+): string => {
+  if (!dueDate) {
+    return 'No deadline';
   }
+
+  const days = getDaysDifference(dueDate);
+
+  if (days < 0) {
+    const overdueDays = Math.abs(days);
+
+    return `${overdueDays} day${
+      overdueDays === 1 ? '' : 's'
+    } overdue`;
+  }
+
+  if (days === 0) {
+    return 'Due today';
+  }
+
+  if (days === 1) {
+    return 'Due tomorrow';
+  }
+
+  return `Due in ${days} days`;
+};
+
+const getPriorityLabel = (
+  priority?: string,
+): string => {
+  if (!priority) {
+    return 'Normal priority';
+  }
+
+  return `${priority} priority`;
 };
 
 export default function WhatShouldIDoNow({
-  tasks = [],
   primaryBrown = '#A97C50',
   textColor = '#ECEDEE',
   secondaryText = '#9BA1A6',
@@ -67,69 +88,337 @@ export default function WhatShouldIDoNow({
   borderColor = '#2E2E2E',
   onPress,
 }: WhatShouldIDoNowProps) {
-  const recommendation = useMemo(() => {
-    const activeTasks = tasks.filter(
-      task => !task.completed
+    const router = useRouter();
+  const [
+    recommendation,
+    setRecommendation,
+  ] = useState<TaskRecommendation | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState(false);
+
+ 
+
+  // ===============================
+  // LOAD RECOMMENDATION
+  // ===============================
+
+  const loadRecommendation =
+    useCallback(async () => {
+      try {
+        setLoading(true);
+        setError(false);
+
+        const result =
+          await taskService.getTaskRecommendation();
+
+        setRecommendation(result);
+      } catch (err) {
+        console.error(
+          'Failed to load task recommendation:',
+          err,
+        );
+
+        setError(true);
+        setRecommendation(null);
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+  useEffect(() => {
+    loadRecommendation();
+  }, [loadRecommendation]);
+
+  // ===============================
+  // LOADING STATE
+  // ===============================
+
+  if (loading) {
+    return (
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: cardColor,
+            borderColor,
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: `${primaryBrown}20`,
+              },
+            ]}
+          >
+            <Feather
+              name="compass"
+              size={20}
+              color={primaryBrown}
+            />
+          </View>
+
+          <View style={styles.headerText}>
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: secondaryText,
+                },
+              ]}
+            >
+              SMART RECOMMENDATION
+            </Text>
+
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: textColor,
+                },
+              ]}
+            >
+              What should I do now?
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator
+            size="small"
+            color={primaryBrown}
+          />
+
+          <Text
+            style={[
+              styles.loadingText,
+              {
+                color: secondaryText,
+              },
+            ]}
+          >
+            Analyzing your tasks...
+          </Text>
+        </View>
+      </View>
     );
+  }
 
-    if (activeTasks.length === 0) {
-      return null;
-    }
+  // ===============================
+  // ERROR STATE
+  // ===============================
 
-    const sortedTasks = [...activeTasks].sort((a, b) => {
-      const aDays = getDaysDifference(a.dueDate);
-      const bDays = getDaysDifference(b.dueDate);
+  if (error) {
+    return (
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: cardColor,
+            borderColor,
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: `${primaryBrown}20`,
+              },
+            ]}
+          >
+            <Feather
+              name="compass"
+              size={20}
+              color={primaryBrown}
+            />
+          </View>
 
-      // Overdue tasks first
-      const aOverdue = aDays < 0;
-      const bOverdue = bDays < 0;
+          <View style={styles.headerText}>
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: secondaryText,
+                },
+              ]}
+            >
+              SMART RECOMMENDATION
+            </Text>
 
-      if (aOverdue !== bOverdue) {
-        return aOverdue ? -1 : 1;
-      }
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: textColor,
+                },
+              ]}
+            >
+              What should I do now?
+            </Text>
+          </View>
+        </View>
 
-      // Earlier deadline first
-      if (aDays !== bDays) {
-        return aDays - bDays;
-      }
+        <View style={styles.emptyContainer}>
+          <Feather
+            name="alert-circle"
+            size={30}
+            color={secondaryText}
+          />
 
-      // Higher priority first
-      return (
-        getPriorityWeight(b.priority) -
-        getPriorityWeight(a.priority)
-      );
-    });
+          <Text
+            style={[
+              styles.emptyTitle,
+              {
+                color: textColor,
+              },
+            ]}
+          >
+            Unable to load recommendation
+          </Text>
 
-    return sortedTasks[0];
-  }, [tasks]);
+          <Text
+            style={[
+              styles.emptyDescription,
+              {
+                color: secondaryText,
+              },
+            ]}
+          >
+            We couldn't analyze your tasks right now.
+          </Text>
 
-  const formatDeadline = (dueDate?: string) => {
-    const days = getDaysDifference(dueDate);
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={loadRecommendation}
+            style={[
+              styles.retryButton,
+              {
+                borderColor: primaryBrown,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.retryText,
+                {
+                  color: primaryBrown,
+                },
+              ]}
+            >
+              Try Again
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
-    if (days < 0) {
-      const overdueDays = Math.abs(days);
+  // ===============================
+  // NO RECOMMENDATION
+  // ===============================
 
-      return `${overdueDays} day${
-        overdueDays === 1 ? '' : 's'
-      } overdue`;
-    }
+  if (
+    !recommendation?.hasRecommendation
+  ) {
+    return (
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: cardColor,
+            borderColor,
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: `${primaryBrown}20`,
+              },
+            ]}
+          >
+            <Feather
+              name="compass"
+              size={20}
+              color={primaryBrown}
+            />
+          </View>
 
-    if (days === 0) {
-      return 'Due today';
-    }
+          <View style={styles.headerText}>
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: secondaryText,
+                },
+              ]}
+            >
+              SMART RECOMMENDATION
+            </Text>
 
-    if (days === 1) {
-      return 'Due tomorrow';
-    }
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: textColor,
+                },
+              ]}
+            >
+              What should I do now?
+            </Text>
+          </View>
+        </View>
 
-    return `Due in ${days} days`;
-  };
+        <View style={styles.completedContainer}>
+          <Feather
+            name="check-circle"
+            size={32}
+            color={primaryBrown}
+          />
 
-  const getPriorityLabel = (priority?: string) => {
-    if (!priority) return 'Normal priority';
+          <Text
+  style={[
+    styles.completedTitle,
+    {
+      color: textColor,
+    },
+  ]}
+>
+  {recommendation?.message ?? "You're all caught up!"}
+</Text>
 
-    return `${priority} priority`;
-  };
+          <Text
+            style={[
+              styles.completedDescription,
+              {
+                color: secondaryText,
+              },
+            ]}
+          >
+            You have no unfinished academic
+            tasks right now.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ===============================
+  // RECOMMENDATION
+  // ===============================
+
+  const taskId =
+    recommendation.taskId;
 
   return (
     <View
@@ -182,133 +471,152 @@ export default function WhatShouldIDoNow({
         </View>
       </View>
 
-      {!recommendation ? (
-        <View style={styles.completedContainer}>
-          <Feather
-            name="check-circle"
-            size={32}
-            color={primaryBrown}
-          />
-
-          <Text
+      <View style={styles.recommendation}>
+        <View style={styles.urgencyRow}>
+          <View
             style={[
-              styles.completedTitle,
+              styles.urgencyBadge,
               {
-                color: textColor,
+                backgroundColor: `${primaryBrown}20`,
               },
             ]}
           >
-            You're all caught up!
-          </Text>
+            <Text
+              style={[
+                styles.urgencyText,
+                {
+                  color: primaryBrown,
+                },
+              ]}
+            >
+              {recommendation.urgency ||
+                'RECOMMENDED'}
+            </Text>
+          </View>
+        </View>
 
+        <Text
+          style={[
+            styles.taskTitle,
+            {
+              color: textColor,
+            },
+          ]}
+          numberOfLines={2}
+        >
+          {recommendation.title}
+        </Text>
+
+        {recommendation.subject ? (
           <Text
             style={[
-              styles.completedDescription,
+              styles.subject,
               {
                 color: secondaryText,
               },
             ]}
           >
-            You have no unfinished academic tasks right now.
+            {recommendation.subject}
           </Text>
-        </View>
-      ) : (
-        <>
-          <View style={styles.recommendation}>
+        ) : null}
+
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Feather
+              name="clock"
+              size={14}
+              color={primaryBrown}
+            />
+
             <Text
               style={[
-                styles.taskTitle,
+                styles.metaText,
                 {
-                  color: textColor,
+                  color: secondaryText,
                 },
               ]}
-              numberOfLines={2}
             >
-              {recommendation.title}
+              {formatDeadline(
+                recommendation.dueDate,
+              )}
             </Text>
-
-            {recommendation.subject ? (
-              <Text
-                style={[
-                  styles.subject,
-                  {
-                    color: secondaryText,
-                  },
-                ]}
-              >
-                {recommendation.subject}
-              </Text>
-            ) : null}
-
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Feather
-                  name="clock"
-                  size={14}
-                  color={primaryBrown}
-                />
-
-                <Text
-                  style={[
-                    styles.metaText,
-                    {
-                      color: secondaryText,
-                    },
-                  ]}
-                >
-                  {formatDeadline(
-                    recommendation.dueDate
-                  )}
-                </Text>
-              </View>
-
-              <View style={styles.metaItem}>
-                <Feather
-                  name="flag"
-                  size={14}
-                  color={primaryBrown}
-                />
-
-                <Text
-                  style={[
-                    styles.metaText,
-                    {
-                      color: secondaryText,
-                    },
-                  ]}
-                >
-                  {getPriorityLabel(
-                    recommendation.priority
-                  )}
-                </Text>
-              </View>
-            </View>
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() =>
-              onPress?.(recommendation.id)
-            }
+          <View style={styles.metaItem}>
+            <Feather
+              name="flag"
+              size={14}
+              color={primaryBrown}
+            />
+
+            <Text
+              style={[
+                styles.metaText,
+                {
+                  color: secondaryText,
+                },
+              ]}
+            >
+              {getPriorityLabel(
+                recommendation.priority,
+              )}
+            </Text>
+          </View>
+        </View>
+
+        {recommendation.reason ? (
+          <Text
             style={[
-              styles.actionButton,
+              styles.reason,
               {
-                backgroundColor: primaryBrown,
+                color: secondaryText,
               },
             ]}
           >
-            <Text style={styles.actionText}>
-              Start Task
-            </Text>
+            {recommendation.reason}
+          </Text>
+        ) : null}
+      </View>
 
-            <Feather
-              name="arrow-right"
-              size={16}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-        </>
-      )}
+      <TouchableOpacity
+  activeOpacity={0.8}
+  disabled={!taskId}
+  onPress={() => {
+    if (!taskId) {
+      return;
+    }
+
+    console.log(
+      "START TASK PRESSED:",
+      taskId,
+    );
+
+    router.push({
+      pathname: "/(tabs)/tasks/task",
+      params: {
+        taskId,
+      },
+    });
+  }}
+  style={[
+    styles.actionButton,
+    {
+      backgroundColor: primaryBrown,
+      opacity: taskId ? 1 : 0.5,
+    },
+  ]}
+>
+  <Text style={styles.actionText}>
+    Start Task
+  </Text>
+
+  <Feather
+    name="arrow-right"
+    size={16}
+    color="#FFFFFF"
+  />
+</TouchableOpacity>
+      
     </View>
   );
 }
@@ -355,6 +663,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  urgencyRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+
+  urgencyBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+
+  urgencyText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
+
   taskTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -383,6 +708,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
+  reason: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+  },
+
   actionButton: {
     minHeight: 44,
     borderRadius: 12,
@@ -409,11 +740,56 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 10,
     marginBottom: 5,
+    textAlign: 'center',
   },
 
   completedDescription: {
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 19,
+  },
+
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+  },
+
+  loadingText: {
+    fontSize: 13,
+    marginTop: 10,
+  },
+
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+  },
+
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 10,
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+
+  emptyDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+
+  retryButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+
+  retryText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

@@ -4,7 +4,13 @@ export interface ChecklistItem {
   completed: boolean;
 }
 
-export type EventCategory = 'Assignment' | 'Exam' | 'Class' | 'Meeting' | 'Personal';
+export type EventCategory =
+  | 'Assignment'
+  | 'Exam'
+  | 'Class'
+  | 'Focus Session'
+  | 'Meeting'
+  | 'Personal';
 export type EventPriority = 'High' | 'Medium' | 'Low';
 export type CalendarViewMode = 'month' | 'week' | 'day';
 

@@ -26,6 +26,14 @@
     "plugins": [
       "expo-router",
       [
+        
+          "expo-notifications",
+          {
+            "color": "#A97C50",
+            "defaultChannel": "reminders"
+          }
+        ],
+       [ 
         "expo-splash-screen",
         {
           "image": " ./assets/images/Gabai Logo FINAL WHITE.png",

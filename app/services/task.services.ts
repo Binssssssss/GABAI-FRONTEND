@@ -48,53 +48,183 @@ export interface UpdateTaskPayload {
   subTasks?: string[];
 }
 
+/* ---------- Task Recommendation ---------- */
+
+export type TaskRecommendationUrgency =
+  | 'CRITICAL'
+  | 'HIGH'
+  | 'MEDIUM'
+  | 'LOW';
+
+export interface TaskRecommendation {
+  hasRecommendation: boolean;
+  taskId?: string;
+  title?: string;
+  subject?: string;
+  priority?: 'High' | 'Medium' | 'Low';
+  dueDate?: string;
+  dueTime?: string | null;
+  urgency?: TaskRecommendationUrgency;
+  reason?: string;
+  task?: null;
+  message?: string;
+}
+
 /* ---------- API ---------- */
 
 class TaskService {
- async getTasks(): Promise<Task[]> {
-  const response = await api.get('/tasks');
+  // ===============================
+  // GET ALL TASKS
+  // ===============================
 
-  const result = response.data;
+  async getTasks(): Promise<Task[]> {
+    const response = await api.get('/tasks');
 
-  // Backend response:
-  // {
-  //   data: Task[],
-  //   success: boolean
-  // }
+    const result = response.data;
 
-  if (Array.isArray(result)) {
-    return result;
+    // Backend response:
+    // {
+    //   success: true,
+    //   data: Task[]
+    // }
+
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    if (Array.isArray(result?.data)) {
+      return result.data;
+    }
+
+    return [];
   }
 
-  if (Array.isArray(result?.data)) {
-    return result.data;
-  }
+  // ===============================
+  // GET TASK RECOMMENDATION
+  // ===============================
 
-  return [];
+  async getTaskRecommendation(): Promise<TaskRecommendation> {
+    const response = await api.get(
+      '/tasks/recommendation',
+    );
+
+    const result = response.data;
+
+    // Backend response:
+    // {
+    //   success: true,
+    //   data: {
+    //     hasRecommendation: true,
+    //     taskId: "...",
+    //     title: "...",
+    //     ...
+    //   }
+    // }
+
+    if (result?.data) {
+      return result.data;
+    }
+
+    return {
+      hasRecommendation: false,
+      task: null,
+      message: "You're all caught up!",
+    };
+  }
+  async updateSubTask(
+  taskId: string,
+  subTaskId: string,
+  completed: boolean
+)
+
+{
+  const response = await api.patch(
+    `/tasks/${taskId}/subtasks/${subTaskId}`,
+    { completed }
+  );
+
+  return response.data;
 }
+
+  // ===============================
+  // GET TASK BY ID
+  // ===============================
 
   async getTask(id: string): Promise<Task> {
     const response = await api.get(`/tasks/${id}`);
-    return response.data;
+
+    const result = response.data;
+
+    if (result?.data) {
+      return result.data;
+    }
+
+    return result;
   }
 
-  async createTask(payload: CreateTaskPayload): Promise<Task> {
-    const response = await api.post('/tasks', payload);
-    return response.data;
+  // ===============================
+  // CREATE TASK
+  // ===============================
+
+  async createTask(
+    payload: CreateTaskPayload,
+  ): Promise<Task> {
+    const response = await api.post(
+      '/tasks',
+      payload,
+    );
+
+    const result = response.data;
+
+    if (result?.data) {
+      return result.data;
+    }
+
+    return result;
   }
+
+  // ===============================
+  // UPDATE TASK
+  // ===============================
 
   async updateTask(
     id: string,
-    payload: UpdateTaskPayload
+    payload: UpdateTaskPayload,
   ): Promise<Task> {
-    const response = await api.patch(`/tasks/${id}`, payload);
-    return response.data;
+    const response = await api.patch(
+      `/tasks/${id}`,
+      payload,
+    );
+
+    const result = response.data;
+
+    if (result?.data) {
+      return result.data;
+    }
+
+    return result;
   }
 
-  async deleteTask(id: string): Promise<{ message: string }> {
-    const response = await api.delete(`/tasks/${id}`);
-    return response.data;
+  // ===============================
+  // DELETE TASK
+  // ===============================
+
+  async deleteTask(
+    id: string,
+  ): Promise<{ message: string }> {
+    const response = await api.delete(
+      `/tasks/${id}`,
+    );
+
+    const result = response.data;
+
+    if (result?.data) {
+      return result.data;
+    }
+
+    return result;
   }
 }
 
 export const taskService = new TaskService();
+

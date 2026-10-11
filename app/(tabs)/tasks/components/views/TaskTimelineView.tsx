@@ -1,6 +1,9 @@
-
-import React from 'react';
-import { View, Text, useWindowDimensions } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  useWindowDimensions,
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 import { TaskTheme, Task } from '../../types';
@@ -23,11 +26,17 @@ export default function TaskTimelineView({
 }: TaskTimelineViewProps) {
   const { width } = useWindowDimensions();
 
-  const horizontalPadding = width < 380 ? 16 : 24;
+  const horizontalPadding =
+    width < 380 ? 16 : 24;
 
+   
   const {
     activeFilter,
     setActiveFilter,
+
+    sortOption,
+    setSortOption,
+
 
     isMultiSelectMode,
     setIsMultiSelectMode,
@@ -44,6 +53,8 @@ export default function TaskTimelineView({
     upcomingTasks,
     completedTasksList,
     filteredTasks,
+    sortedTasks,
+
 
     toggleTask,
     toggleSubTask,
@@ -51,6 +62,11 @@ export default function TaskTimelineView({
     handleTogglePin,
     handleToggleFavorite,
     handleFocusOnTask,
+
+
+
+    openEditTask,
+
   } = taskData;
 
   const {
@@ -64,75 +80,74 @@ export default function TaskTimelineView({
     warningOrange,
   } = theme;
 
-  /**
-   * Render a single task card.
-   * All task information comes from the Task object.
-   */
-  const renderCard = (task: Task) => (
-    <TaskItemCard
-      key={task.id}
-      task={task}
-      onToggleTask={toggleTask}
-      onToggleSubTask={toggleSubTask}
-      onDeleteTask={handleDeleteTask}
-      onTogglePin={handleTogglePin}
-      onToggleFavorite={handleToggleFavorite}
-      onFocusTask={handleFocusOnTask}
-      isMultiSelectMode={isMultiSelectMode}
-      isSelected={selectedTaskIds.includes(task.id)}
-      onSelectTask={toggleSelectTask}
-      cardBg={cardBg}
-      borderCol={borderCol}
-      textPrimary={textPrimary}
-      textSecondary={textSecondary}
-      primaryBrown={primaryBrown}
-      successGreen={successGreen}
-      errorRed={errorRed}
-      warningOrange={warningOrange}
-    />
+  // ----------------------------------------------------
+  // RENDER TASK CARD
+  // ----------------------------------------------------
+
+  const renderCard = (task: Task) => (<TaskItemCard
+    key={task.id}
+    task={task}
+    onToggleTask={toggleTask}
+    onToggleSubTask={toggleSubTask}
+    onDeleteTask={handleDeleteTask}
+    onTogglePin={handleTogglePin}
+    onToggleFavorite={handleToggleFavorite}
+    onFocusTask={handleFocusOnTask}
+    onEditTask={openEditTask}
+    isMultiSelectMode={isMultiSelectMode}
+    isSelected={selectedTaskIds.includes(task.id)}
+    onSelectTask={toggleSelectTask}
+    cardBg={cardBg}
+    borderCol={borderCol}
+    textPrimary={textPrimary}
+    textSecondary={textSecondary}
+    primaryBrown={primaryBrown}
+    successGreen={successGreen}
+    errorRed={errorRed}
+    warningOrange={warningOrange}
+  />
   );
 
-  /**
-   * Generic empty-state component.
-   * No task-specific information is hardcoded here.
-   */
+  // ----------------------------------------------------
+  // EMPTY STATE
+  // ----------------------------------------------------
+
   const renderEmptyState = (
     message: string,
-    showSuccessIcon = false
-  ) => (
-    <View style={styles.emptyContainer}>
-      {showSuccessIcon && (
-        <Feather
-          name="check-circle"
-          size={48}
-          color={successGreen}
-          style={{ marginBottom: 12 }}
-        />
-      )}
+    showSuccessIcon = false,
+  ) => (<View style={styles.emptyContainer}>
+    {showSuccessIcon && (
+      <Feather
+        name="check-circle"
+        size={48}
+        color={successGreen}
+        style={{ marginBottom: 12 }}
+      />
+    )}
 
-      <Text
-        style={[
-          showSuccessIcon
-            ? styles.emptyTitleText
-            : styles.emptyTimelineText,
-          {
-            color: showSuccessIcon
-              ? textPrimary
-              : textSecondary,
-          },
-        ]}
-      >
-        {message}
-      </Text>
-    </View>
+    <Text
+      style={[
+        showSuccessIcon
+          ? styles.emptyTitleText
+          : styles.emptyTimelineText,
+        {
+          color: showSuccessIcon
+            ? textPrimary
+            : textSecondary,
+        },
+      ]}
+    >
+      {message}
+    </Text>
+  </View>
+
+
   );
 
-  /**
-   * Timeline sections are generated from the actual task arrays.
-   *
-   * This keeps the rendering logic consistent and makes it easier
-   * to add more task categories later.
-   */
+  // ----------------------------------------------------
+  // TIMELINE SECTIONS
+  // ----------------------------------------------------
+
   const timelineSections = [
     {
       key: 'overdue',
@@ -181,34 +196,60 @@ export default function TaskTimelineView({
     },
   ];
 
-  /**
-   * Check whether there are any active/incomplete tasks
-   * in the timeline.
-   */
+  // ----------------------------------------------------
+  // CHECK TIMELINE TASKS
+  // ----------------------------------------------------
+
   const hasTimelineTasks =
     overdueTasks.length > 0 ||
     todayTasks.length > 0 ||
     tomorrowTasks.length > 0 ||
     upcomingTasks.length > 0;
 
-  /**
-   * Custom filter view.
-   */
+  // ----------------------------------------------------
+  // FILTERED VIEW
+  // ----------------------------------------------------
+
   if (activeFilter !== 'All') {
     return (
       <View
         style={[
           styles.timelineContainer,
-          { paddingHorizontal: horizontalPadding },
+          {
+            paddingHorizontal:
+              horizontalPadding,
+          },
         ]}
       >
         <TaskFilterScroll
           activeFilter={activeFilter}
           onSelectFilter={setActiveFilter}
-          isMultiSelectMode={isMultiSelectMode}
-          onToggleMultiSelect={() =>
-            setIsMultiSelectMode((prev) => !prev)
+          isMultiSelectMode={
+            isMultiSelectMode
           }
+          onToggleMultiSelect={() =>
+            setIsMultiSelectMode(
+              (prev) => !prev,
+            )
+          }
+          sortOption={sortOption}
+          onChangeSort={() => {
+            const options = [
+              'Due Date',
+              'Priority',
+              'Newest',
+              'A-Z',
+            ];
+
+            const currentIndex =
+              options.indexOf(sortOption);
+
+            const nextIndex =
+              (currentIndex + 1) % options.length;
+
+            setSortOption(options[nextIndex]);
+          }}
+
           cardBg={cardBg}
           borderCol={borderCol}
           textSecondary={textSecondary}
@@ -217,8 +258,12 @@ export default function TaskTimelineView({
 
         <BulkActionBar
           visible={isMultiSelectMode}
-          selectedCount={selectedTaskIds.length}
-          onBulkComplete={handleBulkComplete}
+          selectedCount={
+            selectedTaskIds.length
+          }
+          onBulkComplete={
+            handleBulkComplete
+          }
           onBulkDelete={handleBulkDelete}
           cardBg={cardBg}
           borderCol={borderCol}
@@ -234,11 +279,12 @@ export default function TaskTimelineView({
               { color: textPrimary },
             ]}
           >
-            {activeFilter} ({filteredTasks.length})
+            {activeFilter} (
+            {sortedTasks.length})
           </Text>
 
-          {filteredTasks.length > 0 ? (
-            filteredTasks.map(renderCard)
+          {sortedTasks.length > 0 ? (
+            sortedTasks.map(renderCard)
           ) : (
             <Text
               style={[
@@ -252,25 +298,53 @@ export default function TaskTimelineView({
         </View>
       </View>
     );
+
+
   }
 
-  /**
-   * Default "All" timeline view.
-   */
+  // ----------------------------------------------------
+  // DEFAULT ALL TASKS VIEW
+  // ----------------------------------------------------
+
   return (
     <View
       style={[
         styles.timelineContainer,
-        { paddingHorizontal: horizontalPadding },
+        {
+          paddingHorizontal:
+            horizontalPadding,
+        },
       ]}
     >
       <TaskFilterScroll
         activeFilter={activeFilter}
         onSelectFilter={setActiveFilter}
-        isMultiSelectMode={isMultiSelectMode}
-        onToggleMultiSelect={() =>
-          setIsMultiSelectMode((prev) => !prev)
+        isMultiSelectMode={
+          isMultiSelectMode
         }
+        onToggleMultiSelect={() =>
+          setIsMultiSelectMode(
+            (prev) => !prev,
+          )
+        }
+        sortOption={sortOption}
+        onChangeSort={() => {
+          const options = [
+            'Due Date',
+            'Priority',
+            'Newest',
+            'A-Z',
+          ];
+
+          const currentIndex =
+            options.indexOf(sortOption);
+
+          const nextIndex =
+            (currentIndex + 1) % options.length;
+
+          setSortOption(options[nextIndex]);
+        }}
+
         cardBg={cardBg}
         borderCol={borderCol}
         textSecondary={textSecondary}
@@ -279,8 +353,12 @@ export default function TaskTimelineView({
 
       <BulkActionBar
         visible={isMultiSelectMode}
-        selectedCount={selectedTaskIds.length}
-        onBulkComplete={handleBulkComplete}
+        selectedCount={
+          selectedTaskIds.length
+        }
+        onBulkComplete={
+          handleBulkComplete
+        }
         onBulkDelete={handleBulkDelete}
         cardBg={cardBg}
         borderCol={borderCol}
@@ -320,7 +398,9 @@ export default function TaskTimelineView({
               <Text
                 style={[
                   styles.timelineSectionTitle,
-                  { color: section.color },
+                  {
+                    color: section.color,
+                  },
                 ]}
               >
                 {section.title}
@@ -375,6 +455,6 @@ export default function TaskTimelineView({
         </View>
       )}
     </View>
+
   );
 }
-
