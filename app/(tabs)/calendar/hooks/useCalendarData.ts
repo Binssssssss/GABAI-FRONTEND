@@ -1,17 +1,21 @@
 import api from '@/app/services/api';
+import {
+  scheduleCalendarReminder,
+  cancelCalendarReminder,
+} from '@/app/services/calendarReminderService';
 import { useFocusEffect } from 'expo-router';
 import {
-    useCallback,
-    useMemo,
-    useState,
+  useCallback,
+  useMemo,
+  useState,
 } from 'react';
 import { Alert } from 'react-native';
 
 import {
-    CalendarEvent,
-    CalendarViewMode,
-    EventCategory,
-    EventPriority,
+  CalendarEvent,
+  CalendarViewMode,
+  EventCategory,
+  EventPriority,
 } from '../types';
 import { getDayWorkload, getLocalDateKey, toCalendarDateKey } from '../utils/calendarHelpers';
 
@@ -52,7 +56,14 @@ function mapBackendEvent(
 ): CalendarEvent {
   const eventTime = event.time ?? event.dueTime ?? '';
   const checklist = event.checklist ?? event.subTasks ?? [];
-  const knownCategories: EventCategory[] = ['Assignment', 'Exam', 'Class', 'Meeting', 'Personal'];
+  const knownCategories: EventCategory[] = [
+    'Assignment',
+    'Exam',
+    'Class',
+    'Focus Session',
+    'Meeting',
+    'Personal',
+  ];
   const categoryValue = event.category ?? event.subject ?? '';
   const category = knownCategories.includes(categoryValue as EventCategory)
     ? categoryValue as EventCategory
@@ -115,6 +126,11 @@ export function useCalendarData() {
 
   const [isAddModalOpen, setIsAddModalOpen] =
     useState(false);
+
+  const [editingEventId, setEditingEventId] =
+    useState<string | null>(null);
+
+  const isEditingEvent = editingEventId !== null;
 
   const [isDetailModalOpen, setIsDetailModalOpen] =
     useState(false);
@@ -227,14 +243,14 @@ export function useCalendarData() {
         const backendDeadlines = response.data?.data ?? response.data ?? [];
 
         const mappedDeadlines = (Array.isArray(backendDeadlines) ? backendDeadlines : [])
-            .map(mapBackendEvent)
-            .filter(
-              (event: CalendarEvent) =>
-                !event.completed && (
-                  event.category === 'Assignment' ||
-                  event.category === 'Exam'
-                ),
-            );
+          .map(mapBackendEvent)
+          .filter(
+            (event: CalendarEvent) =>
+              !event.completed && (
+                event.category === 'Assignment' ||
+                event.category === 'Exam'
+              ),
+          );
 
         setUpcomingDeadlines(
           mappedDeadlines,
@@ -312,54 +328,173 @@ export function useCalendarData() {
     }, [selectedDate]);
 
   /*
+   * OPEN EVENT FOR EDITING
+   */
+  const openEditEvent = useCallback(
+    (event: CalendarEvent) => {
+      setEditingEventId(event.id);
+
+      setNewTitle(event.title);
+      setNewCategory(event.category);
+      setNewPriority(event.priority);
+      setNewDate(event.date);
+      setNewTime(event.time || '09:00');
+      setNewDuration(String(event.duration || 60));
+      setNewIsAllDay(event.isAllDay);
+      setNewHasReminder(event.hasReminder);
+      setNewReminderTime(event.reminderTime || '15 minutes before');
+      setNewDescription(event.description || '');
+
+      // Checklist editing is not supported by the current
+      // backend update endpoint, so don't imply changes will save.
+      setNewChecklistItems([]);
+      setNewChecklistText('');
+
+      setIsDetailModalOpen(false);
+      setIsAddModalOpen(true);
+    },
+    [],
+  );
+
+
+  /*
    * SAVE EVENT
    */
-  const saveEvent =
-    useCallback(async () => {
-      if (!newTitle.trim()) {
-        Alert.alert(
-          'Validation Error',
-          'Please enter a title for the event.',
+
+  /*
+  * SAVE OR UPDATE EVENT
+  */
+  const saveEvent = useCallback(async () => {
+    if (!newTitle.trim()) {
+      Alert.alert(
+        'Validation Error',
+        'Please enter a title for the event.',
+      );
+      return;
+    }
+
+    if (!newDate.trim()) {
+      Alert.alert(
+        'Validation Error',
+        'Please enter an event date.',
+      );
+      return;
+    }
+
+    if (!newIsAllDay && !newTime.trim()) {
+      Alert.alert(
+        'Validation Error',
+        'Please enter an event time.',
+      );
+      return;
+    }
+
+    const eventPayload = {
+      title: newTitle.trim(),
+      description: newDescription.trim(),
+      subject: newCategory,
+      priority: newPriority,
+      dueDate: newDate,
+      dueTime: newIsAllDay ? '' : newTime,
+      hasReminder: newHasReminder,
+    };
+
+    try {
+      if (editingEventId) {
+        // UPDATE EXISTING EVENT
+        const response = await api.put(
+          `/tasks/${editingEventId}`,
+          eventPayload,
         );
-        return;
-      }
 
-      try {
-        const response =
-          await api.post('/api/tasks', {
-            title: newTitle.trim(),
+        const updatedEvent = mapBackendEvent(
+          response.data.data,
+        );
 
-            description:
-              newDescription.trim(),
+        // Update the device's scheduled notification.
+        try {
+          await cancelCalendarReminder(editingEventId);
 
-            subject: newCategory,
-
-            priority: newPriority,
-
-            dueDate: newDate,
-
-            dueTime: newIsAllDay
-              ? ''
-              : newTime,
-
-            hasReminder:
-              newHasReminder,
-
-            completed: false,
-
-            subTasks:
-              newChecklistItems.map(
-                (item) => ({
-                  title: item,
-                  completed: false,
-                }),
-              ),
-          });
-
-        const createdEvent =
-          mapBackendEvent(
-            response.data.data,
+          if (
+            newHasReminder &&
+            !newIsAllDay &&
+            newTime.trim()
+          ) {
+            await scheduleCalendarReminder(
+              newTitle.trim(),
+              newDate,
+              newTime,
+              15,
+              editingEventId,
+            );
+          }
+        } catch (reminderError) {
+          console.error(
+            'Failed to update event reminder:',
+            reminderError,
           );
+        }
+
+        setEvents((prev) =>
+          prev.map((event) =>
+            event.id === editingEventId
+              ? updatedEvent
+              : event,
+          ),
+        );
+
+        setSelectedEvent(updatedEvent);
+
+        await loadUpcomingDeadlines();
+
+        setIsAddModalOpen(false);
+        setIsDetailModalOpen(true);
+        setEditingEventId(null);
+        resetForm();
+
+        Alert.alert(
+          'Event Updated',
+          'Your event has been updated successfully.',
+        );
+      } else {
+        // CREATE NEW EVENT
+        const response = await api.post(
+          '/tasks',
+          {
+            ...eventPayload,
+            duration: Number(newDuration),
+            completed: false,
+            subTasks: newChecklistItems.map((item) => ({
+              title: item,
+              completed: false,
+            })),
+          },
+        );
+
+        const createdEvent = mapBackendEvent(
+          response.data.data,
+        );
+
+        if (
+          newHasReminder &&
+          !newIsAllDay &&
+          newTime.trim()
+        ) {
+          try {
+            await scheduleCalendarReminder(
+              newTitle.trim(),
+              newDate,
+              newTime,
+              15,
+              createdEvent.id,
+            );
+          } catch (reminderError) {
+            console.error(
+              'Failed to schedule calendar reminder:',
+              reminderError,
+            );
+          }
+        }
 
         setEvents((prev) => [
           createdEvent,
@@ -369,107 +504,104 @@ export function useCalendarData() {
         await loadUpcomingDeadlines();
 
         setIsAddModalOpen(false);
-
         resetForm();
 
         Alert.alert(
           'Event Added',
           'Your event has been successfully scheduled.',
         );
-      } catch (error: any) {
-        console.error(
-          'Failed to create event:',
-          error,
-        );
-
-        Alert.alert(
-          'Error',
-          error?.response?.data?.message ||
-          'Failed to save the event.',
-        );
       }
-    }, [
-      newTitle,
-      newDescription,
-      newCategory,
-      newPriority,
-      newDate,
-      newTime,
-      newIsAllDay,
-      newHasReminder,
-      newChecklistItems,
-      loadUpcomingDeadlines,
-      resetForm,
-    ]);
+    } catch (error: any) {
+      console.error(
+        editingEventId
+          ? 'Failed to update event:'
+          : 'Failed to create event:',
+        error,
+      );
+
+      Alert.alert(
+        'Error',
+        error?.response?.data?.message ||
+        (editingEventId
+          ? 'Failed to update the event.'
+          : 'Failed to save the event.'),
+      );
+    }
+  }, [
+    editingEventId,
+    newTitle,
+    newDescription,
+    newCategory,
+    newPriority,
+    newDate,
+    newTime,
+    newIsAllDay,
+    newHasReminder,
+    newDuration,
+    newChecklistItems,
+    loadUpcomingDeadlines,
+    resetForm,
+  ]);
 
   /*
    * DELETE EVENT
    */
-  const deleteEvent =
-    useCallback(
-      (eventId: string) => {
-        Alert.alert(
-          'Delete Event',
-          'Are you sure you want to delete this event?',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
+  const deleteEvent = useCallback(
+    (eventId: string) => {
+      Alert.alert(
+        'Delete Event',
+        'Are you sure you want to delete this event?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await api.delete(`/tasks/${eventId}`);
+                await cancelCalendarReminder(eventId);
+
+
+                setEvents((prev) =>
+                  prev.filter((event) => event.id !== eventId),
+                );
+
+                setUpcomingDeadlines((prev) =>
+                  prev.filter((event) => event.id !== eventId),
+                );
+
+                setSelectedEvent(null);
+                setIsDetailModalOpen(false);
+
+                Alert.alert(
+                  'Deleted',
+                  'Event deleted successfully.',
+                );
+              } catch (error: any) {
+                console.error(
+                  'Failed to delete event:',
+                  error?.response?.status,
+                  error?.response?.data || error.message,
+                );
+
+                Alert.alert(
+                  'Error',
+                  error?.response?.data?.message ||
+                  'Failed to delete event.',
+                );
+              }
             },
+          },
+        ],
+      );
 
-            {
-              text: 'Delete',
-              style: 'destructive',
 
-              onPress: async () => {
-                try {
-                  await api.delete(
-                    `/api/tasks/${eventId}`,
-                  );
-
-                  setEvents((prev) =>
-                    prev.filter(
-                      (event) =>
-                        event.id !== eventId,
-                    ),
-                  );
-
-                  setUpcomingDeadlines(
-                    (prev) =>
-                      prev.filter(
-                        (event) =>
-                          event.id !==
-                          eventId,
-                      ),
-                  );
-
-                  setSelectedEvent(null);
-                  setIsDetailModalOpen(false);
-
-                  Alert.alert(
-                    'Deleted',
-                    'Event deleted successfully.',
-                  );
-                } catch (error: any) {
-                  console.error(
-                    'Failed to delete event:',
-                    error,
-                  );
-
-                  Alert.alert(
-                    'Error',
-                    error?.response?.data
-                      ?.message ||
-                    'Failed to delete event.',
-                  );
-                }
-              },
-            },
-          ],
-        );
-      },
-      [],
-    );
+    },
+    [],
+  );
 
   /*
    * TOGGLE CHECKLIST ITEM
@@ -622,6 +754,27 @@ export function useCalendarData() {
                 response.data.data,
               );
 
+            // Remove the old reminder before updating it.
+            await cancelCalendarReminder(event.id);
+
+            // Schedule a new reminder if the event still needs one.
+            if (event.hasReminder && !event.isAllDay && event.time) {
+              try {
+                await scheduleCalendarReminder(
+                  updatedEvent.title,
+                  targetDate,
+                  updatedEvent.time || event.time,
+                  15,
+                  event.id,
+                );
+              } catch (reminderError) {
+                console.error(
+                  'Failed to update calendar reminder:',
+                  reminderError,
+                );
+              }
+            }
+
             setEvents((prev) =>
               prev.map((item) =>
                 item.id === activeReschedulingId
@@ -749,107 +902,113 @@ export function useCalendarData() {
       );
     }, []);
 
+
   /*
-   * OPEN QUICK ADD
-   */
-  const openQuickAdd =
-    useCallback(() => {
-      resetForm();
-      setIsAddModalOpen(true);
-    }, [resetForm]);
+ * OPEN QUICK ADD
+ */
+  const openQuickAdd = useCallback(() => {
+    setEditingEventId(null);
+    resetForm();
+    setIsAddModalOpen(true);
+  }, [resetForm]);
 
-  return {
-    events,
-    isLoadingEvents,
-    eventsLoadFailed,
+return {
+  events,
+  isLoadingEvents,
+  eventsLoadFailed,
 
-    selectedDate,
-    setSelectedDate,
+  isEditingEvent,
+  editingEventId,
+  setEditingEventId,
+  openEditEvent,
 
-    viewMode,
-    setViewMode,
+  selectedDate,
+  setSelectedDate,
 
-    searchQuery,
-    setSearchQuery,
+  viewMode,
+  setViewMode,
 
-    selectedCategory,
-    setSelectedCategory,
+  searchQuery,
+  setSearchQuery,
 
-    isAddModalOpen,
-    setIsAddModalOpen,
+  selectedCategory,
+  setSelectedCategory,
 
-    isDetailModalOpen,
-    setIsDetailModalOpen,
+  isAddModalOpen,
+  setIsAddModalOpen,
 
-    selectedEvent,
-    setSelectedEvent,
+  isDetailModalOpen,
+  setIsDetailModalOpen,
 
-    rescheduleMode,
-    activeReschedulingId,
+  selectedEvent,
+  setSelectedEvent,
 
-    startRescheduling,
-    cancelRescheduling,
-    completeRescheduling,
+  rescheduleMode,
+  activeReschedulingId,
 
-    upcomingDeadlines,
+  startRescheduling,
+  cancelRescheduling,
+  completeRescheduling,
 
-    academicPressure,
+  upcomingDeadlines,
 
-    filteredEvents,
+  academicPressure,
 
-    newTitle,
-    setNewTitle,
+  filteredEvents,
 
-    newCategory,
-    setNewCategory,
+  newTitle,
+  setNewTitle,
 
-    newPriority,
-    setNewPriority,
+  newCategory,
+  setNewCategory,
 
-    newDate,
-    setNewDate,
+  newPriority,
+  setNewPriority,
 
-    newTime,
-    setNewTime,
+  newDate,
+  setNewDate,
 
-    newDuration,
-    setNewDuration,
+  newTime,
+  setNewTime,
 
-    newIsAllDay,
-    setNewIsAllDay,
+  newDuration,
+  setNewDuration,
 
-    newHasReminder,
-    setNewHasReminder,
+  newIsAllDay,
+  setNewIsAllDay,
 
-    newReminderTime,
-    setNewReminderTime,
+  newHasReminder,
+  setNewHasReminder,
 
-    newIsRecurring,
-    setNewIsRecurring,
+  newReminderTime,
+  setNewReminderTime,
 
-    newRecurrenceRule,
-    setNewRecurrenceRule,
+  newIsRecurring,
+  setNewIsRecurring,
 
-    newDescription,
-    setNewDescription,
+  newRecurrenceRule,
+  setNewRecurrenceRule,
 
-    newChecklistText,
-    setNewChecklistText,
+  newDescription,
+  setNewDescription,
 
-    newChecklistItems,
+  newChecklistText,
+  setNewChecklistText,
 
-    addChecklistItem,
-    removeChecklistItem,
+  newChecklistItems,
 
-    saveEvent,
-    deleteEvent,
-    toggleChecklistItem,
+  addChecklistItem,
+  removeChecklistItem,
 
-    openQuickAdd,
+  saveEvent,
+  deleteEvent,
+  toggleChecklistItem,
 
-    refreshCalendar,
-    loadEvents,
-    loadUpcomingDeadlines,
-  };
+  openQuickAdd,
+
+  refreshCalendar,
+  loadEvents,
+  loadUpcomingDeadlines,
+};
+
 }
-

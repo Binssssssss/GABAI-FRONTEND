@@ -8,6 +8,8 @@ interface TaskFilterScrollProps {
   onSelectFilter: (filter: string) => void;
   isMultiSelectMode: boolean;
   onToggleMultiSelect: () => void;
+  sortOption: string;
+  onChangeSort: () => void;
   cardBg: string;
   borderCol: string;
   textSecondary: string;
@@ -19,6 +21,8 @@ export default function TaskFilterScroll({
   onSelectFilter,
   isMultiSelectMode,
   onToggleMultiSelect,
+  sortOption,
+  onChangeSort,
   cardBg,
   borderCol,
   textSecondary,
@@ -26,63 +30,114 @@ export default function TaskFilterScroll({
 }: TaskFilterScrollProps) {
   const selectedBackground = `${primaryBrown}20`;
 
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filterScroll}
+  return (<ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={styles.filterScroll}
+  >
+    <TouchableOpacity
+      onPress={onToggleMultiSelect}
+      style={[
+        styles.filterPill,
+        {
+          backgroundColor: isMultiSelectMode
+            ? selectedBackground
+            : cardBg,
+          borderColor: isMultiSelectMode
+            ? primaryBrown
+            : borderCol,
+        },
+      ]}
     >
-      <TouchableOpacity
-        onPress={onToggleMultiSelect}
+      <Feather
+        name="list"
+        size={13}
+        color={
+          isMultiSelectMode
+            ? primaryBrown
+            : textSecondary
+        }
+        style={{ marginRight: 4 }}
+      />
+
+  
+      <Text
         style={[
-          styles.filterPill,
+          styles.filterPillText,
           {
-            backgroundColor: isMultiSelectMode ? selectedBackground : cardBg,
-            borderColor: isMultiSelectMode ? primaryBrown : borderCol,
+            color: isMultiSelectMode
+              ? primaryBrown
+              : textSecondary,
           },
         ]}
       >
-        <Feather
-          name="list"
-          size={13}
-          color={isMultiSelectMode ? primaryBrown : textSecondary}
-          style={{ marginRight: 4 }}
-        />
-        <Text
-          style={[
-            styles.filterPillText,
-            { color: isMultiSelectMode ? primaryBrown : textSecondary },
-          ]}
-        >
-          Select
-        </Text>
-      </TouchableOpacity>
+        Select
+      </Text>
+    </TouchableOpacity>
 
-      {FILTERS.map((filter) => {
-        const isActive = activeFilter === filter;
-        return (
-          <TouchableOpacity
-            key={filter}
+    <TouchableOpacity
+      onPress={onChangeSort}
+      style={[
+        styles.filterPill,
+        {
+          backgroundColor: selectedBackground,
+          borderColor: primaryBrown,
+        },
+      ]}
+    >
+      <Feather
+        name="sliders"
+        size={13}
+        color={primaryBrown}
+        style={{ marginRight: 4 }}
+      />
+
+      <Text
+        style={[
+          styles.filterPillText,
+          { color: primaryBrown },
+        ]}
+      >
+        Sort: {sortOption}
+      </Text>
+    </TouchableOpacity>
+
+    {FILTERS.map((filter) => {
+      const isActive = activeFilter === filter;
+
+      return (
+        <TouchableOpacity
+          key={filter}
+          style={[
+            styles.filterPill,
+            {
+              backgroundColor: isActive
+                ? selectedBackground
+                : cardBg,
+              borderColor: isActive
+                ? primaryBrown
+                : borderCol,
+            },
+          ]}
+          onPress={() => onSelectFilter(filter)}
+        >
+          <Text
             style={[
-              styles.filterPill,
+              styles.filterPillText,
               {
-                backgroundColor: isActive ? selectedBackground : cardBg,
-                borderColor: isActive ? primaryBrown : borderCol,
+                color: isActive
+                  ? primaryBrown
+                  : textSecondary,
               },
             ]}
-            onPress={() => onSelectFilter(filter)}
           >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: isActive ? primaryBrown : textSecondary },
-              ]}
-            >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+            {filter}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </ScrollView>
+
+
   );
 }

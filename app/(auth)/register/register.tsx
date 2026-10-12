@@ -56,7 +56,16 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView
+<<<<<<< HEAD
       style={[styles.container, { backgroundColor: colors.background }]}
+=======
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
+>>>>>>> 6bdaf6c3588bd70a35c14037169cb559ea075de2
       edges={['top', 'bottom']}
     >
       <KeyboardAvoidingView
@@ -81,10 +90,15 @@ export default function RegisterScreen() {
             style={[
               styles.formContainer,
               {
+<<<<<<< HEAD
                 backgroundColor: colors.surface,
+=======
+                backgroundColor: colors.card,
+>>>>>>> 6bdaf6c3588bd70a35c14037169cb559ea075de2
                 borderColor: colors.border,
               },
             ]}
+
           >
             <RegisterForm
               name={name}

@@ -25,10 +25,13 @@ api.interceptors.request.use(
       const storedSession = await AsyncStorage.getItem(
         'gabai.auth.session',
       );
-
       console.log(
+<<<<<<< HEAD
         'AUTH SESSION EXISTS:',
         !!storedSession,
+=======
+        'AUTH HEADER ATTACHED: YES'
+>>>>>>> 6bdaf6c3588bd70a35c14037169cb559ea075de2
       );
 
       let token: string | null = null;
