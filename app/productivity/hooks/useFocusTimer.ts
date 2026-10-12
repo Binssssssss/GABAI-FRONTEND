@@ -1,13 +1,126 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusLock } from '@/app/context/FocusLockContext';
 
-import { FocusMode, AmbientSound, FocusStats } from '../types';
+import {
+  FocusMode,
+  AmbientSound,
+  FocusStats,
+  FocusSessionRecord,
+} from '../types';
+
 import {
   FOCUS_MODE_DURATIONS,
   MOTIVATIONAL_AFFIRMATIONS,
   ACADEMIC_SUBJECTS,
 } from '../constants/focusConfig';
+
+const FOCUS_SESSIONS_KEY = 'gabai.focus.sessions';
+
+function getDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function calculateFocusStats(
+  sessions: FocusSessionRecord[]
+): FocusStats {
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
+
+  const focusSessions = safeSessions.filter((session) => {
+    if (!session || typeof session !== 'object') {
+      return false;
+    }
+
+    const completedAt = Date.parse(session.completedAt);
+
+    return (
+      session.mode !== 'shortBreak' &&
+      session.mode !== 'longBreak' &&
+      Number.isFinite(session.durationMinutes) &&
+      session.durationMinutes > 0 &&
+      Number.isFinite(completedAt)
+    );
+  });
+
+  const todayKey = getDateKey(new Date());
+
+  const todaySessions = focusSessions.filter(
+    (session) =>
+      getDateKey(new Date(session.completedAt)) === todayKey
+  );
+
+  const todayMinutes = todaySessions.reduce(
+    (total, session) => total + session.durationMinutes,
+    0
+  );
+
+  const totalMinutes = focusSessions.reduce(
+    (total, session) => total + session.durationMinutes,
+    0
+  );
+
+  const activeDays = new Set(
+    focusSessions.map((session) =>
+      getDateKey(new Date(session.completedAt))
+    )
+  );
+
+  const cursor = new Date();
+
+  if (!activeDays.has(getDateKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let streakDays = 0;
+
+  while (activeDays.has(getDateKey(cursor))) {
+    streakDays++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return {
+    todayMinutes,
+    todaySessions: todaySessions.length,
+    streakDays,
+    totalHours: Number((totalMinutes / 60).toFixed(2)),
+  };
+}
+
+function isValidSession(
+  value: unknown
+): value is FocusSessionRecord {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const session = value as Partial<FocusSessionRecord>;
+
+  const validModes: FocusMode[] = [
+    'pomodoro',
+    'deepWork',
+    'shortBreak',
+    'longBreak',
+    'custom',
+  ];
+
+  return (
+    typeof session.id === 'string' &&
+    typeof session.subject === 'string' &&
+    typeof session.durationMinutes === 'number' &&
+    Number.isFinite(session.durationMinutes) &&
+    session.durationMinutes > 0 &&
+    validModes.includes(session.mode as FocusMode) &&
+    typeof session.completedAt === 'string' &&
+    Number.isFinite(Date.parse(session.completedAt)) &&
+    typeof session.isStrict === 'boolean'
+  );
+}
 
 export function useFocusTimer() {
   const [currentMode, setCurrentMode] =
@@ -29,13 +142,10 @@ export function useFocusTimer() {
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
 
-  // Real statistics will be connected to persistent storage later.
-  const [stats, setStats] = useState<FocusStats>({
-    todayMinutes: 0,
-    todaySessions: 0,
-    streakDays: 0,
-    totalHours: 0,
-  });
+  const [sessionRecords, setSessionRecords] =
+    useState<FocusSessionRecord[]>([]);
+
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
 
   const [showCompletionModal, setShowCompletionModal] =
     useState<boolean>(false);
@@ -50,15 +160,65 @@ export function useFocusTimer() {
     null
   );
 
+  const completedRef = useRef(false);
+
   const isBreakMode =
     currentMode === 'shortBreak' ||
     currentMode === 'longBreak';
+
+  // A paused focus session remains locked.
+  const isStrictSessionActive =
+    isRunning && isStrict && !isBreakMode;
+
+  const { setFocusLocked } = useFocusLock();
+
+  // Keep the app-wide lock synchronized with the session.
+  // Intentionally do not clear the lock in effect cleanup:
+  // cleanup also runs when dependencies change.
+  useEffect(() => {
+    setFocusLocked(isStrictSessionActive);
+  }, [isStrictSessionActive, setFocusLocked]);
+
+  const stats = calculateFocusStats(sessionRecords);
 
   const clearTimerInterval = useCallback(() => {
     if (timerRef.current !== null) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+  }, []);
+
+  // Load saved sessions on mount.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSessions() {
+      try {
+        const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
+
+        if (cancelled) return;
+
+        const parsed: unknown = stored ? JSON.parse(stored) : [];
+
+        const validSessions = Array.isArray(parsed)
+          ? parsed.filter(isValidSession)
+          : [];
+
+        setSessionRecords(validSessions);
+      } catch (error) {
+        console.warn('Unable to load focus sessions:', error);
+      } finally {
+        if (!cancelled) {
+          setSessionsLoaded(true);
+        }
+      }
+    }
+
+    void loadSessions();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Rotate motivational messages.
@@ -73,38 +233,92 @@ export function useFocusTimer() {
     return () => clearInterval(interval);
   }, []);
 
+  // Save a completed focus session and update history.
+  const saveFocusSession = useCallback(
+    async (durationMinutes: number) => {
+      if (
+        !sessionsLoaded ||
+        durationMinutes <= 0 ||
+        !Number.isFinite(durationMinutes)
+      ) {
+        return;
+      }
+
+      const record: FocusSessionRecord = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        subject: selectedSubject.trim() || 'General Study',
+        durationMinutes,
+        mode: currentMode,
+        completedAt: new Date().toISOString(),
+        isStrict,
+      };
+
+      try {
+        const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
+        const parsed: unknown = stored ? JSON.parse(stored) : [];
+
+        const existingRecords: FocusSessionRecord[] =
+          Array.isArray(parsed) ? parsed.filter(isValidSession) : [];
+
+        const updatedRecords = [...existingRecords, record];
+
+        await AsyncStorage.setItem(
+          FOCUS_SESSIONS_KEY,
+          JSON.stringify(updatedRecords)
+        );
+
+        setSessionRecords(updatedRecords);
+      } catch (error) {
+        console.error('[Focus History] Unable to save session:', error);
+
+        Alert.alert(
+          'Unable to Save Session',
+          'Your focus session could not be saved locally. Please try again.'
+        );
+      }
+    },
+    [
+      sessionsLoaded,
+      selectedSubject,
+      currentMode,
+      isStrict,
+    ]
+  );
+
   // Timer engine.
   useEffect(() => {
-    if (!isRunning || isPaused) {
+    if (!isRunning || isPaused || !sessionsLoaded) {
       return;
     }
 
     timerRef.current = setInterval(() => {
-      setTimeRemaining((previous) =>
-        Math.max(0, previous - 1)
-      );
+      setTimeRemaining((previous) => Math.max(0, previous - 1));
     }, 1000);
 
-    return () => {
-      clearTimerInterval();
-    };
-  }, [isRunning, isPaused, clearTimerInterval]);
+    return () => clearTimerInterval();
+  }, [
+    isRunning,
+    isPaused,
+    sessionsLoaded,
+    clearTimerInterval,
+  ]);
 
-  // Handle timer completion separately from the interval.
+  // Handle completion once when the timer reaches zero.
   useEffect(() => {
-    if (!isRunning || timeRemaining > 0) {
+    if (!isRunning || timeRemaining > 0 || completedRef.current) {
       return;
     }
 
+    completedRef.current = true;
     clearTimerInterval();
+
     setIsRunning(false);
     setIsPaused(false);
 
     if (isBreakMode) {
-      // Breaks never count as focused study time.
       Alert.alert(
         'Break Completed',
-        'Your break is over. You can start another focus session when ready.'
+        'Your break is over. Start another focus session when you are ready.'
       );
 
       return;
@@ -113,34 +327,35 @@ export function useFocusTimer() {
     const minutesCompleted = Math.round(totalDuration / 60);
 
     setCompletedDurationMin(minutesCompleted);
-
-    setStats((previous) => ({
-      ...previous,
-      todayMinutes: previous.todayMinutes + minutesCompleted,
-      todaySessions: previous.todaySessions + 1,
-      totalHours: Number(
-        (previous.totalHours + minutesCompleted / 60).toFixed(2)
-      ),
-    }));
-
     setShowCompletionModal(true);
+
+    void saveFocusSession(minutesCompleted);
   }, [
     isRunning,
     timeRemaining,
     isBreakMode,
     totalDuration,
     clearTimerInterval,
+    saveFocusSession,
   ]);
 
-  // Switch modes. Active and paused sessions both require confirmation.
+  // Do not allow changing modes during Strict Focus.
   const handleSelectMode = useCallback(
     (mode: FocusMode) => {
-      if (mode === currentMode) {
+      if (mode === currentMode) return;
+
+      if (isStrictSessionActive) {
+        Alert.alert(
+          'Strict Focus Active',
+          'You cannot change focus modes during a Strict Focus session. Finish your session first.'
+        );
         return;
       }
 
       const changeMode = () => {
         clearTimerInterval();
+        completedRef.current = false;
+
         setIsRunning(false);
         setIsPaused(false);
         setCurrentMode(mode);
@@ -150,12 +365,9 @@ export function useFocusTimer() {
       if (isRunning || isPaused) {
         Alert.alert(
           'Active Session in Progress',
-          'Changing modes will reset your current timer. Your unfinished session will not be recorded.',
+          'Changing modes will reset your timer. The unfinished session will not be recorded.',
           [
-            {
-              text: 'Keep Current Session',
-              style: 'cancel',
-            },
+            { text: 'Keep Current Session', style: 'cancel' },
             {
               text: 'Change Mode',
               style: 'destructive',
@@ -173,20 +385,54 @@ export function useFocusTimer() {
       currentMode,
       isRunning,
       isPaused,
+      isStrictSessionActive,
       clearTimerInterval,
     ]
   );
 
-  // Start or restart the timer.
+  // Prevent disabling Strict Focus or changing its setting mid-session.
+  const handleSetStrict = useCallback(
+    (value: boolean | ((previous: boolean) => boolean)) => {
+      const nextValue =
+        typeof value === 'function' ? value(isStrict) : value;
+
+      if ((isRunning || isPaused) && nextValue !== isStrict) {
+        Alert.alert(
+          'Session in Progress',
+          'You cannot change the Strict Focus setting during an active session.'
+        );
+        return;
+      }
+
+      setIsStrict(nextValue);
+    },
+    [isStrict, isRunning, isPaused]
+  );
+
+  // Prevent changing the selected subject during Strict Focus.
+  const handleSetSelectedSubject = useCallback(
+    (subject: string) => {
+      if (isStrictSessionActive) {
+        Alert.alert(
+          'Strict Focus Active',
+          'Stay with your selected subject until the session ends.'
+        );
+        return;
+      }
+
+      setSelectedSubject(subject);
+    },
+    [isStrictSessionActive]
+  );
+
   const startTimer = useCallback(() => {
-    if (isRunning && !isPaused) {
-      return;
-    }
+    if (isRunning && !isPaused) return;
 
     if (timeRemaining <= 0) {
       setTimeRemaining(totalDuration);
     }
 
+    completedRef.current = false;
     setIsPaused(false);
     setIsRunning(true);
   }, [
@@ -196,29 +442,27 @@ export function useFocusTimer() {
     totalDuration,
   ]);
 
-  // Pause with optional Strict Study Guard confirmation.
+  // Strict Focus cannot be paused.
   const pauseTimer = useCallback(() => {
-    if (!isRunning || isPaused) {
+    if (!isRunning || isPaused) return;
+
+    if (isStrictSessionActive) {
+      Alert.alert(
+        'Strict Focus Active',
+        'Pausing is disabled during Strict Focus. Continue focusing or finish the session early.'
+      );
       return;
     }
 
-    const pauseSession = () => {
-      setIsPaused(true);
-    };
+    const pauseSession = () => setIsPaused(true);
 
     if (isStrict) {
       Alert.alert(
-        'Strict Study Mode Active',
-        'Are you sure you want to pause your focus session?',
+        'Study Session',
+        'Are you sure you want to pause your session?',
         [
-          {
-            text: 'Keep Focusing',
-            style: 'cancel',
-          },
-          {
-            text: 'Pause',
-            onPress: pauseSession,
-          },
+          { text: 'Keep Focusing', style: 'cancel' },
+          { text: 'Pause', onPress: pauseSession },
         ]
       );
 
@@ -226,21 +470,34 @@ export function useFocusTimer() {
     }
 
     pauseSession();
-  }, [isRunning, isPaused, isStrict]);
+  }, [
+    isRunning,
+    isPaused,
+    isStrict,
+    isStrictSessionActive,
+  ]);
 
-  // Resume a paused timer.
+  // Resume is allowed for an already-paused session.
   const resumeTimer = useCallback(() => {
-    if (!isRunning || !isPaused) {
-      return;
-    }
+    if (!isRunning || !isPaused) return;
 
     setIsPaused(false);
   }, [isRunning, isPaused]);
 
-  // Reset or discard the current session.
+  // Strict Focus cannot be reset while active, including while paused.
   const resetTimer = useCallback(() => {
+    if (isStrictSessionActive) {
+      Alert.alert(
+        'Strict Focus Active',
+        'Resetting is disabled during Strict Focus. Finish the session normally or choose to finish early.'
+      );
+      return;
+    }
+
     const resetSession = () => {
       clearTimerInterval();
+      completedRef.current = false;
+
       setIsRunning(false);
       setIsPaused(false);
       setTimeRemaining(totalDuration);
@@ -249,14 +506,9 @@ export function useFocusTimer() {
     if (isRunning || isPaused) {
       Alert.alert(
         'Reset Focus Session',
-        isStrict
-          ? 'Resetting will discard the current session progress.'
-          : 'Are you sure you want to reset the timer?',
+        'Are you sure you want to reset the timer? Your unfinished session will not be recorded.',
         [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
+          { text: 'Cancel', style: 'cancel' },
           {
             text: 'Reset Timer',
             style: 'destructive',
@@ -272,12 +524,12 @@ export function useFocusTimer() {
   }, [
     isRunning,
     isPaused,
-    isStrict,
+    isStrictSessionActive,
     totalDuration,
     clearTimerInterval,
   ]);
 
-  // Finish the current session early.
+  // Early completion is allowed only after confirmation.
   const finishEarly = useCallback(() => {
     if (!isRunning) {
       Alert.alert(
@@ -290,16 +542,15 @@ export function useFocusTimer() {
     if (isBreakMode) {
       Alert.alert(
         'End Break Early?',
-        'Ending a break will not add any focused study time.',
+        'Ending a break will not add focused study time.',
         [
-          {
-            text: 'Continue Break',
-            style: 'cancel',
-          },
+          { text: 'Continue Break', style: 'cancel' },
           {
             text: 'End Break',
             onPress: () => {
               clearTimerInterval();
+              completedRef.current = false;
+
               setIsRunning(false);
               setIsPaused(false);
               setTimeRemaining(totalDuration);
@@ -311,8 +562,9 @@ export function useFocusTimer() {
       return;
     }
 
-    const elapsedSeconds = totalDuration - timeRemaining;
-    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+    const elapsedMinutes = Math.floor(
+      (totalDuration - timeRemaining) / 60
+    );
 
     if (elapsedMinutes < 5) {
       Alert.alert(
@@ -326,33 +578,21 @@ export function useFocusTimer() {
       'Finish Session Early',
       `Record ${elapsedMinutes} minutes of focused study for ${selectedSubject}?`,
       [
-        {
-          text: 'Keep Focusing',
-          style: 'cancel',
-        },
+        { text: 'Keep Focusing', style: 'cancel' },
         {
           text: 'Complete & Log',
           onPress: () => {
             clearTimerInterval();
+            completedRef.current = true;
+
             setIsRunning(false);
             setIsPaused(false);
             setTimeRemaining(totalDuration);
 
             setCompletedDurationMin(elapsedMinutes);
-
-            setStats((previous) => ({
-              ...previous,
-              todayMinutes: previous.todayMinutes + elapsedMinutes,
-              todaySessions: previous.todaySessions + 1,
-              totalHours: Number(
-                (
-                  previous.totalHours +
-                  elapsedMinutes / 60
-                ).toFixed(2)
-              ),
-            }));
-
             setShowCompletionModal(true);
+
+            void saveFocusSession(elapsedMinutes);
           },
         },
       ]
@@ -364,9 +604,9 @@ export function useFocusTimer() {
     timeRemaining,
     selectedSubject,
     clearTimerInterval,
+    saveFocusSession,
   ]);
 
-  // Format seconds as MM:SS.
   const formatTime = useCallback((seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -384,10 +624,10 @@ export function useFocusTimer() {
   return {
     currentMode,
     selectedSubject,
-    setSelectedSubject,
+    setSelectedSubject: handleSetSelectedSubject,
 
     isStrict,
-    setIsStrict,
+    setIsStrict: handleSetStrict,
 
     zenMode,
     setZenMode,
@@ -401,21 +641,22 @@ export function useFocusTimer() {
     isPaused,
 
     stats,
+    sessionRecords,
+    sessionsLoaded,
 
     showCompletionModal,
     setShowCompletionModal,
     completedDurationMin,
 
-    affirmation:
-      MOTIVATIONAL_AFFIRMATIONS[affirmationIndex],
+    affirmation: MOTIVATIONAL_AFFIRMATIONS[affirmationIndex],
 
-    progressPercent,
-    formattedTime: formatTime(timeRemaining),
+      progressPercent,
+      formattedTime: formatTime(timeRemaining),
 
-    handleSelectMode,
-    startTimer,
-    pauseTimer,
-    resumeTimer,
+      handleSelectMode,
+      startTimer,
+      pauseTimer,
+      resumeTimer,
     resetTimer,
     finishEarly,
   };

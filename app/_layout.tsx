@@ -1,3 +1,4 @@
+
 import {
   DarkTheme,
   DefaultTheme,
@@ -8,11 +9,16 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { FocusLockProvider } from '@/app/context/FocusLockContext';
 import { ThemeProvider, useAppTheme } from '@/app/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 
-function createGabaiNavigationTheme(colorScheme: 'light' | 'dark', colors: any) {
-  const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+function createGabaiNavigationTheme(
+  colorScheme: 'light' | 'dark',
+  colors: any
+) {
+  const baseTheme =
+    colorScheme === 'dark' ? DarkTheme : DefaultTheme;
 
   return {
     ...baseTheme,
@@ -32,7 +38,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppNavigation />
+        <FocusLockProvider>
+          <AppNavigation />
+        </FocusLockProvider>
       </AuthProvider>
     </ThemeProvider>
   );
@@ -48,11 +56,18 @@ function AppNavigation() {
     if (isLoading) return;
 
     const isAuthRoute = segments[0] === '(auth)';
-    const isAppRoute = segments[0] === '(tabs)' || segments[0] === 'assistant' || segments[0] === 'productivity';
+
+    const isAppRoute =
+      segments[0] === '(tabs)' ||
+      segments[0] === 'assistant' ||
+      segments[0] === 'productivity';
 
     if (!session && isAppRoute) {
       router.replace('/(auth)/login/login');
-    } else if (session && (segments[0] === undefined || isAuthRoute)) {
+    } else if (
+      session &&
+      (segments[0] === undefined || isAuthRoute)
+    ) {
       router.replace('/(tabs)/dashboard/dashboard');
     }
   }, [isLoading, router, segments, session]);
@@ -64,8 +79,16 @@ function AppNavigation() {
       value={createGabaiNavigationTheme(colorScheme, colors)}
     >
       <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="index"
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="(auth)"
+          options={{ headerShown: false }}
+        />
+
         <Stack.Screen
           name="(tabs)"
           options={{ headerShown: false }}
