@@ -47,9 +47,10 @@ export default function AgendaSection({
   const dayEvents = events.filter((e) => e.date === selectedDate);
   const selectedDayEvents = allEvents.filter((event) => event.date === selectedDate);
   const workload = getDayWorkload(selectedDayEvents);
-  const conflicts = getEventConflicts(selectedDayEvents);
-  const recommendation = getRecommendedEvents(allEvents)[0];
+  const conflicts = getEventConflicts(allEvents);
+  const conflictingEventIds = getEventConflicts(allEvents);
   const recommendations = getRecommendedEvents(allEvents).slice(0, 4);
+  const recommendation = recommendations[0];
   const today = getLocalDateKey();
   const tomorrowDate = new Date(`${today}T00:00:00`);
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
@@ -106,7 +107,8 @@ export default function AgendaSection({
           <>
             <Text style={[styles.recommendationText, { color: textTheme }]}>
               GabAi Recommendation: Start with {recommendation.title}
-              {isOverdueDeadline(recommendation) ? ' (overdue)' : ''}.
+              {isOverdueDeadline(recommendation) ? ' (overdue)' : ''}
+              {conflictingEventIds.has(recommendation.id) ? ' ⚠️ (schedule conflict)' : ''}.
             </Text>
             <TouchableOpacity
               accessibilityRole="button"

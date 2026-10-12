@@ -8,12 +8,20 @@ export const FOCUS_MODE_DURATIONS: Record<FocusMode, number> = {
   custom: 30 * 60, // 30 min
 };
 
-export const FOCUS_MODES_CONFIG: { mode: FocusMode; label: string; durationMin: number; isBreak: boolean }[] = [
+
+export const FOCUS_MODES_CONFIG: {
+  mode: FocusMode;
+  label: string;
+  durationMin: number;
+  isBreak: boolean;
+}[] = [
   { mode: 'pomodoro', label: 'Pomodoro', durationMin: 25, isBreak: false },
   { mode: 'deepWork', label: 'Deep Work', durationMin: 50, isBreak: false },
   { mode: 'shortBreak', label: 'Short Break', durationMin: 5, isBreak: true },
   { mode: 'longBreak', label: 'Long Break', durationMin: 15, isBreak: true },
+  { mode: 'custom', label: 'Custom', durationMin: 30, isBreak: false },
 ];
+
 
 export const ACADEMIC_SUBJECTS: string[] = [
   'Capstone Paper',

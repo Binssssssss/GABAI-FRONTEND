@@ -88,6 +88,38 @@ export const getDeadlineBadgeText = (dateStr: string, referenceDateStr: string =
   return `${diffDays} days left`;
 };
 
+export const isEventOverdue = (event: CalendarEvent): boolean => {
+  if (event.completed) return false;
+
+  const today = getLocalDateKey();
+
+  return (
+    event.date < today &&
+    (event.category === 'Assignment' || event.category === 'Exam')
+  );
+};
+
+export const isEventUpcoming = (event: CalendarEvent): boolean => {
+  if (event.completed) return false;
+
+  const today = getLocalDateKey();
+
+  const deadlineCategories =
+    event.category === 'Assignment' ||
+    event.category === 'Exam';
+
+  if (!deadlineCategories) return false;
+
+  const eventDate = new Date(`${event.date}T00:00:00`);
+  const todayDate = new Date(`${today}T00:00:00`);
+
+  const diffDays =
+    (eventDate.getTime() - todayDate.getTime()) /
+    (1000 * 60 * 60 * 24);
+
+  return diffDays >= 0 && diffDays <= 3;
+};
+
 export const getDayWorkload = (events: CalendarEvent[]) => {
   const pendingEvents = events.filter((event) => !event.completed);
   const today = getLocalDateKey();
@@ -142,6 +174,39 @@ export const getEventConflicts = (events: CalendarEvent[]): Set<string> => {
   return conflictingIds;
 };
 
+export const getDeadlineRisk = (
+  event: CalendarEvent,
+): 'OVERDUE' | 'AT RISK' | 'SAFE' | 'NONE' => {
+  if (event.completed) return 'NONE';
+
+  if (
+    event.category !== 'Assignment' &&
+    event.category !== 'Exam'
+  ) {
+    return 'NONE';
+  }
+
+  const today = new Date(`${getLocalDateKey()}T00:00:00`);
+  const deadline = new Date(`${event.date}T00:00:00`);
+
+  const diffDays = Math.round(
+    (deadline.getTime() - today.getTime()) /
+    (1000 * 60 * 60 * 24),
+  );
+
+  if (diffDays < 0) return 'OVERDUE';
+
+  if (
+    diffDays === 0 ||
+    (diffDays <= 2 && event.priority === 'High') ||
+    (diffDays === 1 && event.priority === 'Medium')
+  ) {
+    return 'AT RISK';
+  }
+
+  return 'SAFE';
+};
+
 export const getRecommendedEvents = (events: CalendarEvent[]): CalendarEvent[] => {
   const priorityRank: Record<EventPriority, number> = { High: 0, Medium: 1, Low: 2 };
   const today = getLocalDateKey();
@@ -150,7 +215,12 @@ export const getRecommendedEvents = (events: CalendarEvent[]): CalendarEvent[] =
     (event.category === 'Assignment' || event.category === 'Exam');
 
   return events
-    .filter((event) => !event.completed)
+    .filter(
+      (event) =>
+        !event.completed &&
+        (event.date >= today ||
+          (event.category === 'Assignment' || event.category === 'Exam')),
+    )
     .sort((first, second) => {
       const overdueOrder = Number(isOverdueDeadline(second)) - Number(isOverdueDeadline(first));
       if (overdueOrder !== 0) return overdueOrder;

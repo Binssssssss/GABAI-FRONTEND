@@ -23,6 +23,10 @@ export const registerStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  logoImage: {
+  width: 180,
+  height: 70,
+},
   logoIcon: {
     marginBottom: 6,
   },

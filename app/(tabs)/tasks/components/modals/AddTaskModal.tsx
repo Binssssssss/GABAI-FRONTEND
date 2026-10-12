@@ -1,15 +1,14 @@
-
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { SUBJECTS } from '../../constants/taskConfig';
@@ -31,6 +30,10 @@ export default function AddTaskModal({
   const {
     isAdding,
     setIsAdding,
+
+
+    editingTask,
+    setEditingTask,
 
     newTitle,
     setNewTitle,
@@ -61,6 +64,9 @@ export default function AddTaskModal({
     handleRemoveSubTaskFromList,
 
     handleCreateTask,
+    handleUpdateTask,
+
+
   } = taskData;
 
   const {
@@ -84,6 +90,70 @@ export default function AddTaskModal({
   const [period, setPeriod] = useState<Period>('PM');
 
   const priorities = ['High', 'Medium', 'Low'];
+
+  /**
+  
+  * Sync the calendar and clock picker with the current task.
+  *
+  * This is important when opening the modal for editing because
+  * the task already has an existing due date and time.
+    */
+  useEffect(() => {
+    if (!isAdding) {
+      setPicker(null);
+      return;
+    }
+
+
+    const parsedDate = newDueDate
+
+      ? new Date(`${newDueDate}T12:00:00`)
+      : new Date();
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      setMonth(parsedDate.getMonth());
+      setYear(parsedDate.getFullYear());
+    }
+
+    const [rawHour, rawMinute] = (
+      newDueTime || '18:00'
+    )
+      .split(':')
+      .map(Number);
+
+    const h24 = Number.isFinite(rawHour)
+      ? rawHour
+      : 18;
+
+    const m = Number.isFinite(rawMinute)
+      ? Math.max(0, Math.min(59, rawMinute))
+      : 0;
+
+    setHour(
+      h24 % 12 === 0
+        ? 12
+        : h24 % 12
+    );
+
+    setMinute(m);
+
+    setPeriod(
+      h24 >= 12
+        ? 'PM'
+        : 'AM'
+    );
+
+    setPicker(null);
+
+  }, [isAdding, editingTask]);
+
+  /* ---------------- CLOSE ---------------- */
+
+  const handleClose = () => {
+    setIsAdding(false);
+    setEditingTask(null);
+    setPicker(null);
+  };
 
   /* ---------------- DATE ---------------- */
 
@@ -128,10 +198,17 @@ export default function AddTaskModal({
   );
 
   const selectDate = (day: number) => {
-    const date = new Date(year, month, day);
+    const date = new Date(
+      year,
+      month,
+      day
+    );
+
 
     setNewDueDate(formatDate(date));
     setPicker(null);
+
+
   };
 
   /* ---------------- TIME ---------------- */
@@ -143,6 +220,7 @@ export default function AddTaskModal({
   ) => {
     let normalized = h;
 
+
     if (p === 'PM' && h !== 12) {
       normalized += 12;
     }
@@ -152,47 +230,74 @@ export default function AddTaskModal({
     }
 
     setNewDueTime(
-      `${String(normalized).padStart(2, '0')}:${String(
-        m
-      ).padStart(2, '0')}`
+      `${String(normalized).padStart(
+        2,
+        '0'
+      )}:${String(m).padStart(
+        2,
+        '0'
+      )}`
     );
+
+
   };
 
   const changeHour = (amount: number) => {
     let next = hour + amount;
 
+
     if (next > 12) next = 1;
     if (next < 1) next = 12;
 
     setHour(next);
-    updateTime(next, minute, period);
+    updateTime(
+      next,
+      minute,
+      period
+    );
+
+
   };
 
   const changeMinute = (amount: number) => {
     let next = minute + amount;
 
+
     if (next > 59) next = 0;
     if (next < 0) next = 59;
 
     setMinute(next);
-    updateTime(hour, next, period);
+    updateTime(
+      hour,
+      next,
+      period
+    );
+
+
   };
 
-  const changePeriod = (value: Period) => {
+  const changePeriod = (
+    value: Period
+  ) => {
     setPeriod(value);
-    updateTime(hour, minute, value);
+    updateTime(
+      hour,
+      minute,
+      value
+    );
   };
 
   /* ---------------- DISPLAY ---------------- */
 
-  const dateLabel = selectedDate.toLocaleDateString(
-    'en-US',
-    {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }
-  );
+  const dateLabel =
+    selectedDate.toLocaleDateString(
+      'en-US',
+      {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }
+    );
 
   const timeLabel = newDueTime
     ? (() => {
@@ -200,151 +305,178 @@ export default function AddTaskModal({
         .split(':')
         .map(Number);
 
-      const p = h >= 12 ? 'PM' : 'AM';
-      const displayHour =
-        h % 12 === 0 ? 12 : h % 12;
 
-      return `${String(displayHour).padStart(
+      const p =
+        h >= 12
+          ? 'PM'
+          : 'AM';
+
+      const displayHour =
+        h % 12 === 0
+          ? 12
+          : h % 12;
+
+      return `${String(
+        displayHour
+      ).padStart(
         2,
         '0'
-      )}:${String(m).padStart(2, '0')} ${p}`;
+      )}:${String(m).padStart(
+        2,
+        '0'
+      )} ${p}`;
     })()
-    : '6:00 PM';
+    : '06:00 PM';
 
-  return (
-    <Modal
-      visible={isAdding}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setIsAdding(false)}
+  const isEditMode = !!editingTask;
+
+  return (<Modal
+    visible={isAdding}
+    transparent
+    animationType="slide"
+    onRequestClose={handleClose}
+  >
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: theme.isDark
+          ? 'rgba(0,0,0,0.68)'
+          : 'rgba(44, 34, 26, 0.32)',
+      }}
     >
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'flex-end',
-          backgroundColor: theme.isDark
-            ? 'rgba(0,0,0,0.68)'
-            : 'rgba(44, 34, 26, 0.32)',
-        }}
+      <KeyboardAvoidingView
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
       >
-        <KeyboardAvoidingView
-          behavior={
-            Platform.OS === 'ios'
-              ? 'padding'
-              : undefined
-          }
+        <View
+          style={{
+            backgroundColor: cardBg,
+            borderTopLeftRadius: 26,
+            borderTopRightRadius: 26,
+            maxHeight: '90%',
+            borderTopWidth: 1,
+            borderColor: borderCol,
+          }}
         >
+          {/* HEADER */}
+
+        
           <View
             style={{
-              backgroundColor: cardBg,
-              borderTopLeftRadius: 26,
-              borderTopRightRadius: 26,
-              maxHeight: '90%',
-              borderTopWidth: 1,
+              flexDirection: 'row',
+              justifyContent:
+                'space-between',
+              alignItems: 'center',
+              paddingHorizontal: 20,
+              paddingVertical: 18,
+              borderBottomWidth: 1,
               borderColor: borderCol,
             }}
           >
-            {/* HEADER */}
-
-            <View
+            <Text
               style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                paddingHorizontal: 20,
-                paddingVertical: 18,
-                borderBottomWidth: 1,
-                borderColor: borderCol,
+                color: textPrimary,
+                fontSize: 20,
+                fontWeight: '700',
               }}
             >
-              <Text
-                style={{
-                  color: textPrimary,
-                  fontSize: 20,
-                  fontWeight: '700',
-                }}
-              >
-                New Task
-              </Text>
+              {isEditMode
+                ? 'Edit Task'
+                : 'New Task'}
+            </Text>
 
-              <TouchableOpacity
-                onPress={() => setIsAdding(false)}
-              >
-                <Feather
-                  name="x"
-                  size={21}
-                  color={textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={handleClose}
+            >
+              <Feather
+                name="x"
+                size={21}
+                color={textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              padding: 20,
+              paddingBottom: 30,
+            }}
+          >
+            {/* TITLE */}
+
+            <TextInput
+              value={newTitle}
+              onChangeText={setNewTitle}
+              placeholder="Task title"
+              placeholderTextColor={
+                textSecondary
+              }
+              style={{
+                backgroundColor: inputBg,
+                color: textPrimary,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: borderCol,
+                paddingHorizontal: 14,
+                height: 50,
+                fontSize: 15,
+                marginBottom: 16,
+              }}
+            />
+
+            {/* SUBJECT */}
+
+            <Text
+              style={{
+                color: textSecondary,
+                fontSize: 11,
+                fontWeight: '700',
+                marginBottom: 8,
+              }}
+            >
+              SUBJECT
+            </Text>
 
             <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{
-                padding: 20,
-                paddingBottom: 30,
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{
+                marginBottom: 16,
               }}
             >
-              {/* TITLE */}
-
-              <TextInput
-                value={newTitle}
-                onChangeText={setNewTitle}
-                placeholder="Task title"
-                placeholderTextColor={textSecondary}
-                style={{
-                  backgroundColor: inputBg,
-                  color: textPrimary,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: borderCol,
-                  paddingHorizontal: 14,
-                  height: 50,
-                  fontSize: 15,
-                  marginBottom: 16,
-                }}
-              />
-
-              {/* SUBJECT */}
-
-              <Text
-                style={{
-                  color: textSecondary,
-                  fontSize: 11,
-                  fontWeight: '700',
-                  marginBottom: 8,
-                }}
-              >
-                SUBJECT
-              </Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{
-                  marginBottom: 16,
-                }}
-              >
-                {SUBJECTS.map((subject) => {
+              {SUBJECTS.map(
+                (subject) => {
                   const active =
-                    newSubject === subject;
+                    newSubject ===
+                    subject;
 
                   return (
                     <TouchableOpacity
                       key={subject}
                       onPress={() =>
-                        setNewSubject(subject)
+                        setNewSubject(
+                          subject
+                        )
                       }
                       style={{
                         paddingHorizontal: 13,
                         paddingVertical: 8,
                         borderRadius: 12,
-                        backgroundColor: active
-                          ? primaryBrown
-                          : inputBg,
+                        backgroundColor:
+                          active
+                            ? primaryBrown
+                            : inputBg,
                         borderWidth: 1,
-                        borderColor: active ? primaryBrown : borderCol,
+                        borderColor:
+                          active
+                            ? primaryBrown
+                            : borderCol,
                         marginRight: 7,
                       }}
                     >
@@ -361,31 +493,34 @@ export default function AddTaskModal({
                       </Text>
                     </TouchableOpacity>
                   );
-                })}
-              </ScrollView>
+                }
+              )}
+            </ScrollView>
 
-              {/* PRIORITY */}
+            {/* PRIORITY */}
 
-              <Text
-                style={{
-                  color: textSecondary,
-                  fontSize: 11,
-                  fontWeight: '700',
-                  marginBottom: 8,
-                }}
-              >
-                PRIORITY
-              </Text>
+            <Text
+              style={{
+                color: textSecondary,
+                fontSize: 11,
+                fontWeight: '700',
+                marginBottom: 8,
+              }}
+            >
+              PRIORITY
+            </Text>
 
-              <View
-                style={{
-                  flexDirection: 'row',
-                  marginBottom: 16,
-                }}
-              >
-                {priorities.map((priority) => {
+            <View
+              style={{
+                flexDirection: 'row',
+                marginBottom: 16,
+              }}
+            >
+              {priorities.map(
+                (priority) => {
                   const active =
-                    newPriority === priority;
+                    newPriority ===
+                    priority;
 
                   return (
                     <TouchableOpacity
@@ -398,16 +533,23 @@ export default function AddTaskModal({
                       style={{
                         flex: 1,
                         height: 38,
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        justifyContent:
+                          'center',
+                        alignItems:
+                          'center',
                         borderRadius: 10,
-                        backgroundColor: active
-                          ? primaryBrown
-                          : inputBg,
+                        backgroundColor:
+                          active
+                            ? primaryBrown
+                            : inputBg,
                         borderWidth: 1,
-                        borderColor: active ? primaryBrown : borderCol,
+                        borderColor:
+                          active
+                            ? primaryBrown
+                            : borderCol,
                         marginRight:
-                          priority !== 'Low'
+                          priority !==
+                            'Low'
                             ? 6
                             : 0,
                       }}
@@ -418,545 +560,601 @@ export default function AddTaskModal({
                             ? '#FFF'
                             : textSecondary,
                           fontSize: 12,
-                          fontWeight: '600',
+                          fontWeight:
+                            '600',
                         }}
                       >
                         {priority}
                       </Text>
                     </TouchableOpacity>
                   );
-                })}
-              </View>
+                }
+              )}
+            </View>
 
-              {/* DATE / TIME */}
+            {/* DATE / TIME */}
 
+            <Text
+              style={{
+                color: textSecondary,
+                fontSize: 10,
+                fontWeight: '700',
+                letterSpacing: 0.8,
+                marginBottom: 8,
+              }}
+            >
+              SCHEDULE
+            </Text>
 
-              <Text
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginBottom: 14,
+              }}
+            >
+              {/* DATE */}
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() =>
+                  setPicker('date')
+                }
                 style={{
-                  color: textSecondary,
-                  fontSize: 10,
-                  fontWeight: '700',
-                  letterSpacing: 0.8,
-                  marginBottom: 8,
-                }}
-              >
-                SCHEDULE
-              </Text>
-
-              <View
-                style={{
+                  flex: 1,
+                  height: 52,
                   flexDirection: 'row',
-                  gap: 8,
-                  marginBottom: 14,
+                  alignItems: 'center',
+                  paddingHorizontal: 12,
+                  borderRadius: 13,
+                  backgroundColor: inputBg,
+                  borderWidth: 1,
+                  borderColor: borderCol,
                 }}
               >
-                {/* DATE */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setPicker('date')}
+                <Feather
+                  name="calendar"
+                  size={15}
+                  color={primaryBrown}
+                />
+
+                <View
                   style={{
+                    marginLeft: 9,
                     flex: 1,
-                    height: 52,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 12,
-                    borderRadius: 13,
-                    backgroundColor: inputBg,
-                    borderWidth: 1,
-                    borderColor: borderCol,
                   }}
                 >
-                  <Feather
-                    name="calendar"
-                    size={15}
-                    color={primaryBrown}
-                  />
+                  <Text
+                    style={{
+                      color: textSecondary,
+                      fontSize: 9,
+                      marginBottom: 2,
+                    }}
+                  >
+                    DATE
+                  </Text>
 
-                  <View style={{ marginLeft: 9, flex: 1 }}>
-                    <Text
-                      style={{
-                        color: textSecondary,
-                        fontSize: 9,
-                        marginBottom: 2,
-                      }}
-                    >
-                      DATE
-                    </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color: textPrimary,
+                      fontSize: 12,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {dateLabel}
+                  </Text>
+                </View>
 
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        color: textPrimary,
-                        fontSize: 12,
-                        fontWeight: '600',
-                      }}
-                    >
-                      {dateLabel}
-                    </Text>
-                  </View>
+                <Feather
+                  name="chevron-down"
+                  size={14}
+                  color={textSecondary}
+                />
+              </TouchableOpacity>
 
-                  <Feather
-                    name="chevron-down"
-                    size={14}
-                    color={textSecondary}
-                  />
-                </TouchableOpacity>
+              {/* TIME */}
 
-                {/* TIME */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setPicker('time')}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() =>
+                  setPicker('time')
+                }
+                style={{
+                  flex: 1,
+                  height: 52,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 12,
+                  borderRadius: 13,
+                  backgroundColor: inputBg,
+                  borderWidth: 1,
+                  borderColor: borderCol,
+                }}
+              >
+                <Feather
+                  name="clock"
+                  size={15}
+                  color={primaryBrown}
+                />
+
+                <View
                   style={{
+                    marginLeft: 9,
                     flex: 1,
-                    height: 52,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 12,
-                    borderRadius: 13,
-                    backgroundColor: inputBg,
-                    borderWidth: 1,
-                    borderColor: borderCol,
                   }}
                 >
-                  <Feather
-                    name="clock"
-                    size={15}
-                    color={primaryBrown}
-                  />
+                  <Text
+                    style={{
+                      color: textSecondary,
+                      fontSize: 9,
+                      marginBottom: 2,
+                    }}
+                  >
+                    TIME
+                  </Text>
 
-                  <View style={{ marginLeft: 9, flex: 1 }}>
-                    <Text
-                      style={{
-                        color: textSecondary,
-                        fontSize: 9,
-                        marginBottom: 2,
-                      }}
-                    >
-                      TIME
-                    </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color: textPrimary,
+                      fontSize: 12,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {timeLabel}
+                  </Text>
+                </View>
 
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        color: textPrimary,
-                        fontSize: 12,
-                        fontWeight: '600',
-                      }}
-                    >
-                      {timeLabel}
-                    </Text>
-                  </View>
+                <Feather
+                  name="chevron-down"
+                  size={14}
+                  color={textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
 
-                  <Feather
-                    name="chevron-down"
-                    size={14}
-                    color={textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
+            {/* NOTES */}
 
-              {/* NOTES */}
+            <Text
+              style={{
+                color: textSecondary,
+                fontSize: 11,
+                fontWeight: '700',
+                marginBottom: 8,
+              }}
+            >
+              NOTES
+            </Text>
 
+            <TextInput
+              value={newDesc}
+              onChangeText={setNewDesc}
+              placeholder="Add a note..."
+              placeholderTextColor={
+                textSecondary
+              }
+              multiline
+              textAlignVertical="top"
+              style={{
+                backgroundColor: inputBg,
+                color: textPrimary,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: borderCol,
+                padding: 13,
+                minHeight: 72,
+                fontSize: 14,
+                marginBottom: 16,
+              }}
+            />
+
+            {/* CHECKLIST */}
+
+            <TouchableOpacity
+              onPress={() =>
+                setNewSubTaskInput('')
+              }
+              style={{
+                flexDirection: 'row',
+                justifyContent:
+                  'space-between',
+                alignItems: 'center',
+                paddingVertical: 5,
+                marginBottom: 8,
+              }}
+            >
               <Text
                 style={{
                   color: textSecondary,
                   fontSize: 11,
                   fontWeight: '700',
-                  marginBottom: 8,
                 }}
               >
-                NOTES
+                CHECKLIST
               </Text>
 
-              <TextInput
-                value={newDesc}
-                onChangeText={setNewDesc}
-                placeholder="Add a note..."
-                placeholderTextColor={textSecondary}
-                multiline
-                textAlignVertical="top"
-                style={{
-                  backgroundColor: inputBg,
-                  color: textPrimary,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: borderCol,
-                  padding: 13,
-                  minHeight: 72,
-                  fontSize: 14,
-                  marginBottom: 16,
-                }}
+              <Feather
+                name="plus"
+                size={18}
+                color={primaryBrown}
               />
+            </TouchableOpacity>
 
-              {/* CHECKLIST */}
-
-              <TouchableOpacity
-                onPress={() =>
-                  setNewSubTaskInput('')
-                }
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: 5,
-                  marginBottom: 8,
-                }}
-              >
-                <Text
-                  style={{
-                    color: textSecondary,
-                    fontSize: 11,
-                    fontWeight: '700',
-                  }}
-                >
-                  CHECKLIST
-                </Text>
-
-                <Feather
-                  name="plus"
-                  size={18}
-                  color={primaryBrown}
-                />
-              </TouchableOpacity>
-
+            <View
+              style={{
+                backgroundColor: inputBg,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: borderCol,
+                paddingHorizontal: 12,
+                marginBottom: 16,
+              }}
+            >
               <View
                 style={{
-                  backgroundColor: inputBg,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: borderCol,
-                  paddingHorizontal: 12,
-                  marginBottom: 16,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                  }}
-                >
-                  <TextInput
-                    value={newSubTaskInput}
-                    onChangeText={setNewSubTaskInput}
-                    placeholder="Add checklist item"
-                    placeholderTextColor={
-                      textSecondary
-                    }
-                    onSubmitEditing={
-                      handleAddSubTaskToList
-                    }
-                    style={{
-                      flex: 1,
-                      height: 44,
-                      color: textPrimary,
-                      fontSize: 13,
-                    }}
-                  />
-
-                  <TouchableOpacity
-                    onPress={
-                      handleAddSubTaskToList
-                    }
-                  >
-                    <Feather
-                      name="plus-circle"
-                      size={19}
-                      color={primaryBrown}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {newSubTasksList.map(
-                  (item, index) => (
-                    <View
-                      key={`${item}-${index}`}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingVertical: 9,
-                        borderTopWidth: 1,
-                        borderColor: borderCol,
-                      }}
-                    >
-                      <Feather
-                        name="circle"
-                        size={14}
-                        color={primaryBrown}
-                      />
-
-                      <Text
-                        style={{
-                          flex: 1,
-                          marginLeft: 8,
-                          color: textPrimary,
-                          fontSize: 13,
-                        }}
-                      >
-                        {item}
-                      </Text>
-
-                      <TouchableOpacity
-                        onPress={() =>
-                          handleRemoveSubTaskFromList(
-                            index
-                          )
-                        }
-                      >
-                        <Feather
-                          name="trash-2"
-                          size={15}
-                          color="#EF4444"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  )
-                )}
-              </View>
-
-              {/* REMINDER */}
-
-              <TouchableOpacity
-                onPress={() =>
-                  setNewHasReminder(
-                    !newHasReminder
-                  )
-                }
-                style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingVertical: 5,
-                  marginBottom: 18,
                 }}
               >
-                <View
+                <TextInput
+                  value={
+                    newSubTaskInput
+                  }
+                  onChangeText={
+                    setNewSubTaskInput
+                  }
+                  placeholder="Add checklist item"
+                  placeholderTextColor={
+                    textSecondary
+                  }
+                  onSubmitEditing={
+                    handleAddSubTaskToList
+                  }
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                    flex: 1,
+                    height: 44,
+                    color: textPrimary,
+                    fontSize: 13,
                   }}
+                />
+
+                <TouchableOpacity
+                  onPress={
+                    handleAddSubTaskToList
+                  }
                 >
                   <Feather
-                    name="bell"
-                    size={17}
+                    name="plus-circle"
+                    size={19}
                     color={primaryBrown}
                   />
+                </TouchableOpacity>
+              </View>
 
-                  <Text
-                    style={{
-                      color: textPrimary,
-                      marginLeft: 9,
-                      fontSize: 14,
-                    }}
-                  >
-                    Reminder
-                  </Text>
-                </View>
-
-                <View
-                  style={{
-                    width: 38,
-                    height: 22,
-                    borderRadius: 20,
-                    backgroundColor:
-                      newHasReminder
-                        ? primaryBrown
-                        : borderCol,
-                    padding: 2,
-                    justifyContent: 'center',
-                  }}
-                >
+              {newSubTasksList.map(
+                (item, index) => (
                   <View
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: 9,
-                      backgroundColor: '#FFF',
-                      alignSelf:
-                        newHasReminder
-                          ? 'flex-end'
-                          : 'flex-start',
-                    }}
-                  />
-                </View>
-              </TouchableOpacity>
-
-              {/* SAVE */}
-
-              <TouchableOpacity
-                onPress={handleCreateTask}
-                style={{
-                  height: 48,
-                  borderRadius: 13,
-                  backgroundColor: primaryBrown,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
-                  style={{
-                    color: '#FFF',
-                    fontSize: 14,
-                    fontWeight: '700',
-                  }}
-                >
-                  Create Task
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-
-            {/* =================================================
-                DATE PICKER
-            ================================================= */}
-
-            {picker === 'date' && (
-              <View
-                style={{
-                  position: 'absolute',
-                  left: 18,
-                  right: 18,
-                  top: 70,
-                  backgroundColor: cardBg,
-                  borderRadius: 18,
-                  borderWidth: 1,
-                  borderColor: borderCol,
-                  padding: 14,
-                  elevation: 10,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 14,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: textPrimary,
-                      fontSize: 15,
-                      fontWeight: '700',
-                    }}
-                  >
-                    {monthName}
-                  </Text>
-
-                  <View
+                    key={`${item}-${index}`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
+                      paddingVertical: 9,
+                      borderTopWidth: 1,
+                      borderColor: borderCol,
                     }}
                   >
+                    <Feather
+                      name="circle"
+                      size={14}
+                      color={primaryBrown}
+                    />
+
+                    <Text
+                      style={{
+                        flex: 1,
+                        marginLeft: 8,
+                        color: textPrimary,
+                        fontSize: 13,
+                      }}
+                    >
+                      {item}
+                    </Text>
+
                     <TouchableOpacity
-                      onPress={() => {
-                        const date = new Date(
+                      onPress={() =>
+                        handleRemoveSubTaskFromList(
+                          index
+                        )
+                      }
+                    >
+                      <Feather
+                        name="trash-2"
+                        size={15}
+                        color="#EF4444"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )
+              )}
+            </View>
+
+            {/* REMINDER */}
+
+            <TouchableOpacity
+              onPress={() =>
+                setNewHasReminder(
+                  !newHasReminder
+                )
+              }
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent:
+                  'space-between',
+                paddingVertical: 5,
+                marginBottom: 18,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Feather
+                  name="bell"
+                  size={17}
+                  color={primaryBrown}
+                />
+
+                <Text
+                  style={{
+                    color: textPrimary,
+                    marginLeft: 9,
+                    fontSize: 14,
+                  }}
+                >
+                  Reminder
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  width: 38,
+                  height: 22,
+                  borderRadius: 20,
+                  backgroundColor:
+                    newHasReminder
+                      ? primaryBrown
+                      : borderCol,
+                  padding: 2,
+                  justifyContent:
+                    'center',
+                }}
+              >
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor:
+                      '#FFF',
+                    alignSelf:
+                      newHasReminder
+                        ? 'flex-end'
+                        : 'flex-start',
+                  }}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* SAVE */}
+
+            <TouchableOpacity
+              onPress={
+                isEditMode
+                  ? handleUpdateTask
+                  : handleCreateTask
+              }
+              style={{
+                height: 48,
+                borderRadius: 13,
+                backgroundColor:
+                  primaryBrown,
+                alignItems: 'center',
+                justifyContent:
+                  'center',
+              }}
+            >
+              <Text
+                style={{
+                  color: '#FFF',
+                  fontSize: 14,
+                  fontWeight: '700',
+                }}
+              >
+                {isEditMode
+                  ? 'Save Changes'
+                  : 'Create Task'}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* =================================================
+            DATE PICKER
+        ================================================= */}
+
+          {picker === 'date' && (
+            <View
+              style={{
+                position: 'absolute',
+                left: 18,
+                right: 18,
+                top: 70,
+                backgroundColor: cardBg,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: borderCol,
+                padding: 14,
+                elevation: 10,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent:
+                    'space-between',
+                  alignItems: 'center',
+                  marginBottom: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    color: textPrimary,
+                    fontSize: 15,
+                    fontWeight: '700',
+                  }}
+                >
+                  {monthName}
+                </Text>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      const date =
+                        new Date(
                           year,
                           month - 1,
                           1
                         );
 
-                        setMonth(
-                          date.getMonth()
-                        );
-                        setYear(
-                          date.getFullYear()
-                        );
-                      }}
-                      style={{
-                        padding: 5,
-                      }}
-                    >
-                      <Feather
-                        name="chevron-left"
-                        size={17}
-                        color={textSecondary}
-                      />
-                    </TouchableOpacity>
+                      setMonth(
+                        date.getMonth()
+                      );
+                      setYear(
+                        date.getFullYear()
+                      );
+                    }}
+                    style={{
+                      padding: 5,
+                    }}
+                  >
+                    <Feather
+                      name="chevron-left"
+                      size={17}
+                      color={
+                        textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => {
-                        const date = new Date(
+                  <TouchableOpacity
+                    onPress={() => {
+                      const date =
+                        new Date(
                           year,
                           month + 1,
                           1
                         );
 
-                        setMonth(
-                          date.getMonth()
-                        );
-                        setYear(
-                          date.getFullYear()
-                        );
-                      }}
-                      style={{
-                        padding: 5,
-                      }}
-                    >
-                      <Feather
-                        name="chevron-right"
-                        size={17}
-                        color={textSecondary}
-                      />
-                    </TouchableOpacity>
+                      setMonth(
+                        date.getMonth()
+                      );
+                      setYear(
+                        date.getFullYear()
+                      );
+                    }}
+                    style={{
+                      padding: 5,
+                    }}
+                  >
+                    <Feather
+                      name="chevron-right"
+                      size={17}
+                      color={
+                        textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => setPicker(null)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Close date picker"
-                      style={{ padding: 5, marginLeft: 4 }}
-                    >
-                      <Feather
-                        name="x"
-                        size={20}
-                        color={textSecondary}
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPicker(null)
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel="Close date picker"
+                    style={{
+                      padding: 5,
+                      marginLeft: 4,
+                    }}
+                  >
+                    <Feather
+                      name="x"
+                      size={20}
+                      color={
+                        textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
                 </View>
+              </View>
 
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    marginBottom: 5,
-                  }}
-                >
-                  {[
-                    'S',
-                    'M',
-                    'T',
-                    'W',
-                    'T',
-                    'F',
-                    'S',
-                  ].map((day, index) => (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  marginBottom: 5,
+                }}
+              >
+                {[
+                  'S',
+                  'M',
+                  'T',
+                  'W',
+                  'T',
+                  'F',
+                  'S',
+                ].map(
+                  (day, index) => (
                     <Text
                       key={index}
                       style={{
                         flex: 1,
-                        textAlign: 'center',
-                        color: textSecondary,
+                        textAlign:
+                          'center',
+                        color:
+                          textSecondary,
                         fontSize: 10,
-                        fontWeight: '700',
+                        fontWeight:
+                          '700',
                       }}
                     >
                       {day}
                     </Text>
-                  ))}
-                </View>
+                  )
+                )}
+              </View>
 
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {days.map((day, index) => {
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {days.map(
+                  (day, index) => {
                     if (day === null) {
                       return (
                         <View
                           key={`empty-${index}`}
                           style={{
-                            width: '14.285%',
+                            width:
+                              '14.285%',
                             height: 34,
                           }}
                         />
@@ -975,13 +1173,18 @@ export default function AddTaskModal({
                       <TouchableOpacity
                         key={`day-${day}`}
                         onPress={() =>
-                          selectDate(day)
+                          selectDate(
+                            day
+                          )
                         }
                         style={{
-                          width: '14.285%',
+                          width:
+                            '14.285%',
                           height: 34,
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          alignItems:
+                            'center',
+                          justifyContent:
+                            'center',
                         }}
                       >
                         <View
@@ -1001,9 +1204,10 @@ export default function AddTaskModal({
                         >
                           <Text
                             style={{
-                              color: selected
-                                ? '#FFF'
-                                : textPrimary,
+                              color:
+                                selected
+                                  ? '#FFF'
+                                  : textPrimary,
                               fontSize: 12,
                               fontWeight:
                                 selected
@@ -1016,196 +1220,206 @@ export default function AddTaskModal({
                         </View>
                       </TouchableOpacity>
                     );
-                  })}
-                </View>
+                  }
+                )}
               </View>
-            )}
+            </View>
+          )}
 
-            {/* =================================================
-                TIME PICKER
-            ================================================= */}
+          {/* =================================================
+            TIME PICKER
+        ================================================= */}
 
-            {picker === 'time' && (
+          {picker === 'time' && (
+            <View
+              style={{
+                position: 'absolute',
+                left: 18,
+                right: 18,
+                top: 70,
+                backgroundColor: cardBg,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: borderCol,
+                padding: 18,
+                elevation: 10,
+              }}
+            >
               <View
                 style={{
-                  position: 'absolute',
-                  left: 18,
-                  right: 18,
-                  top: 70,
-                  backgroundColor: cardBg,
-                  borderRadius: 18,
-                  borderWidth: 1,
-                  borderColor: borderCol,
-                  padding: 18,
-                  elevation: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent:
+                    'space-between',
+                  marginBottom: 8,
                 }}
               >
-                <View
+                <Text
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 8,
+                    color: textSecondary,
+                    fontSize: 10,
+                    fontWeight: '700',
                   }}
                 >
-                  <Text
-                    style={{
-                      color: textSecondary,
-                      fontSize: 10,
-                      fontWeight: '700',
-                    }}
-                  >
-                    TIME
-                  </Text>
-                  
-                </View>
+                  TIME
+                </Text>
+              </View>
 
-                <View
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent:
+                    'center',
+                  alignItems: 'center',
+                  marginBottom: 18,
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() =>
+                    changeHour(-1)
+                  }
+                >
+                  <Feather
+                    name="chevron-left"
+                    size={20}
+                    color={
+                      textSecondary
+                    }
+                  />
+                </TouchableOpacity>
+
+                <Text
                   style={{
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginBottom: 18,
+                    color: textPrimary,
+                    fontSize: 30,
+                    fontWeight: '700',
+                    marginHorizontal: 12,
                   }}
                 >
-                  <TouchableOpacity
-                    onPress={() =>
-                      changeHour(-1)
-                    }
-                  >
-                    <Feather
-                      name="chevron-left"
-                      size={20}
-                      color={textSecondary}
-                    />
-                  </TouchableOpacity>
+                  {String(
+                    hour
+                  ).padStart(2, '0')}
+                </Text>
 
-                  <Text
-                    style={{
-                      color: textPrimary,
-                      fontSize: 30,
-                      fontWeight: '700',
-                      marginHorizontal: 12,
-                    }}
-                  >
-                    {String(hour).padStart(
-                      2,
-                      '0'
-                    )}
-                  </Text>
-
-                  <Text
-                    style={{
-                      color: primaryBrown,
-                      fontSize: 28,
-                      fontWeight: '700',
-                    }}
-                  >
-                    :
-                  </Text>
-
-                  <Text
-                    style={{
-                      color: textPrimary,
-                      fontSize: 30,
-                      fontWeight: '700',
-                      marginHorizontal: 12,
-                    }}
-                  >
-                    {String(minute).padStart(
-                      2,
-                      '0'
-                    )}
-                  </Text>
-
-                  <TouchableOpacity
-                    onPress={() =>
-                      changeMinute(1)
-                    }
-                  >
-                    <Feather
-                      name="chevron-right"
-                      size={20}
-                      color={textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <View
+                <Text
                   style={{
-                    flexDirection: 'row',
-                    backgroundColor: inputBg,
-                    borderRadius: 10,
-                    padding: 3,
+                    color: primaryBrown,
+                    fontSize: 28,
+                    fontWeight: '700',
                   }}
                 >
-                  {(['AM', 'PM'] as Period[]).map(
-                    (value) => {
-                      const active =
-                        period === value;
+                  :
+                </Text>
 
-                      return (
-                        <TouchableOpacity
-                          key={value}
-                          onPress={() =>
-                            changePeriod(
-                              value
-                            )
-                          }
-                          style={{
-                            flex: 1,
-                            paddingVertical: 8,
-                            alignItems:
-                              'center',
-                            borderRadius: 8,
-                            backgroundColor:
-                              active
-                                ? primaryBrown
-                                : 'transparent',
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: active
-                                ? '#FFF'
-                                : textSecondary,
-                              fontSize: 11,
-                              fontWeight:
-                                '700',
-                            }}
-                          >
-                            {value}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    }
-                  )}
-                </View>
+                <Text
+                  style={{
+                    color: textPrimary,
+                    fontSize: 30,
+                    fontWeight: '700',
+                    marginHorizontal: 12,
+                  }}
+                >
+                  {String(
+                    minute
+                  ).padStart(2, '0')}
+                </Text>
 
                 <TouchableOpacity
-                  onPress={() => setPicker(null)}
-                  style={{
-                    marginTop: 12,
-                    alignItems: 'center',
-                  }}
+                  onPress={() =>
+                    changeMinute(1)
+                  }
                 >
-                  <Text
-                    style={{
-                      color: primaryBrown,
-                      fontSize: 20,
-                      fontWeight: '700',
-                      
-                    }}
-                  >
-                    Done
-                  </Text>
+                  <Feather
+                    name="chevron-right"
+                    size={20}
+                    color={
+                      textSecondary
+                    }
+                  />
                 </TouchableOpacity>
               </View>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  backgroundColor:
+                    inputBg,
+                  borderRadius: 10,
+                  padding: 3,
+                }}
+              >
+                {(
+                  ['AM', 'PM'] as Period[]
+                ).map(
+                  (value) => {
+                    const active =
+                      period ===
+                      value;
+
+                    return (
+                      <TouchableOpacity
+                        key={value}
+                        onPress={() =>
+                          changePeriod(
+                            value
+                          )
+                        }
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          alignItems:
+                            'center',
+                          borderRadius: 8,
+                          backgroundColor:
+                            active
+                              ? primaryBrown
+                              : 'transparent',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: active
+                              ? '#FFF'
+                              : textSecondary,
+                            fontSize: 11,
+                            fontWeight:
+                              '700',
+                          }}
+                        >
+                          {value}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }
+                )}
+              </View>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setPicker(null)
+                }
+                style={{
+                  marginTop: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    color: primaryBrown,
+                    fontSize: 20,
+                    fontWeight: '700',
+                  }}
+                >
+                  Done
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  </Modal>
+
+
   );
 }
-

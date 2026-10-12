@@ -189,7 +189,6 @@ export default function DashboardScreen() {
         {/* SMART RECOMMENDATION */}
 <View style={styles.section}>
   <WhatShouldIDoNow
-    tasks={tasks}
     primaryBrown={primaryBrown}
     textColor={textPrimary}
     secondaryText={textSecondary}

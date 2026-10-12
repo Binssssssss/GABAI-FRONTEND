@@ -6,6 +6,7 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
   Class: '#C084FC', // Lavender
   Meeting: '#FB923C', // Warm Orange
   Personal: '#4ADE80', // Pastel Green
+  'Focus Session': '#A97C50', // Warm Brown
 };
 
 export const CALENDAR_CATEGORIES: ('All' | EventCategory)[] = [
@@ -13,6 +14,7 @@ export const CALENDAR_CATEGORIES: ('All' | EventCategory)[] = [
   'Assignment',
   'Exam',
   'Class',
+  'Focus Session',
   'Meeting',
   'Personal',
 ];

@@ -1,12 +1,12 @@
 import { Feather } from '@expo/vector-icons';
 import {
-    Modal,
-    ScrollView,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Modal,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { CATEGORY_COLORS, REMINDER_OPTIONS } from '../constants/calendarConfig';
 import { calendarStyles as styles } from '../styles/calendar.styles';
@@ -14,6 +14,8 @@ import { EventCategory, EventPriority } from '../types';
 import { getPriorityColors } from '../utils/calendarHelpers';
 
 interface QuickAddEventModalProps {
+  mode?: 'add' | 'edit';
+  saveButtonLabel?: string;
   visible: boolean;
   onClose: () => void;
   title: string;
@@ -54,10 +56,19 @@ interface QuickAddEventModalProps {
   primaryAccent: string;
 }
 
-const CATEGORIES_LIST: EventCategory[] = ['Assignment', 'Exam', 'Class', 'Meeting', 'Personal'];
+const CATEGORIES_LIST: EventCategory[] = [
+  'Assignment',
+  'Exam',
+  'Class',
+  'Focus Session',
+  'Meeting',
+  'Personal',
+];
 const PRIORITIES_LIST: EventPriority[] = ['Low', 'Medium', 'High'];
 
 export default function QuickAddEventModal({
+  mode = 'add',
+  saveButtonLabel,
   visible,
   onClose,
   title,
@@ -107,8 +118,9 @@ export default function QuickAddEventModal({
       <View style={styles.modalOverlay}>
         <View style={[styles.addModalContainer, { backgroundColor: modalSurface }]}>
           <View style={[styles.addModalHeader, { borderBottomColor: borderTheme }]}>
-            <Text style={[styles.modalHeaderTitle, { color: textTheme }]}>Quick Add Academic Event</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Text style={[styles.modalHeaderTitle, { color: textTheme }]}>
+              {mode === 'edit' ? 'Edit Academic Event' : 'Quick Add Academic Event'}
+            </Text>            <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={24} color={textTheme} />
             </TouchableOpacity>
           </View>
@@ -212,24 +224,51 @@ export default function QuickAddEventModal({
 
             {/* Duration and toggle fields */}
             <View style={styles.formRowFields}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>Duration (Minutes)</Text>
-                <TextInput
-                  placeholder="60"
-                  placeholderTextColor={textSubTheme}
-                  style={[styles.formInput, { color: textTheme, borderColor: borderTheme }]}
-                  value={duration}
-                  keyboardType="numeric"
-                  onChangeText={onDurationChange}
-                />
-              </View>
-              <View style={{ flex: 1, marginLeft: 8, justifyContent: 'center', paddingTop: 16 }}>
+              {mode === 'add' && (
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text
+                    style={[
+                      styles.formLabel,
+                      { color: textSubTheme, marginTop: 16 },
+                    ]}
+                  >
+                    Duration (Minutes)
+                  </Text>
+
+                  <TextInput
+                    placeholder="60"
+                    placeholderTextColor={textSubTheme}
+                    style={[
+                      styles.formInput,
+                      { color: textTheme, borderColor: borderTheme },
+                    ]}
+                    value={duration}
+                    keyboardType="numeric"
+                    onChangeText={onDurationChange}
+                  />
+                </View>
+              )}
+
+              <View
+                style={{
+                  flex: 1,
+                  marginLeft: mode === 'add' ? 8 : 0,
+                  justifyContent: 'center',
+                  paddingTop: 16,
+                }}
+              >
                 <View style={styles.switchRowItem}>
-                  <Text style={{ color: textTheme, marginRight: 8 }}>All Day</Text>
+                  <Text style={{ color: textTheme, marginRight: 8 }}>
+                    All Day
+                  </Text>
+
                   <Switch
                     value={isAllDay}
                     onValueChange={onIsAllDayChange}
-                    trackColor={{ false: '#767577', true: primaryAccent }}
+                    trackColor={{
+                      false: '#767577',
+                      true: primaryAccent,
+                    }}
                   />
                 </View>
               </View>
@@ -330,23 +369,77 @@ export default function QuickAddEventModal({
               onChangeText={onDescriptionChange}
             />
 
-            {/* Checklist adding section */}
-            <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>
+
+            {/* Checklist Adding Section */}
+            <Text
+              style={[
+                styles.formLabel,
+                {
+                  color: textSubTheme,
+                  marginTop: 16,
+                  marginBottom: 10,
+                },
+              ]}
+            >
               Task Checklist Items ({checklistItems.length} items)
             </Text>
-            <View style={styles.checklistBuilderRow}>
+
+            <View
+              style={[
+                styles.checklistBuilderRow,
+                {
+                  alignItems: 'center',
+                },
+              ]}
+            >
               <TextInput
                 placeholder="Add a milestone to this event..."
                 placeholderTextColor={textSubTheme}
-                style={[styles.formInput, { color: textTheme, borderColor: borderTheme, flex: 1, marginBottom: 0 }]}
+                style={[
+                  styles.formInput,
+                  {
+                    color: textTheme,
+                    borderColor: borderTheme,
+                    flex: 1,
+                    marginBottom: 0,
+                    minHeight: 48,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                  },
+                ]}
                 value={checklistText}
                 onChangeText={onChecklistTextChange}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (checklistText.trim().length > 0) {
+                    onAddChecklistItem();
+                  }
+                }}
               />
+
               <TouchableOpacity
-                style={[styles.addChecklistBtn, { backgroundColor: primaryAccent }]}
+                style={[
+                  styles.addChecklistBtn,
+                  {
+                    backgroundColor: primaryAccent,
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: 8,
+                  },
+                ]}
                 onPress={onAddChecklistItem}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Add checklist item"
               >
-                <Feather name="plus" size={18} color="#FFFFFF" />
+                <Feather
+                  name="plus"
+                  size={20}
+                  color="#FFFFFF"
+                />
               </TouchableOpacity>
             </View>
 
@@ -368,7 +461,10 @@ export default function QuickAddEventModal({
               style={[styles.saveFormBtn, { backgroundColor: primaryAccent }]}
               onPress={onSave}
             >
-              <Text style={styles.saveFormBtnText}>Save Event & Schedule</Text>
+              <Text style={styles.saveFormBtnText}>
+                {saveButtonLabel ??
+                  (mode === 'edit' ? 'Save Changes' : 'Save Event & Schedule')}
+              </Text>
             </TouchableOpacity>
             <View style={{ height: 40 }} />
           </ScrollView>

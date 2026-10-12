@@ -6,17 +6,18 @@ import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-    AgendaSection,
-    CalendarFilterSection,
-    CalendarHeader,
-    CalendarRangeNavigation,
-    CalendarViewToggle,
-    DayView,
-    EventDetailModal,
-    MonthView,
-    QuickAddEventModal,
-    UpcomingDeadlinesWidget,
-    WeekView,
+  AcademicPressureIndicator,
+  AgendaSection,
+  CalendarFilterSection,
+  CalendarHeader,
+  CalendarRangeNavigation,
+  CalendarViewToggle,
+  DayView,
+  EventDetailModal,
+  MonthView,
+  QuickAddEventModal,
+  UpcomingDeadlinesWidget,
+  WeekView,
 } from './components';
 
 import { useCalendarData } from './hooks/useCalendarData';
@@ -41,6 +42,9 @@ export default function SmartCalendarScreen() {
   const router = useRouter();
 
   const {
+    isEditingEvent,
+    openEditEvent,
+    setEditingEventId,
     events,
     isLoadingEvents,
     eventsLoadFailed,
@@ -162,6 +166,15 @@ export default function SmartCalendarScreen() {
         contentContainerStyle={styles.mainScroll}
         showsVerticalScrollIndicator={false}
       >
+        <AcademicPressureIndicator
+          pressure={academicPressure}
+          cardTheme={cardTheme}
+          borderTheme={borderTheme}
+          textTheme={textTheme}
+          textSubTheme={textSubTheme}
+          primaryAccent={primaryAccent}
+        />
+
         {/* Month View */}
         {viewMode === 'month' && (
           <MonthView
@@ -259,14 +272,21 @@ export default function SmartCalendarScreen() {
         visible={isDetailModalOpen}
         event={selectedEvent}
         onClose={() => setIsDetailModalOpen(false)}
+        onEdit={(event) => {
+          setIsDetailModalOpen(false);
+          openEditEvent(event);
+        }}
         onToggleChecklistItem={toggleChecklistItem}
         onStartRescheduling={startRescheduling}
         onDeleteEvent={deleteEvent}
         onStartFocusSession={(eventId) => {
           setIsDetailModalOpen(false);
+
           router.push({
             pathname: '/(tabs)/tasks/task',
-            params: { focusTaskId: eventId },
+            params: {
+              focusTaskId: eventId,
+            },
           });
         }}
         cardTheme={cardTheme}
@@ -275,10 +295,15 @@ export default function SmartCalendarScreen() {
         textSubTheme={textSubTheme}
       />
 
+
       {/* Quick Add Event Modal */}
       <QuickAddEventModal
         visible={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingEventId(null);
+        }}
+
         title={newTitle}
         onTitleChange={setNewTitle}
         category={newCategory}
@@ -309,7 +334,12 @@ export default function SmartCalendarScreen() {
         onAddChecklistItem={addChecklistItem}
         onRemoveChecklistItem={removeChecklistItem}
         onSave={saveEvent}
+        mode={isEditingEvent ? 'edit' : 'add'}
+        saveButtonLabel={
+          isEditingEvent ? 'Save Changes' : 'Save Event & Schedule'
+        }
         modalSurface={modalSurface}
+
         borderTheme={borderTheme}
         textTheme={textTheme}
         textSubTheme={textSubTheme}
