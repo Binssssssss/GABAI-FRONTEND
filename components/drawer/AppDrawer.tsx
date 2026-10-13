@@ -1,6 +1,3 @@
-import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
   Animated,
@@ -11,6 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/theme';
 import { drawerStyles as styles } from './drawer.style';
@@ -87,13 +87,12 @@ export default function AppDrawer({
   const isDark = textPrimary === Colors.dark.text;
   const drawerColors = isDark ? DRAWER_PALETTES.dark : DRAWER_PALETTES.light;
 
-  const slideAnim = React.useMemo(
-    () => new Animated.Value(-drawerWidth),
-    [drawerWidth]
+  const [slideAnim] = React.useState(
+    () => new Animated.Value(-drawerWidth)
   );
 
   useEffect(() => {
-    AsyncStorage.getItem('gabai_user').then((storedUser) => {
+    AsyncStorage.getItem('gabai_user').then((storedUser: string | null) => {
       if (!storedUser) return;
 
       try {

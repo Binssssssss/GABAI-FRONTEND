@@ -11,7 +11,7 @@ export const getSubjectProgress = async (): Promise<
   SubjectProgress[]
 > => {
   const response = await api.get(
-    "/api/subject-progress",
+    "/subject-progress",
   );
 
   return response.data.data;

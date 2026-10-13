@@ -4,7 +4,11 @@ import {
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from 'expo-router/react-navigation';
-import { Stack, useSegments, useRouter } from 'expo-router';
+import {
+  Stack,
+  useRouter,
+  useSegments,
+} from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -47,13 +51,26 @@ export default function RootLayout() {
 }
 
 function AppNavigation() {
-  const { colorScheme, colors } = useAppTheme();
-  const { session, isLoading } = useAuth();
+  const {
+    colorScheme,
+    colors,
+  } = useAppTheme();
+
+  const {
+    session,
+    isLoading,
+  } = useAuth();
+
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading) {
+      return;
+    }
+
+    const isAuthRoute =
+      segments[0] === '(auth)';
 
     const isAuthRoute = segments[0] === '(auth)';
 
@@ -70,13 +87,33 @@ function AppNavigation() {
     ) {
       router.replace('/(tabs)/dashboard/dashboard');
     }
-  }, [isLoading, router, segments, session]);
 
-  if (isLoading) return null;
+    if (
+      session &&
+      (segments[0] === undefined ||
+        isAuthRoute)
+    ) {
+      router.replace(
+        '/(tabs)/dashboard/dashboard',
+      );
+    }
+  }, [
+    isLoading,
+    router,
+    segments,
+    session,
+  ]);
+
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <NavigationThemeProvider
-      value={createGabaiNavigationTheme(colorScheme, colors)}
+      value={createGabaiNavigationTheme(
+        colorScheme,
+        colors,
+      )}
     >
       <Stack>
         <Stack.Screen
@@ -91,7 +128,9 @@ function AppNavigation() {
 
         <Stack.Screen
           name="(tabs)"
-          options={{ headerShown: false }}
+          options={{
+            headerShown: false,
+          }}
         />
 
         <Stack.Screen
@@ -103,10 +142,16 @@ function AppNavigation() {
         />
 
         <Stack.Screen
-          name="calendar"
+          name="settings/notifications"
           options={{
-            presentation: 'modal',
-            title: 'Calendar',
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="settings/privacy"
+          options={{
+            headerShown: false,
           }}
         />
 
@@ -120,7 +165,11 @@ function AppNavigation() {
       </Stack>
 
       <StatusBar
-        style={colorScheme === 'dark' ? 'light' : 'dark'}
+        style={
+          colorScheme === 'dark'
+            ? 'light'
+            : 'dark'
+        }
       />
     </NavigationThemeProvider>
   );

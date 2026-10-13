@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   View,
@@ -6,6 +5,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { PROFILE_SECTIONS } from '../constants/profileConfig';
 import { profileStyles as styles } from '../styles/profile.styles';
@@ -26,8 +26,9 @@ export default function ProfileSettingsGroup({
   textSubTheme,
   primaryAccent,
 }: ProfileSettingsGroupProps) {
-  const { themeMode, setThemeMode } = useAppTheme();
 
+  const { themeMode, setThemeMode } = useAppTheme();
+  const router = useRouter();
   const handleThemePress = () => {
     Alert.alert(
       'Appearance',
@@ -96,11 +97,13 @@ export default function ProfileSettingsGroup({
 
                   <TouchableOpacity
                     style={styles.settingsItem}
-                    onPress={
-                      isAppearance
-                        ? handleThemePress
-                        : undefined
-                    }
+                    onPress={() => {
+                      if (isAppearance) {
+                        handleThemePress();
+                      } else if (item.route) {
+                        router.push(item.route as any);
+                      }
+                    }}
                     activeOpacity={0.7}
                   >
                     <View style={styles.settingsItemLeft}>

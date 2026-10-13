@@ -27,8 +27,10 @@ export function ThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const systemColorScheme = useColorScheme();
-  const resolvedSystemColorScheme: ResolvedColorScheme =
+  const systemColorScheme =
+    useColorScheme() ?? 'light';
+
+  const resolvedSystemScheme: ResolvedColorScheme =
     systemColorScheme === 'dark' ? 'dark' : 'light';
 
   const [themeMode, setThemeModeState] =
@@ -71,7 +73,7 @@ export function ThemeProvider({
 
   const colorScheme: ResolvedColorScheme =
     themeMode === 'system'
-      ? resolvedSystemColorScheme
+      ? resolvedSystemScheme
       : themeMode === 'dark'
         ? 'dark'
         : 'light';

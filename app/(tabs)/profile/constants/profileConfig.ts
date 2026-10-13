@@ -1,4 +1,3 @@
-
 import { SettingSection } from '../types';
 
 export const PROFILE_SECTIONS: SettingSection[] = [
@@ -29,12 +28,14 @@ export const PROFILE_SECTIONS: SettingSection[] = [
         title: 'Notification Settings',
         icon: 'bell',
         iconType: 'feather',
+        route: '/settings/notifications',
       },
       {
         id: 'privacy',
         title: 'Privacy & Security',
         icon: 'lock',
         iconType: 'feather',
+        route: '/settings/privacy',
       },
       {
         id: 'appearance',

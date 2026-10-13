@@ -38,9 +38,13 @@ export default function LinkToScheduleModal({
 }: LinkToScheduleModalProps) {
   if (!visible || !note) return null;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+  if (!note) return;
+
+  try {
     triggerHaptic();
-    localDb.addEvent({
+
+    await api.post('/tasks', {
       title: `Review: ${note.title}`,
       description: `Study notes from ${note.category}:\n\n${getNotePreview(note.content, 150)}`,
       date: dateInput,
@@ -48,16 +52,17 @@ export default function LinkToScheduleModal({
       category: 'Exam',
       duration: 60,
       priority: 'Medium',
-      isAllDay: false,
+      dueDate: dateInput,
+      dueTime: timeInput,
       hasReminder: true,
-      reminderTime: '15m',
-      isRecurring: false,
-      recurrenceRule: '',
-      progress: 0,
-      checklist: [],
+      subTasks: [],
     });
+
     onClose();
-  };
+  } catch (error) {
+    console.error('Failed to schedule note:', error);
+  }
+};
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

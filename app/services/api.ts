@@ -1,6 +1,19 @@
-
+﻿
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+
+const DEFAULT_API_URL =
+  'https://gabai-backend-bk7i.onrender.com';
+
+const API_URL = (
+  process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL
+)
+  .trim()
+  .replace(/\/+$/, '');
+
+const API_BASE_URL = API_URL.endsWith('/api')
+  ? API_URL
+  : `${API_URL}/api`;
 
 const api = axios.create({
   baseURL:
@@ -8,108 +21,105 @@ const api = axios.create({
     'http://192.168.1.10:8000/api',
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
 
+// Attach the existing GabAi authentication token.
 api.interceptors.request.use(
   async (config) => {
-    console.log('========== API REQUEST ==========');
-    console.log('BASE URL:', config.baseURL);
-    console.log('URL:', config.url);
-    console.log('METHOD:', config.method);
-
     try {
-      // Primary session storage
-      const session = await AsyncStorage.getItem(
-        'gabai.auth.session'
-      );
-      console.log(
-        'AUTH HEADER ATTACHED: YES'
+      const storedSession = await AsyncStorage.getItem(
+        'gabai.auth.session',
       );
 
       let token: string | null = null;
 
-      if (session) {
+      if (storedSession) {
         try {
-          const parsed = JSON.parse(session);
+          const session = JSON.parse(storedSession);
 
-          console.log(
-            'SESSION USER:',
-            parsed?.user?.email || 'No user'
-          );
-
-          // Current GabAi session structure
-          token = parsed?.token || null;
-
-          console.log(
-            'SESSION TOKEN EXISTS:',
-            !!token
-          );
+          if (
+            typeof session?.token === 'string' &&
+            session.token.trim().length > 0
+          ) {
+            token = session.token;
+          }
         } catch (error) {
-          console.log(
-            'SESSION PARSE ERROR:',
-            error
+          console.error(
+            'Failed to parse GabAi session:',
+            error,
           );
         }
       }
 
-      // Fallback for older login storage
       if (!token) {
-        token = await AsyncStorage.getItem(
-          'gabai_token'
-        );
-
-        console.log(
-          'LEGACY TOKEN EXISTS:',
-          !!token
-        );
+        token = await AsyncStorage.getItem('gabai_token');
       }
 
-      // Attach Authorization header
+      config.headers = config.headers ?? {};
+
       if (token) {
-        config.headers = config.headers || {};
-
-        config.headers.Authorization =
-          `Bearer ${token}`;
-
-        console.log(
-          'AUTH HEADER ATTACHED: YES'
-        );
-      } else {
-        console.log(
-          'AUTH HEADER ATTACHED: NO TOKEN'
+        config.headers.set(
+          'Authorization',
+          `Bearer ${token}`,
         );
       }
 
+      if (config.data !== undefined && config.data !== null) {
+        config.headers.set(
+          'Content-Type',
+          'application/json',
+        );
+      }
+
+      console.log('========== GABAI API REQUEST ==========');
+      console.log('BASE URL:', config.baseURL);
+      console.log('METHOD:', config.method?.toUpperCase());
+      console.log('ENDPOINT:', config.url);
       console.log(
         'FULL REQUEST URL:',
-        `${config.baseURL}${config.url}`
+        `${config.baseURL}${config.url ?? ''}`,
       );
-      console.log(
-        '================================'
-      );
+      console.log('AUTH TOKEN EXISTS:', Boolean(token));
+      console.log('=======================================');
 
       return config;
     } catch (error) {
-      console.log(
-        'API AUTH INTERCEPTOR ERROR:',
-        error
+      console.error(
+        'GabAi API request setup failed:',
+        error,
       );
-
-      return config;
+      return Promise.reject(error);
     }
   },
+  (error) => Promise.reject(error),
+);
+
+// Distinguish HTTP errors from connection failures.
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
-    console.log(
-      'API REQUEST INTERCEPTOR ERROR:',
-      error
-    );
+    if (error.response) {
+      console.error('========== GABAI API ERROR ==========');
+      console.error('STATUS:', error.response.status);
+      console.error('URL:', error.config?.url);
+      console.error('RESPONSE:', error.response.data);
+      console.error('=====================================');
+    } else {
+      console.error('========== NETWORK ERROR ==========');
+      console.error('MESSAGE:', error.message);
+      console.error('BASE URL:', error.config?.baseURL);
+      console.error('ENDPOINT:', error.config?.url);
+      console.error(
+        'FULL URL:',
+        `${error.config?.baseURL ?? ''}${error.config?.url ?? ''}`,
+      );
+      console.error('===================================');
+    }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
-

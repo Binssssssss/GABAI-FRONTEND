@@ -273,7 +273,8 @@ export function useNotesData() {
       isPin = editorIsPinned,
       isArch = editorIsArchived,
     ) => {
-      if (!title.trim() && !content.trim()) return;
+      try {
+        setIsSaving(true);
 
       const cleanTitle = title.trim() || 'Untitled Note';
       const session = draftSessionRef.current;
@@ -450,6 +451,9 @@ export function useNotesData() {
         historyRef.current.push(newContent);
         historyIndexRef.current = historyRef.current.length - 1;
       }
+    },
+    [editingNoteId],
+  );
 
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
@@ -763,9 +767,17 @@ export function useNotesData() {
   );
 
   return {
+    // Data
     notes,
     isLoadingNotes,
     filteredNotes,
+
+    // Loading
+    isLoading,
+    isSaving,
+
+    // Counts
+    totalNotes,
     pinnedNotes,
     unpinnedNotes,
     allUniqueTags,
@@ -773,14 +785,22 @@ export function useNotesData() {
 
     searchQuery,
     setSearchQuery,
+
+    // Filters
+    activeFilter,
+    setActiveFilter,
+
     selectedCategory,
     setSelectedCategory,
-    activeTabFilter,
-    setActiveTabFilter,
+
     selectedTag,
     setSelectedTag,
-    sortBy,
-    setSortBy,
+
+    // Sort
+    sortOption,
+    setSortOption,
+
+    // View
     viewMode,
     setViewMode,
 
@@ -788,24 +808,32 @@ export function useNotesData() {
     setIsFilterSheetOpen,
     isFabMenuOpen,
     setIsFabMenuOpen,
-    isEditorMoreMenuOpen,
-    setIsEditorMoreMenuOpen,
+
+    // Modals
     isTemplateModalOpen,
     setIsTemplateModalOpen,
 
     isEditorOpen,
     editingNoteId,
+
     editorTitle,
+    setEditorTitle,
+
     editorContent,
+    setEditorContent,
+
     editorCategory,
     setEditorCategory,
+
     editorTags,
-    editorTagInput,
-    setEditorTagInput,
+    setEditorTags,
+
     editorIsFavorite,
     setEditorIsFavorite,
+
     editorIsPinned,
     setEditorIsPinned,
+
     editorIsArchived,
     setEditorIsArchived,
     saveStatus,
@@ -820,6 +848,7 @@ export function useNotesData() {
     setTaskSubjectInput,
     taskPriorityInput,
     setTaskPriorityInput,
+
     taskCategoryInput,
     setTaskCategoryInput,
 
@@ -844,11 +873,25 @@ export function useNotesData() {
     handleAddTag,
     handleRemoveTag,
     handleDeleteNote,
-    handleArchiveToggle,
+
+    // Note actions
     handleFavoriteToggle,
     handlePinToggle,
-    handleDuplicateNote,
+    handleArchiveToggle,
+
+    // Editor actions
+    handleOpenNewNote,
+    handleOpenNote,
+    handleOpenQuickNote,
+    handleOpenTemplate,
+    saveCurrentNote,
+    handleCloseEditor,
+
+    // Task / schedule
+    handleConvertNoteToTask,
+    handleLinkToSchedule,
+
+    // Share
     handleShareNote,
-    handleApplyTemplate,
   };
 }

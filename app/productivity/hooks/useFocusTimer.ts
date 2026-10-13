@@ -1,3 +1,4 @@
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
@@ -14,8 +15,8 @@ import {
 import {
   FOCUS_MODE_DURATIONS,
   MOTIVATIONAL_AFFIRMATIONS,
-  ACADEMIC_SUBJECTS,
 } from '../constants/focusConfig';
+import { FocusMode, AmbientSound, FocusStats } from '../types';
 
 const FOCUS_SESSIONS_KEY = 'gabai.focus.sessions';
 
@@ -150,15 +151,16 @@ export function useFocusTimer() {
   const [showCompletionModal, setShowCompletionModal] =
     useState<boolean>(false);
 
-  const [completedDurationMin, setCompletedDurationMin] =
-    useState<number>(25);
+  const affirmation = MOTIVATIONAL_AFFIRMATIONS[
+    affirmationIndex % MOTIVATIONAL_AFFIRMATIONS.length
+  ];
 
-  const [affirmationIndex, setAffirmationIndex] =
-    useState<number>(0);
+  const formattedTime = useMemo(() => {
+    const minutes = Math.floor(secondsLeft / 60);
+    const seconds = secondsLeft % 60;
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, [secondsLeft]);
 
   const completedRef = useRef(false);
 
@@ -186,7 +188,6 @@ export function useFocusTimer() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  }, []);
 
   // Load saved sessions on mount.
   useEffect(() => {
@@ -435,12 +436,8 @@ export function useFocusTimer() {
     completedRef.current = false;
     setIsPaused(false);
     setIsRunning(true);
-  }, [
-    isRunning,
-    isPaused,
-    timeRemaining,
-    totalDuration,
-  ]);
+    setIsPaused(false);
+  }, []);
 
   // Strict Focus cannot be paused.
   const pauseTimer = useCallback(() => {
@@ -482,7 +479,7 @@ export function useFocusTimer() {
     if (!isRunning || !isPaused) return;
 
     setIsPaused(false);
-  }, [isRunning, isPaused]);
+  }, []);
 
   // Strict Focus cannot be reset while active, including while paused.
   const resetTimer = useCallback(() => {
@@ -631,15 +628,10 @@ export function useFocusTimer() {
 
     zenMode,
     setZenMode,
-
     ambientSound,
     setAmbientSound,
-
-    timeRemaining,
-    totalDuration,
     isRunning,
     isPaused,
-
     stats,
     sessionRecords,
     sessionsLoaded,
