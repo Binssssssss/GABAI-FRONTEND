@@ -1,34 +1,31 @@
+
 import { useAppTheme } from '@/app/context/ThemeContext';
+import { useFocusLock } from '@/app/context/FocusLockContext';
 import { Tabs, usePathname, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-    useEffect,
-    useState,
-} from 'react';
-import {
-    Alert,
-    StyleSheet,
-    View,
+  Alert,
+  StyleSheet,
+  View,
 } from 'react-native';
 
 import { localDb } from '@/app/services/localDb';
 import FloatingAssistant from '@/components/FloatingAssistant';
-
 import AppDrawer from '@/components/drawer/AppDrawer';
 
 import { useAuth } from '@/app/context/AuthContext';
 import {
-    DrawerContext,
-    useDrawer,
+  DrawerContext,
 } from '@/app/context/DrawerContext';
 
-export { useDrawer };
+export { useDrawer } from '@/app/context/DrawerContext';
 
 export default function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const { signOut } = useAuth();
-
   const { colors: theme } = useAppTheme();
+  const { isFocusLocked } = useFocusLock();
 
   const primaryBrown = '#A97C50';
   const successGreen = theme.success;
@@ -37,48 +34,60 @@ export default function TabLayout() {
   const bgTheme = theme.background;
   const textPrimary = theme.text;
   const textSecondary = theme.icon;
-
   const cardBg = theme.surface;
   const borderCol = theme.border;
 
   // Counts
-  const [notesCount, setNotesCount] =
-    useState(() =>
+  const [notesCount, setNotesCount] = useState(
+    () =>
       localDb
         .getNotes()
-        .filter((n) => !n.isArchived).length
-    );
+        .filter((note) => !note.isArchived).length
+  );
 
-  const [tasksCount, setTasksCount] =
-    useState(() =>
+  const [tasksCount, setTasksCount] = useState(
+    () =>
       localDb
         .getTasks()
-        .filter((t) => !t.completed).length
-    );
+        .filter((task) => !task.completed).length
+  );
 
   useEffect(() => {
     const unsubscribe = localDb.subscribe(() => {
       setNotesCount(
         localDb
           .getNotes()
-          .filter((n) => !n.isArchived).length
+          .filter((note) => !note.isArchived).length
       );
 
       setTasksCount(
         localDb
           .getTasks()
-          .filter((t) => !t.completed).length
+          .filter((task) => !task.completed).length
       );
     });
 
     return unsubscribe;
   }, []);
 
+  // Shared navigation lock warning
+  const showFocusLockAlert = () => {
+    Alert.alert(
+      'Strict Focus Active',
+      'Navigation is locked while your Strict Focus session is active. Finish your session before leaving.',
+      [{ text: 'Continue Focusing', style: 'cancel' }]
+    );
+  };
+
   // Drawer
-  const [isDrawerOpen, setIsDrawerOpen] =
-    useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const openDrawer = () => {
+    if (isFocusLocked) {
+      showFocusLockAlert();
+      return;
+    }
+
     setIsDrawerOpen(true);
   };
 
@@ -87,38 +96,51 @@ export default function TabLayout() {
   };
 
   const handleNavigate = (route: string) => {
+    if (isFocusLocked) {
+      closeDrawer();
+      showFocusLockAlert();
+      return;
+    }
+
     closeDrawer();
     router.replace(route as any);
   };
 
   const handleLogout = () => {
-  closeDrawer();
+    if (isFocusLocked) {
+      showFocusLockAlert();
+      return;
+    }
 
-  Alert.alert(
-    'Log Out',
-    'Are you sure you want to log out of GabAi?',
-    [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Log Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut();
+    closeDrawer();
 
-            // Navigate back to login
-            router.replace('/(auth)/login/login');
-          } catch (error) {
-            console.error('Logout failed:', error);
-          }
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out of GabAi?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
         },
-      },
-    ]
-  );
-};
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/(auth)/login/login');
+            } catch (error) {
+              console.error('Logout failed:', error);
+              Alert.alert(
+                'Logout Failed',
+                'Unable to log out. Please try again.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const isActiveRoute = (route: string) =>
     pathname.includes(route);
@@ -170,6 +192,14 @@ export default function TabLayout() {
     },
   ];
 
+  // Prevent tab presses while Strict Focus is locked.
+  const guardTabPress = (event: { preventDefault: () => void }) => {
+    if (isFocusLocked) {
+      event.preventDefault();
+      showFocusLockAlert();
+    }
+  };
+
   return (
     <DrawerContext.Provider
       value={{
@@ -181,12 +211,9 @@ export default function TabLayout() {
       <View
         style={[
           styles.container,
-          {
-            backgroundColor: bgTheme,
-          },
+          { backgroundColor: bgTheme },
         ]}
       >
-        {/* Tabs */}
         <Tabs
           screenOptions={{
             headerShown: false,
@@ -195,16 +222,39 @@ export default function TabLayout() {
             },
           }}
         >
-          <Tabs.Screen name="dashboard/dashboard" />
-          <Tabs.Screen name="calendar/calendar" />
-          <Tabs.Screen name="tasks/task" />
-          <Tabs.Screen name="notes/notes" />
-          <Tabs.Screen name="expenses/expenses" />
-          <Tabs.Screen name="profile/profile" />
+          <Tabs.Screen
+            name="dashboard/dashboard"
+            listeners={{ tabPress: guardTabPress }}
+          />
+
+          <Tabs.Screen
+            name="calendar/calendar"
+            listeners={{ tabPress: guardTabPress }}
+          />
+
+          <Tabs.Screen
+            name="tasks/task"
+            listeners={{ tabPress: guardTabPress }}
+          />
+
+          <Tabs.Screen
+            name="notes/notes"
+            listeners={{ tabPress: guardTabPress }}
+          />
+
+          <Tabs.Screen
+            name="expenses/expenses"
+            listeners={{ tabPress: guardTabPress }}
+          />
+
+          <Tabs.Screen
+            name="profile/profile"
+            listeners={{ tabPress: guardTabPress }}
+          />
         </Tabs>
 
-        {/* Floating Assistant */}
-        <FloatingAssistant />
+        {/* Hide the assistant shortcut during Strict Focus */}
+        {!isFocusLocked && <FloatingAssistant />}
 
         {/* Side Drawer */}
         <AppDrawer

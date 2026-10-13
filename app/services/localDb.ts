@@ -472,273 +472,287 @@ Use client-side operational timestamps + CRDT-inspired lightweight merge resolut
   },
 ];
 
-class LocalDatabase {
-  private tasks: Task[] = [...INITIAL_TASKS];
-  private transactions: Transaction[] = [...INITIAL_TRANSACTIONS];
-  private events: CalendarEvent[] = [...INITIAL_EVENTS];
-  private notes: Note[] = [...INITIAL_NOTES];
-  private listeners: (() => void)[] = [];
-  private activeUserId: string | null = null;
+function getLocalDateString(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
 
-  activateUser(userId: string) {
-    if (!userId || this.activeUserId === userId) return;
-
-    this.activeUserId = userId;
-    this.tasks = [];
-    this.transactions = [];
-    this.events = [];
-    this.notes = [];
-    this.notify();
-  }
-
-  clearActiveUser() {
-    this.activeUserId = null;
-    this.tasks = [];
-    this.transactions = [];
-    this.events = [];
-    this.notes = [];
-    this.notify();
-  }
-
-  getActiveUserId() {
-    return this.activeUserId;
-  }
-
-  // Subscribe to changes
-  subscribe(listener: () => void): () => void {
-    this.listeners.push(listener);
-    return () => {
-      this.listeners = this.listeners.filter((l) => l !== listener);
-    };
-  }
-
-  private notify() {
-    this.listeners.forEach((listener) => {
-      try {
-        listener();
-      } catch (err) {
-        console.error('Error in subscriber:', err);
-      }
-    });
-  }
-
-  // Tasks API
-  getTasks(): Task[] {
-    return this.tasks;
-  }
-
-  setTasks(tasks: Task[]) {
-    this.tasks = tasks;
-    this.notify();
-  }
-
-  addTask(task: Omit<Task, 'id' | 'createdAt'>): Task {
-    const newTask: Task = {
-      ...task,
-      id: Date.now().toString(),
-      createdAt: Date.now(),
-    };
-    this.tasks = [newTask, ...this.tasks];
-    this.notify();
-    return newTask;
-  }
-
-  updateTask(taskId: string, updates: Partial<Task>) {
-    this.tasks = this.tasks.map((task) =>
-      task.id === taskId ? { ...task, ...updates } : task
-    );
-    this.notify();
-  }
-
-  toggleTaskCompleted(taskId: string) {
-    this.tasks = this.tasks.map((task) =>
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    );
-    this.notify();
-  }
-
-  // Transactions API
-  getTransactions(): Transaction[] {
-    return this.transactions;
-  }
-
-  setTransactions(transactions: Transaction[]) {
-    this.transactions = transactions;
-    this.notify();
-  }
-
-  addTransaction(tx: Omit<Transaction, 'id'>): Transaction {
-    const newTx: Transaction = {
-      ...tx,
-      id: Date.now().toString(),
-    };
-    this.transactions = [newTx, ...this.transactions];
-    this.notify();
-    return newTx;
-  }
-
-  // Calendar Events API
-  getEvents(): CalendarEvent[] {
-    return this.events;
-  }
-
-  setEvents(events: CalendarEvent[]) {
-    this.events = events;
-    this.notify();
-  }
-
-  addEvent(event: Omit<CalendarEvent, 'id'>): CalendarEvent {
-    const newEvent: CalendarEvent = {
-      ...event,
-      id: Date.now().toString(),
-    };
-    this.events = [newEvent, ...this.events];
-    this.notify();
-    return newEvent;
-  }
-
-  // Notes API
-  getNotes(): Note[] {
-    return this.notes;
-  }
-
-  setNotes(notes: Note[]) {
-    this.notes = notes;
-    this.notify();
-  }
-
-  addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Note {
-    const now = Date.now();
-    const newNote: Note = {
-      ...note,
-      id: 'note-' + now.toString(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.notes = [newNote, ...this.notes];
-    this.notify();
-    return newNote;
-  }
-
-  updateNote(noteId: string, updates: Partial<Note>): Note | undefined {
-    let updatedNote: Note | undefined;
-    this.notes = this.notes.map((note) => {
-      if (note.id === noteId) {
-        updatedNote = {
-          ...note,
-          ...updates,
-          updatedAt: Date.now(),
-        };
-        return updatedNote;
-      }
-      return note;
-    });
-    this.notify();
-    return updatedNote;
-  }
-
-  deleteNote(noteId: string): boolean {
-    const initialLen = this.notes.length;
-    this.notes = this.notes.filter((note) => note.id !== noteId);
-    const deleted = this.notes.length < initialLen;
-    if (deleted) {
-      this.notify();
-    }
-    return deleted;
-  }
-
-  toggleNoteFavorite(noteId: string) {
-    this.notes = this.notes.map((note) =>
-      note.id === noteId ? { ...note, isFavorite: !note.isFavorite, updatedAt: Date.now() } : note
-    );
-    this.notify();
-  }
-
-  toggleNotePinned(noteId: string) {
-    this.notes = this.notes.map((note) =>
-      note.id === noteId ? { ...note, isPinned: !note.isPinned, updatedAt: Date.now() } : note
-    );
-    this.notify();
-  }
-
-  toggleNoteArchived(noteId: string) {
-    this.notes = this.notes.map((note) =>
-      note.id === noteId ? { ...note, isArchived: !note.isArchived, updatedAt: Date.now() } : note
-    );
-    this.notify();
-  }
-
-  // GabAI Integration Helpers
-  convertNoteToTask(noteId: string, customOptions?: Partial<Task>): Task | null {
-    const note = this.notes.find((n) => n.id === noteId);
-    if (!note) return null;
-
-    // Map category
-    let taskCategory: Task['category'] = 'Academic';
-    if (note.category === 'Personal') taskCategory = 'Personal';
-    else if (note.category === 'Projects') taskCategory = 'Projects';
-    else if (note.category === 'Review') taskCategory = 'Exams';
-    else if (note.category === 'Ideas') taskCategory = 'Activities';
-
-    // Format date string for today/tomorrow
-    const d = new Date();
-    const dueDateStr = d.toISOString().split('T')[0];
-
-    const newTask = this.addTask({
-      title: customOptions?.title || note.title,
-      description: customOptions?.description || `Converted from Note "${note.title}":\n\n` + (note.content.length > 200 ? note.content.substring(0, 197) + '...' : note.content),
-      subject: customOptions?.subject || (note.tags[0] ? note.tags[0].replace('#', '') : 'General'),
-      category: customOptions?.category || taskCategory,
-      priority: customOptions?.priority || (note.isPinned ? 'High' : 'Medium'),
-      difficulty: customOptions?.difficulty || 'Medium',
-      duration: customOptions?.duration || 1.5,
-      dueDate: customOptions?.dueDate || dueDateStr,
-      dueTime: customOptions?.dueTime || '18:00',
-      completed: false,
-      hasReminder: customOptions?.hasReminder !== undefined ? customOptions.hasReminder : true,
-      repeat: customOptions?.repeat || 'None',
-      isPinned: note.isPinned,
-      isFavorite: note.isFavorite,
-      attachments: 1,
-      subTasks: [],
-    });
-
-    return newTask;
-  }
-
-  linkNoteToSchedule(noteId: string, eventData?: Partial<CalendarEvent>): CalendarEvent | null {
-    const note = this.notes.find((n) => n.id === noteId);
-    if (!note) return null;
-
-    const d = new Date();
-    const dateStr = d.toISOString().split('T')[0];
-
-    let eventCategory: CalendarEvent['category'] = 'Personal';
-    if (note.category === 'School' || note.category === 'Study Note') eventCategory = 'Class';
-    else if (note.category === 'Review') eventCategory = 'Exam';
-    else if (note.category === 'Projects') eventCategory = 'Assignment';
-    else if (note.category === 'Personal') eventCategory = 'Personal';
-
-    const newEvent = this.addEvent({
-      title: eventData?.title || `Study: ${note.title}`,
-      category: eventData?.category || eventCategory,
-      date: eventData?.date || dateStr,
-      time: eventData?.time || '15:00',
-      duration: eventData?.duration || 60,
-      priority: eventData?.priority || (note.isPinned ? 'High' : 'Medium'),
-      isAllDay: false,
-      hasReminder: true,
-      reminderTime: '15 minutes before',
-      isRecurring: false,
-      recurrenceRule: '',
-      progress: 0,
-      checklist: [],
-      description: `Note reference: "${note.title}". ${note.content.substring(0, 150)}...`,
-    });
-
-    return newEvent;
-  }
+  return `${year}-${month}-${day}`;
 }
 
-export const localDb = new LocalDatabase();
-export default localDb;
+  class LocalDatabase {
+    private tasks: Task[] = [...INITIAL_TASKS];
+    private transactions: Transaction[] = [...INITIAL_TRANSACTIONS];
+    private events: CalendarEvent[] = [...INITIAL_EVENTS];
+    private notes: Note[] = [...INITIAL_NOTES];
+    private listeners: (() => void)[] = [];
+    private activeUserId: string | null = null;
+
+    activateUser(userId: string) {
+      if (!userId || this.activeUserId === userId) return;
+
+      this.activeUserId = userId;
+      this.tasks = [];
+      this.transactions = [];
+      this.events = [];
+      this.notes = [];
+      this.notify();
+    }
+
+    clearActiveUser() {
+      this.activeUserId = null;
+      this.tasks = [];
+      this.transactions = [];
+      this.events = [];
+      this.notes = [];
+      this.notify();
+    }
+
+    getActiveUserId() {
+      return this.activeUserId;
+    }
+
+    // Subscribe to changes
+    subscribe(listener: () => void): () => void {
+      this.listeners.push(listener);
+      return () => {
+        this.listeners = this.listeners.filter((l) => l !== listener);
+      };
+    }
+
+    private notify() {
+      this.listeners.forEach((listener) => {
+        try {
+          listener();
+        } catch (err) {
+          console.error('Error in subscriber:', err);
+        }
+      });
+    }
+
+    // Tasks API
+    getTasks(): Task[] {
+      return this.tasks;
+    }
+
+    setTasks(tasks: Task[]) {
+      this.tasks = tasks;
+      this.notify();
+    }
+
+    addTask(task: Omit<Task, 'id' | 'createdAt'>): Task {
+      const newTask: Task = {
+        ...task,
+        id: Date.now().toString(),
+        createdAt: Date.now(),
+      };
+      this.tasks = [newTask, ...this.tasks];
+      this.notify();
+      return newTask;
+    }
+
+    updateTask(taskId: string, updates: Partial<Task>) {
+      this.tasks = this.tasks.map((task) =>
+        task.id === taskId ? { ...task, ...updates } : task
+      );
+      this.notify();
+    }
+
+    toggleTaskCompleted(taskId: string) {
+      this.tasks = this.tasks.map((task) =>
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      );
+      this.notify();
+    }
+
+    // Transactions API
+    getTransactions(): Transaction[] {
+      return this.transactions;
+    }
+
+    setTransactions(transactions: Transaction[]) {
+      this.transactions = transactions;
+      this.notify();
+    }
+
+    addTransaction(tx: Omit<Transaction, 'id'>): Transaction {
+      const newTx: Transaction = {
+        ...tx,
+        id: Date.now().toString(),
+      };
+      this.transactions = [newTx, ...this.transactions];
+      this.notify();
+      return newTx;
+    }
+
+    // Calendar Events API
+    getEvents(): CalendarEvent[] {
+      return this.events;
+    }
+
+    setEvents(events: CalendarEvent[]) {
+      this.events = events;
+      this.notify();
+    }
+
+    addEvent(event: Omit<CalendarEvent, 'id'>): CalendarEvent {
+      const newEvent: CalendarEvent = {
+        ...event,
+        id: Date.now().toString(),
+      };
+      this.events = [newEvent, ...this.events];
+      this.notify();
+      return newEvent;
+    }
+
+    // Notes API
+    getNotes(): Note[] {
+      return this.notes;
+    }
+
+    setNotes(notes: Note[]) {
+      this.notes = notes;
+      this.notify();
+    }
+
+
+    addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Note {
+      const now = Date.now();
+      const randomSuffix = Math.random().toString(36).slice(2, 10);
+
+      const newNote: Note = {
+        ...note,
+        id: `note-${now}-${randomSuffix}`,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      this.notes = [newNote, ...this.notes];
+      this.notify();
+
+      return newNote;
+    }
+
+    updateNote(noteId: string, updates: Partial<Note>): Note | undefined {
+      let updatedNote: Note | undefined;
+      this.notes = this.notes.map((note) => {
+        if (note.id === noteId) {
+          updatedNote = {
+            ...note,
+            ...updates,
+            updatedAt: Date.now(),
+          };
+          return updatedNote;
+        }
+        return note;
+      });
+      this.notify();
+      return updatedNote;
+    }
+
+    deleteNote(noteId: string): boolean {
+      const initialLen = this.notes.length;
+      this.notes = this.notes.filter((note) => note.id !== noteId);
+      const deleted = this.notes.length < initialLen;
+      if (deleted) {
+        this.notify();
+      }
+      return deleted;
+    }
+
+    toggleNoteFavorite(noteId: string) {
+      this.notes = this.notes.map((note) =>
+        note.id === noteId ? { ...note, isFavorite: !note.isFavorite, updatedAt: Date.now() } : note
+      );
+      this.notify();
+    }
+
+    toggleNotePinned(noteId: string) {
+      this.notes = this.notes.map((note) =>
+        note.id === noteId ? { ...note, isPinned: !note.isPinned, updatedAt: Date.now() } : note
+      );
+      this.notify();
+    }
+
+    toggleNoteArchived(noteId: string) {
+      this.notes = this.notes.map((note) =>
+        note.id === noteId ? { ...note, isArchived: !note.isArchived, updatedAt: Date.now() } : note
+      );
+      this.notify();
+    }
+
+    // GabAI Integration Helpers
+    convertNoteToTask(noteId: string, customOptions?: Partial<Task>): Task | null {
+      const note = this.notes.find((n) => n.id === noteId);
+      if (!note) return null;
+
+      // Map category
+      let taskCategory: Task['category'] = 'Academic';
+      if (note.category === 'Personal') taskCategory = 'Personal';
+      else if (note.category === 'Projects') taskCategory = 'Projects';
+      else if (note.category === 'Review') taskCategory = 'Exams';
+      else if (note.category === 'Ideas') taskCategory = 'Activities';
+
+      // Format date string for today/tomorrow
+      const d = new Date();
+      const dueDateStr = getLocalDateString();
+
+      const newTask = this.addTask({
+        title: customOptions?.title || note.title,
+        description: customOptions?.description || `Converted from Note "${note.title}":\n\n` + (note.content.length > 200 ? note.content.substring(0, 197) + '...' : note.content),
+        subject: customOptions?.subject || (note.tags[0] ? note.tags[0].replace('#', '') : 'General'),
+        category: customOptions?.category || taskCategory,
+        priority: customOptions?.priority || (note.isPinned ? 'High' : 'Medium'),
+        difficulty: customOptions?.difficulty || 'Medium',
+        duration: customOptions?.duration || 1.5,
+        dueDate: customOptions?.dueDate || dueDateStr,
+        dueTime: customOptions?.dueTime || '18:00',
+        completed: false,
+        hasReminder: customOptions?.hasReminder !== undefined ? customOptions.hasReminder : true,
+        repeat: customOptions?.repeat || 'None',
+        isPinned: note.isPinned,
+        isFavorite: note.isFavorite,
+        attachments: 1,
+        subTasks: [],
+      });
+
+      return newTask;
+    }
+
+    linkNoteToSchedule(noteId: string, eventData?: Partial<CalendarEvent>): CalendarEvent | null {
+      const note = this.notes.find((n) => n.id === noteId);
+      if (!note) return null;
+
+      const d = new Date();
+      const dateStr = getLocalDateString();
+
+
+      let eventCategory: CalendarEvent['category'] = 'Personal';
+      if (note.category === 'School' || note.category === 'Study Note') eventCategory = 'Class';
+      else if (note.category === 'Review') eventCategory = 'Exam';
+      else if (note.category === 'Projects') eventCategory = 'Assignment';
+      else if (note.category === 'Personal') eventCategory = 'Personal';
+
+      const newEvent = this.addEvent({
+        title: eventData?.title || `Study: ${note.title}`,
+        category: eventData?.category || eventCategory,
+        date: eventData?.date || dateStr,
+        time: eventData?.time || '15:00',
+        duration: eventData?.duration || 60,
+        priority: eventData?.priority || (note.isPinned ? 'High' : 'Medium'),
+        isAllDay: false,
+        hasReminder: true,
+        reminderTime: '15 minutes before',
+        isRecurring: false,
+        recurrenceRule: '',
+        progress: 0,
+        checklist: [],
+        description: `Note reference: "${note.title}". ${note.content.substring(0, 150)}...`,
+      });
+
+      return newEvent;
+    }
+  }
+
+  export const localDb = new LocalDatabase();
+  export default localDb;

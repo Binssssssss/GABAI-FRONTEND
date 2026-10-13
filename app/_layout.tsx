@@ -1,3 +1,4 @@
+
 import {
   DarkTheme,
   DefaultTheme,
@@ -12,26 +13,16 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
-import {
-  ThemeProvider,
-  useAppTheme,
-} from '@/app/context/ThemeContext';
-
-import {
-  AuthProvider,
-  useAuth,
-} from '@/app/context/AuthContext';
-
-import AppLockGate from '@/components/AppLockGate';
+import { FocusLockProvider } from '@/app/context/FocusLockContext';
+import { ThemeProvider, useAppTheme } from '@/app/context/ThemeContext';
+import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 
 function createGabaiNavigationTheme(
   colorScheme: 'light' | 'dark',
-  colors: any,
+  colors: any
 ) {
   const baseTheme =
-    colorScheme === 'dark'
-      ? DarkTheme
-      : DefaultTheme;
+    colorScheme === 'dark' ? DarkTheme : DefaultTheme;
 
   return {
     ...baseTheme,
@@ -51,9 +42,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppLockGate>
+        <FocusLockProvider>
           <AppNavigation />
-        </AppLockGate>
+        </FocusLockProvider>
       </AuthProvider>
     </ThemeProvider>
   );
@@ -81,17 +72,20 @@ function AppNavigation() {
     const isAuthRoute =
       segments[0] === '(auth)';
 
+    const isAuthRoute = segments[0] === '(auth)';
+
     const isAppRoute =
       segments[0] === '(tabs)' ||
       segments[0] === 'assistant' ||
-      segments[0] === 'productivity' ||
-      segments[0] === 'settings';
+      segments[0] === 'productivity';
 
     if (!session && isAppRoute) {
-      router.replace(
-        '/(auth)/login/login',
-      );
-      return;
+      router.replace('/(auth)/login/login');
+    } else if (
+      session &&
+      (segments[0] === undefined || isAuthRoute)
+    ) {
+      router.replace('/(tabs)/dashboard/dashboard');
     }
 
     if (
@@ -124,16 +118,12 @@ function AppNavigation() {
       <Stack>
         <Stack.Screen
           name="index"
-          options={{
-            headerShown: false,
-          }}
+          options={{ headerShown: false }}
         />
 
         <Stack.Screen
           name="(auth)"
-          options={{
-            headerShown: false,
-          }}
+          options={{ headerShown: false }}
         />
 
         <Stack.Screen

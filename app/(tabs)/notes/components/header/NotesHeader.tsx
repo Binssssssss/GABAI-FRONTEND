@@ -38,44 +38,42 @@ export default function NotesHeader({
           onPress={onOpenDrawer}
           style={[styles.menuButton, { backgroundColor: cardBg, borderColor: borderCol }]}
         >
-          <Feather name="menu" size={20} color={textPrimary} />
+          <Feather name="menu" size={18} color={textPrimary} />
         </TouchableOpacity>
+
         <View style={styles.headerTitleBlock}>
           <View style={styles.titleRow}>
-            <Text style={[styles.headerTitle, { color: textPrimary }]}>Notes</Text>
+            <Text style={[styles.headerTitle, { color: textPrimary }]}>My Notes</Text>
             <View style={[styles.counterBadge, { backgroundColor: primaryBrown + '20' }]}>
               <Text style={[styles.counterText, { color: primaryBrown }]}>{totalNotesCount}</Text>
             </View>
           </View>
           <Text style={[styles.headerSubtitle, { color: textSecondary }]}>
-            Academic & personal knowledge
+            Your ideas, organized.
           </Text>
         </View>
       </View>
 
       <View style={styles.headerRight}>
-        {/* Toggle Grid/List */}
-        <TouchableOpacity
-          onPress={onToggleViewMode}
-          style={[styles.menuButton, { backgroundColor: cardBg, borderColor: borderCol, marginRight: 0 }]}
-        >
-          <Feather name={viewMode === 'grid' ? 'list' : 'grid'} size={18} color={textPrimary} />
-        </TouchableOpacity>
-
-        {/* Template Button */}
         <TouchableOpacity
           onPress={onOpenTemplateModal}
           style={[styles.menuButton, { backgroundColor: cardBg, borderColor: borderCol, marginRight: 0 }]}
         >
-          <Feather name="layout" size={18} color={primaryBrown} />
+          <Feather name="layout" size={17} color={primaryBrown} />
         </TouchableOpacity>
 
-        {/* Add Note Button */}
+        <TouchableOpacity
+          onPress={onToggleViewMode}
+          style={[styles.menuButton, { backgroundColor: cardBg, borderColor: borderCol, marginRight: 0 }]}
+        >
+          <Feather name={viewMode === 'grid' ? 'list' : 'grid'} size={17} color={textPrimary} />
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={onOpenNewNote}
           style={[styles.primaryHeaderBtn, { backgroundColor: primaryBrown }]}
         >
-          <Feather name="plus" size={18} color="#FFFFFF" />
+          <Feather name="plus" size={17} color="#FFFFFF" />
           <Text style={styles.primaryHeaderBtnText}>New</Text>
         </TouchableOpacity>
       </View>

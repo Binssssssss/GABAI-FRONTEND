@@ -1,47 +1,51 @@
+
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import {
-    ScrollView,
-    StatusBar,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  BackHandler,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-    AmbientNoiseWidget,
-    FocusModeTabs,
-    FocusStatsOverview,
-    SessionCompletionModal,
-    StrictControls,
-    SubjectSelector,
-    TimerRingDisplay,
+  AmbientNoiseWidget,
+  FocusModeTabs,
+  FocusStatsOverview,
+  SessionCompletionModal,
+  StrictControls,
+  SubjectSelector,
+  TimerRingDisplay,
 } from './components';
 
 import { useAppTheme } from '@/app/context/ThemeContext';
+import { useFocusLock } from '@/app/context/FocusLockContext';
 import { useFocusTimer } from './hooks/useFocusTimer';
 import { focusStyles as styles } from './styles/focus.styles';
 
 export default function StrictFocusSessionScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { isFocusLocked } = useFocusLock();
 
   const { colors, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
 
-const COLORS = {
-  primary: '#A97C50',
-
-  background: colors.background,
-  card: colors.surface,
-  border: colors.border,
-
-  text: colors.text,
-  subtext: colors.icon,
-
-  danger: colors.danger,
-  zenBackground: '#0B0F19',
-};
+  const COLORS = {
+    primary: '#A97C50',
+    background: colors.background,
+    card: colors.surface,
+    border: colors.border,
+    text: colors.text,
+    subtext: colors.icon,
+    danger: colors.danger,
+    zenBackground: '#0B0F19',
+  };
 
   const {
     currentMode,
@@ -70,9 +74,34 @@ const COLORS = {
     finishEarly,
   } = useFocusTimer();
 
-  // ===================================
+  // Prevent Android hardware Back while Strict Focus is locked.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (!navigation.isFocused() || !isFocusLocked) {
+          return false;
+        }
+
+        Alert.alert(
+          'Strict Focus Active',
+          'You cannot leave while Strict Focus is active. Finish your session first.',
+          [
+            {
+              text: 'Continue Focusing',
+              style: 'cancel',
+            },
+          ]
+        );
+
+        return true;
+      }
+    );
+
+    return () => subscription.remove();
+  }, [isFocusLocked, navigation]);
+
   // Zen Fullscreen Mode
-  // ===================================
   if (zenMode) {
     return (
       <View
@@ -83,15 +112,23 @@ const COLORS = {
       >
         <StatusBar hidden />
 
-        <TouchableOpacity
-          style={[
-            styles.zenExitBtn,
-            { borderColor: '#2E384D' },
-          ]}
-          onPress={() => setZenMode(false)}
-        >
-          <Feather name="minimize-2" size={18} color="#9BA1A6" />
-        </TouchableOpacity>
+        {!isFocusLocked && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Exit Zen Mode"
+            style={[
+              styles.zenExitBtn,
+              { borderColor: '#2E384D' },
+            ]}
+            onPress={() => setZenMode(false)}
+          >
+            <Feather
+              name="minimize-2"
+              size={18}
+              color="#9BA1A6"
+            />
+          </TouchableOpacity>
+        )}
 
         <Text
           style={[
@@ -115,13 +152,13 @@ const COLORS = {
           style={[
             styles.zenStrictNotice,
             {
-              color: isStrict
+              color: isFocusLocked
                 ? COLORS.danger
                 : '#9BA1A6',
             },
           ]}
         >
-          {isStrict
+          {isFocusLocked
             ? '🛡️ Strict Focus Locked'
             : 'Zen Focus Mode'}
         </Text>
@@ -131,10 +168,14 @@ const COLORS = {
             flexDirection: 'row',
             gap: 20,
             marginTop: 40,
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           {!isRunning ? (
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Start focus timer"
               style={[
                 styles.controlMainBtn,
                 { backgroundColor: COLORS.primary },
@@ -144,12 +185,14 @@ const COLORS = {
               <Feather
                 name="play"
                 size={24}
-                color="#FFF"
+                color="#FFFFFF"
                 style={{ marginLeft: 3 }}
               />
             </TouchableOpacity>
           ) : isPaused ? (
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Resume focus timer"
               style={[
                 styles.controlMainBtn,
                 { backgroundColor: COLORS.primary },
@@ -159,12 +202,35 @@ const COLORS = {
               <Feather
                 name="play"
                 size={24}
-                color="#FFF"
+                color="#FFFFFF"
                 style={{ marginLeft: 3 }}
               />
             </TouchableOpacity>
+          ) : isFocusLocked ? (
+            <View
+              accessibilityRole="image"
+              accessibilityLabel="Strict Focus is locked"
+              style={[
+                styles.controlMainBtn,
+                {
+                  backgroundColor: '#1E1E1E',
+                  borderWidth: 1,
+                  borderColor: COLORS.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                },
+              ]}
+            >
+              <Feather
+                name="shield"
+                size={24}
+                color={COLORS.primary}
+              />
+            </View>
           ) : (
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Pause focus timer"
               style={[
                 styles.controlMainBtn,
                 { backgroundColor: COLORS.danger },
@@ -174,7 +240,7 @@ const COLORS = {
               <Feather
                 name="pause"
                 size={24}
-                color="#FFF"
+                color="#FFFFFF"
               />
             </TouchableOpacity>
           )}
@@ -183,9 +249,7 @@ const COLORS = {
     );
   }
 
-  // ===================================
   // Main Screen
-  // ===================================
   return (
     <SafeAreaView
       edges={['top']}
@@ -195,9 +259,7 @@ const COLORS = {
       ]}
     >
       <StatusBar
-        barStyle={
-          isDark ? 'light-content' : 'dark-content'
-        }
+        barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={COLORS.background}
       />
 
@@ -205,11 +267,27 @@ const COLORS = {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
             style={[
               styles.backButton,
               { backgroundColor: COLORS.card },
             ]}
             onPress={() => {
+              if (isFocusLocked) {
+                Alert.alert(
+                  'Strict Focus Active',
+                  'You cannot leave while Strict Focus is active. Finish your session first.',
+                  [
+                    {
+                      text: 'Continue Focusing',
+                      style: 'cancel',
+                    },
+                  ]
+                );
+                return;
+              }
+
               if (router.canGoBack()) {
                 router.back();
               } else {
@@ -234,22 +312,83 @@ const COLORS = {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.iconButton,
-            {
-              backgroundColor: COLORS.card,
-              borderColor: COLORS.border,
-            },
-          ]}
-          onPress={() => setZenMode(true)}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}
         >
-          <Feather
-            name="maximize-2"
-            size={16}
-            color={COLORS.text}
-          />
-        </TouchableOpacity>
+          {/* Focus History */}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="View focus history"
+            onPress={() => {
+              if (isFocusLocked) {
+                Alert.alert(
+                  'Strict Focus Active',
+                  'Focus History is unavailable while Strict Focus is active. Finish your session first.',
+                  [
+                    {
+                      text: 'Continue Focusing',
+                      style: 'cancel',
+                    },
+                  ]
+                );
+                return;
+              }
+
+              router.push('/productivity/history');
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              paddingHorizontal: 10,
+              paddingVertical: 10,
+              borderRadius: 12,
+              backgroundColor: COLORS.card,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+            }}
+          >
+            <Feather
+              name="clock"
+              size={15}
+              color={COLORS.primary}
+            />
+
+            <Text
+              style={{
+                color: COLORS.text,
+                fontSize: 12,
+                fontWeight: '600',
+              }}
+            >
+              History
+            </Text>
+          </TouchableOpacity>
+
+          {/* Zen Mode */}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Enter Zen Mode"
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+              },
+            ]}
+            onPress={() => setZenMode(true)}
+          >
+            <Feather
+              name="maximize-2"
+              size={16}
+              color={COLORS.text}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -282,6 +421,7 @@ const COLORS = {
           </Text>
         </View>
 
+        {/* Focus Modes */}
         <FocusModeTabs
           currentMode={currentMode}
           onSelectMode={handleSelectMode}
@@ -292,6 +432,7 @@ const COLORS = {
           primaryAccent={COLORS.primary}
         />
 
+        {/* Timer */}
         <TimerRingDisplay
           formattedTime={formattedTime}
           progressPercent={progressPercent}
@@ -307,6 +448,7 @@ const COLORS = {
           primaryAccent={COLORS.primary}
         />
 
+        {/* Timer Controls */}
         <StrictControls
           isRunning={isRunning}
           isPaused={isPaused}
@@ -322,8 +464,10 @@ const COLORS = {
           textPrimary={COLORS.text}
           textSecondary={COLORS.subtext}
           primaryAccent={COLORS.primary}
+          isFocusLocked={isFocusLocked}
         />
 
+        {/* Subject Selection */}
         <SubjectSelector
           selectedSubject={selectedSubject}
           onSelectSubject={setSelectedSubject}
@@ -334,6 +478,7 @@ const COLORS = {
           primaryAccent={COLORS.primary}
         />
 
+        {/* Ambient Sounds */}
         <AmbientNoiseWidget
           ambientSound={ambientSound}
           onSelectAmbientSound={setAmbientSound}
@@ -344,6 +489,7 @@ const COLORS = {
           primaryAccent={COLORS.primary}
         />
 
+        {/* Focus Statistics */}
         <FocusStatsOverview
           stats={stats}
           cardBg={COLORS.card}
@@ -354,6 +500,7 @@ const COLORS = {
         />
       </ScrollView>
 
+      {/* Session Completion */}
       <SessionCompletionModal
         visible={showCompletionModal}
         subject={selectedSubject}

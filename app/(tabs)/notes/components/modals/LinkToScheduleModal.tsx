@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Note } from '@/app/services/localDb';
-import api from '@/app/services/api';
-import { triggerHaptic } from '../../utils/noteHelpers';
+import { localDb, Note } from '@/app/services/localDb';
+import { getNotePreview, triggerHaptic } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
 
 interface LinkToScheduleModalProps {
@@ -47,8 +46,11 @@ export default function LinkToScheduleModal({
 
     await api.post('/tasks', {
       title: `Review: ${note.title}`,
-      description: `Study notes from ${note.category}:\n\n${note.content.slice(0, 150)}...`,
-      subject: note.category || 'General',
+      description: `Study notes from ${note.category}:\n\n${getNotePreview(note.content, 150)}`,
+      date: dateInput,
+      time: timeInput,
+      category: 'Exam',
+      duration: 60,
       priority: 'Medium',
       dueDate: dateInput,
       dueTime: timeInput,

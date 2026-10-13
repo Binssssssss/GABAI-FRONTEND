@@ -19,91 +19,7 @@ export default function NotesModalContainer({
   notesData,
   theme,
 }: NotesModalContainerProps) {
-  const [tagInput, setTagInput] = useState('');
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [scheduleTargetNote, setScheduleTargetNote] =
-    useState<LocalNote | null>(null);
-  const [convertTargetNote, setConvertTargetNote] =
-    useState<LocalNote | null>(null);
-  const [scheduleTimeInput, setScheduleTimeInput] =
-    useState('18:00');
-  const [undoStack, setUndoStack] = useState<string[]>([]);
-  const [redoStack, setRedoStack] = useState<string[]>([]);
-
-  const allUniqueTags = useMemo(
-    () => [...new Set(notesData.notes.flatMap((note) => note.tags))],
-    [notesData.notes],
-  );
-
-  const createEditorNote = (): Note => ({
-    id: notesData.editingNoteId ?? 'draft',
-    type: 'BLANK',
-    title: notesData.editorTitle.trim() || 'Untitled Note',
-    content: notesData.editorContent,
-    category: notesData.editorCategory || 'General',
-    tags: notesData.editorTags,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    isFavorite: notesData.editorIsFavorite,
-    isPinned: notesData.editorIsPinned,
-    isArchived: notesData.editorIsArchived,
-  });
-
-  const handleContentChange = (content: string) => {
-    if (content !== notesData.editorContent) {
-      setUndoStack((current) =>
-        [...current, notesData.editorContent].slice(-100),
-      );
-      setRedoStack([]);
-    }
-    notesData.setEditorContent(content);
-  };
-
-  const handleUndo = () => {
-    const previous = undoStack.at(-1);
-    if (previous === undefined) return;
-
-    setUndoStack(undoStack.slice(0, -1));
-    setRedoStack([...redoStack, notesData.editorContent]);
-    notesData.setEditorContent(previous);
-  };
-
-  const handleRedo = () => {
-    const next = redoStack.at(-1);
-    if (next === undefined) return;
-
-    setRedoStack(redoStack.slice(0, -1));
-    setUndoStack([...undoStack, notesData.editorContent]);
-    notesData.setEditorContent(next);
-  };
-
-  const handleInsertFormatting = (
-    prefix: string,
-    suffix = '',
-    placeholder = '',
-  ) => {
-    handleContentChange(
-      `${notesData.editorContent}${prefix}${placeholder}${suffix}`,
-    );
-  };
-
-  const handleAddTag = () => {
-    const newTag = tagInput.trim();
-    if (!newTag) return;
-
-    notesData.setEditorTags((current) =>
-      current.includes(newTag) ? current : [...current, newTag],
-    );
-    setTagInput('');
-  };
-
-  const closeEditor = () => {
-    setTagInput('');
-    setUndoStack([]);
-    setRedoStack([]);
-    void notesData.handleCloseEditor();
-  };
+  const activeNoteId = notesData.editingNoteId;
 
   return (
     <>
@@ -132,44 +48,72 @@ export default function NotesModalContainer({
         isPreviewMode={isPreviewMode}
         onTogglePreview={() => setIsPreviewMode((current) => !current)}
         isFavorite={notesData.editorIsFavorite}
-        onToggleFavorite={() =>
-          notesData.setEditorIsFavorite((current) => !current)
-        }
-        isPinned={notesData.editorIsPinned}
-        onTogglePin={() =>
-          notesData.setEditorIsPinned((current) => !current)
-        }
-        isArchived={notesData.editorIsArchived}
-        onToggleArchive={() =>
-          notesData.setEditorIsArchived((current) => !current)
-        }
-        onDelete={() => {
-          if (notesData.editingNoteId) {
-            void notesData.handleDeleteNote(notesData.editingNoteId);
-          } else {
-            closeEditor();
+        onToggleFavorite={() => {
+          if (activeNoteId) {
+            notesData.handleFavoriteToggle(activeNoteId, notesData.editorIsFavorite);
+            return;
           }
+          notesData.setEditorIsFavorite((prev) => !prev);
+        }}
+        isPinned={notesData.editorIsPinned}
+        onTogglePin={() => {
+          if (activeNoteId) {
+            notesData.handlePinToggle(activeNoteId, notesData.editorIsPinned);
+            return;
+          }
+          notesData.setEditorIsPinned((prev) => !prev);
+        }}
+        isArchived={notesData.editorIsArchived}
+        onToggleArchive={() => {
+          if (activeNoteId) {
+            notesData.handleArchiveToggle(activeNoteId, notesData.editorIsArchived);
+            return;
+          }
+          notesData.setEditorIsArchived((prev) => !prev);
+        }}
+        onDelete={() => {
+          if (activeNoteId) {
+            notesData.handleDeleteNote(activeNoteId);
+            return;
+          }
+          notesData.handleCloseEditor();
         }}
         onShare={() => notesData.handleShareNote(createEditorNote())}
         onOpenConvertTask={() => {
-          setConvertTargetNote(createEditorNote());
-          notesData.setIsConvertTaskModalOpen(true);
+          notesData.setConvertTargetNote({
+            id: activeNoteId || 'temp',
+            title: notesData.editorTitle || 'Untitled Note',
+            content: notesData.editorContent,
+            category: notesData.editorCategory,
+            tags: notesData.editorTags || [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isFavorite: notesData.editorIsFavorite,
+            isPinned: notesData.editorIsPinned,
+            isArchived: notesData.editorIsArchived,
+          });
+          notesData.setConvertTaskModalOpen(true);
         }}
         onOpenSchedule={() => {
-          setScheduleTargetNote(createEditorNote());
-          if (!notesData.dueDate) {
-            notesData.setDueDate(new Date().toISOString().split('T')[0]);
-          }
-          notesData.setIsScheduleModalOpen(true);
+          notesData.setScheduleTargetNote({
+            id: activeNoteId || 'temp',
+            title: notesData.editorTitle || 'Untitled Note',
+            content: notesData.editorContent,
+            category: notesData.editorCategory,
+            tags: notesData.editorTags || [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isFavorite: notesData.editorIsFavorite,
+            isPinned: notesData.editorIsPinned,
+            isArchived: notesData.editorIsArchived,
+          });
+          notesData.setScheduleModalOpen(true);
         }}
-        onOpenTemplateModal={() =>
-          notesData.setIsTemplateModalOpen(true)
-        }
-        onInsertFormatting={handleInsertFormatting}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        isMoreMenuOpen={isMoreMenuOpen}
-        onToggleMoreMenu={setIsMoreMenuOpen}
+        onOpenTemplateModal={() => notesData.setIsTemplateModalOpen(true)}
+        onUndo={notesData.handleUndo}
+        onRedo={notesData.handleRedo}
+        isMoreMenuOpen={notesData.isEditorMoreMenuOpen}
+        onToggleMoreMenu={notesData.setIsEditorMoreMenuOpen}
         bgTheme={theme.bgTheme}
         cardBg={theme.cardBg}
         borderCol={theme.borderCol}

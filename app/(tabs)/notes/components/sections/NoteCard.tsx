@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Note, NoteViewMode } from '../../types';
 import { CATEGORIES } from '../../constants/notesConfig';
-import { cleanMarkdownSnippet, formatNoteDate } from '../../utils/noteHelpers';
+import { formatNoteDate, getNotePreview } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
 
 interface NoteCardProps {
@@ -88,7 +88,7 @@ export default function NoteCard({
 
       {/* Snippet Preview */}
       <Text style={[styles.cardSnippet, { color: textSecondary }]} numberOfLines={isGrid ? 3 : 2}>
-        {cleanMarkdownSnippet(note.content, isGrid ? 80 : 140) || 'Empty note...'}
+        {getNotePreview(note.content, isGrid ? 80 : 140) || 'Empty note...'}
       </Text>
 
       {/* Tags Row */}
