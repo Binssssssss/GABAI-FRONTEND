@@ -152,7 +152,7 @@ export function useAssistant() {
 
       addMessage(
         'assistant',
-        `🎉 **Focus Session Complete!**\n\nYou focused successfully for **${timeStr}**. Great work maintaining concentration.\n\nThis session has been recorded as part of your productivity tracking.`,
+        `Focus session complete.\n\nYou stayed focused for ${timeStr}. Great work maintaining concentration.\n\nThis session has been recorded in your productivity tracking.`,
         [
           {
             label: 'Open Dashboard',

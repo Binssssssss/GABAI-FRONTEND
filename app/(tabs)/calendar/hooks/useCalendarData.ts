@@ -271,8 +271,16 @@ export function useCalendarData() {
       if (pressure?.level && pressure?.label && typeof pressure.score === 'number') {
         setAcademicPressure(pressure as AcademicPressureSnapshot);
       }
-    } catch (error) {
-      console.error('Failed to load academic pressure:', error);
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        console.error('Failed to load academic pressure:', error);
+      }
+
+      setAcademicPressure({
+        level: 'LOW',
+        label: 'Low workload',
+        score: 0,
+      });
     }
   }, []);
 
@@ -424,7 +432,7 @@ export function useCalendarData() {
               newTitle.trim(),
               newDate,
               newTime,
-              15,
+              undefined, // use the Notification Settings lead time
               editingEventId,
             );
           }
@@ -485,7 +493,7 @@ export function useCalendarData() {
               newTitle.trim(),
               newDate,
               newTime,
-              15,
+              undefined, // use the Notification Settings lead time
               createdEvent.id,
             );
           } catch (reminderError) {
@@ -648,7 +656,7 @@ export function useCalendarData() {
         try {
           const response =
             await api.patch(
-              `/api/tasks/${eventId}/subtasks/${itemId}`,
+              `/tasks/${eventId}/subtasks/${itemId}`,
               {
                 completed: newCompleted,
               },
@@ -740,7 +748,7 @@ export function useCalendarData() {
         const persistReschedule = async () => {
           try {
             const response = await api.patch(
-              `/api/tasks/${event.id}/reschedule`,
+              `/tasks/${event.id}/reschedule`,
               {
                 dueDate: targetDate,
                 dueTime: event.isAllDay
@@ -764,7 +772,7 @@ export function useCalendarData() {
                   updatedEvent.title,
                   targetDate,
                   updatedEvent.time || event.time,
-                  15,
+                  undefined, // use the Notification Settings lead time
                   event.id,
                 );
               } catch (reminderError) {

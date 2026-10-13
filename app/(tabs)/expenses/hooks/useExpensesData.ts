@@ -71,8 +71,12 @@ export function useExpensesData() {
 
         setTransactions(mappedTransactions);
       }
-    } catch (error) {
-      console.error('Failed to load transactions:', error);
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        console.error('Failed to load transactions:', error);
+      }
+
+      setTransactions([]);
     } finally {
       setIsLoading(false);
     }
@@ -88,8 +92,16 @@ export function useExpensesData() {
       if (response.data.success) {
         setWalletBalance(response.data.data);
       }
-    } catch (error) {
-      console.error('Failed to load wallet balance:', error);
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        console.error('Failed to load wallet balance:', error);
+      }
+
+      setWalletBalance({
+        netBalance: 0,
+        totalIncome: 0,
+        totalExpenses: 0,
+      });
     }
   }, []);
 

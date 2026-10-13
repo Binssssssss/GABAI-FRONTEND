@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-
+import { clearNotificationPrefs } from '@/app/services/notificationPrefs';
 import { localDb } from '@/app/services/localDb';
 import api from '@/app/services/api';
 
@@ -362,7 +362,7 @@ export function AuthProvider({
      */
     try {
       if (session?.token) {
-        await api.post('/api/auth/logout');
+        await api.post('/auth/logout');
       }
     } catch (error) {
       /*
@@ -382,7 +382,7 @@ export function AuthProvider({
       ]);
 
       localDb.clearActiveUser();
-
+      await clearNotificationPrefs();
       setSession(null);
     }
   }, [session]);

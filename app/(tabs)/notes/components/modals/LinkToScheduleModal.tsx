@@ -45,7 +45,7 @@ export default function LinkToScheduleModal({
   try {
     triggerHaptic();
 
-    await api.post('/api/tasks', {
+    await api.post('/tasks', {
       title: `Review: ${note.title}`,
       description: `Study notes from ${note.category}:\n\n${note.content.slice(0, 150)}...`,
       subject: note.category || 'General',

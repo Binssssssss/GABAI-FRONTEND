@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { loadNotificationPrefs } from './notificationPrefs';
 
 import api from './api';
 
@@ -16,11 +17,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
+
 const ANDROID_CHANNEL_ID = 'gabai-default';
 
-/**
- * Create the Android notification channel.
- */
 export async function setupNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') {
     return;
@@ -33,13 +32,10 @@ export async function setupNotificationChannel(): Promise<void> {
         name: 'GabAi Notifications',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        sound: 'default',
       },
     );
 
-    console.log(
-      '🔔 GabAi Android notification channel ready',
-    );
+    console.log('🔔 GabAi Android notification channel ready');
   } catch (error) {
     console.error(
       '❌ Failed to create notification channel:',
@@ -47,6 +43,7 @@ export async function setupNotificationChannel(): Promise<void> {
     );
   }
 }
+
 
 /**
  * Request notification permission.
@@ -131,6 +128,7 @@ export async function getDevicePushToken(): Promise<string | null> {
  *
  * The JWT is automatically attached by api.ts.
  */
+
 export async function registerPushToken(
   token: string,
 ): Promise<boolean> {
@@ -140,28 +138,31 @@ export async function registerPushToken(
     );
 
     const response = await api.post(
-      '/api/notifications/push-token',
+      '/notifications/push-token',
       {
         token,
         platform: Platform.OS,
       },
+      {
+        timeout: 60000,
+      },
     );
 
     console.log(
-      '✅ FCM token registered:',
-      response.data,
+      '✅ FCM token registration response received.',
     );
 
     return response.data?.success === true;
   } catch (error: any) {
     console.error(
       '❌ Failed to register FCM token:',
-      error?.response?.data || error,
+      error?.response?.data ?? error?.message ?? error,
     );
 
     return false;
   }
 }
+
 
 /**
  * Initialize push notifications.
@@ -176,6 +177,21 @@ export async function initializeNotifications(): Promise<{
   console.log(
     '🚀 Initializing GabAi notifications...',
   );
+
+  // Respect the "Allow notifications" switch in Notification Settings.
+  const prefs = await loadNotificationPrefs();
+
+  if (!prefs.pushEnabled) {
+    console.log(
+      '🔕 Notifications are turned off in GabAi settings.',
+    );
+
+    return {
+      permissionGranted: false,
+      deviceToken: null,
+      registered: false,
+    };
+  }
 
   await setupNotificationChannel();
 
@@ -230,6 +246,13 @@ export function subscribeToTokenChanges() {
           token.data,
         );
 
+        // Don't re-register while notifications are turned off.
+        const prefs = await loadNotificationPrefs();
+
+        if (!prefs.pushEnabled) {
+          return;
+        }
+
         if (typeof token.data === 'string') {
           await registerPushToken(token.data);
         }
@@ -237,4 +260,32 @@ export function subscribeToTokenChanges() {
     );
 
   return subscription;
+}
+
+/**
+ * Remove this phone's token from the backend so it stops
+ * receiving pushes. Uses DELETE /notifications/push-token
+ * with { token } in the body.
+ */
+export async function unregisterPushToken(): Promise<boolean> {
+  try {
+    const token = await getDevicePushToken();
+
+    if (!token) {
+      return false;
+    }
+
+    await api.delete('/notifications/push-token', {
+      data: { token },
+    });
+
+    return true;
+  } catch (error: any) {
+    console.error(
+      '❌ Failed to unregister push token:',
+      error?.response?.data ?? error?.message ?? error,
+    );
+
+    return false;
+  }
 }

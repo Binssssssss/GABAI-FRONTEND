@@ -1,6 +1,7 @@
-
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+
+import { loadNotificationPrefs } from './notificationPrefs';
 
 export async function requestReminderPermission(): Promise<boolean> {
   const settings = await Notifications.getPermissionsAsync();
@@ -13,13 +14,28 @@ export async function requestReminderPermission(): Promise<boolean> {
   return requested.granted;
 }
 
+/**
+ * Schedule a local reminder before a calendar event.
+ *
+ * Respects the user's Notification Settings:
+ * - returns null when notifications or calendar reminders are off
+ * - uses the saved "Remind me before" time unless minutesBefore is given
+ */
 export async function scheduleCalendarReminder(
   title: string,
   dueDate: string,
   dueTime: string,
-  minutesBefore = 15,
+  minutesBefore?: number,
   eventId?: string,
 ): Promise<string | null> {
+  const prefs = await loadNotificationPrefs();
+
+  if (!prefs.pushEnabled || !prefs.calendarReminders) {
+    return null;
+  }
+
+  const leadMinutes = minutesBefore ?? prefs.leadMinutes;
+
   const hasPermission = await requestReminderPermission();
 
   if (!hasPermission) {
@@ -39,7 +55,7 @@ export async function scheduleCalendarReminder(
   }
 
   const reminderDate = new Date(
-    date.getTime() - minutesBefore * 60 * 1000,
+    date.getTime() - leadMinutes * 60 * 1000,
   );
 
   // Do not schedule notifications for past times.
@@ -51,7 +67,6 @@ export async function scheduleCalendarReminder(
     await Notifications.setNotificationChannelAsync('reminders', {
       name: 'Calendar reminders',
       importance: Notifications.AndroidImportance.HIGH,
-      sound: 'default',
     });
   }
 
@@ -59,7 +74,6 @@ export async function scheduleCalendarReminder(
     content: {
       title: 'GabAi Reminder',
       body: `${title} is coming up.`,
-      sound: 'default',
       data: {
         eventId: eventId ?? null,
         dueDate,
@@ -93,5 +107,21 @@ export async function cancelCalendarReminder(
         notification.identifier,
       ),
     ),
+  );
+}
+
+/** Cancel every scheduled calendar reminder (used when the setting is turned off). */
+export async function cancelAllCalendarReminders(): Promise<void> {
+  const scheduled =
+    await Notifications.getAllScheduledNotificationsAsync();
+
+  await Promise.all(
+    scheduled
+      .filter((notification) => notification.content.data?.eventId)
+      .map((notification) =>
+        Notifications.cancelScheduledNotificationAsync(
+          notification.identifier,
+        ),
+      ),
   );
 }

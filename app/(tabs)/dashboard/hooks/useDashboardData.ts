@@ -5,15 +5,12 @@ import { INITIAL_DEADLINES, INITIAL_SUBJECTS, INITIAL_TIMELINE_ITEMS } from '../
 
 export function useDashboardData() {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [greeting, setGreeting] = useState('Hello');
-
-  // Dynamic Greeting based on current hour
-  useEffect(() => {
+  const [greeting] = useState(() => {
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good morning');
-    else if (hour < 18) setGreeting('Good afternoon');
-    else setGreeting('Good evening');
-  }, []);
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  });
 
   // Today's Focus State loaded from central database
   const getMappedTasks = useCallback((): DashboardTask[] => {
@@ -34,11 +31,20 @@ export function useDashboardData() {
   const [focusTasks, setFocusTasks] = useState<DashboardTask[]>(getMappedTasks);
 
   useEffect(() => {
-    const unsubscribe = localDb.subscribe(() => {
-      setFocusTasks(getMappedTasks());
-    });
-    return unsubscribe;
-  }, [getMappedTasks]);
+  const unsubscribe = localDb.subscribe(() => {
+    try {
+      const mappedTasks = getMappedTasks();
+      setFocusTasks(mappedTasks);
+    } catch (error) {
+      console.error(
+        '[useDashboardData] Failed to map focus tasks:',
+        error
+      );
+    }
+  });
+
+  return unsubscribe;
+}, [getMappedTasks]);
 
   const handleToggleComplete = useCallback((id: string) => {
     localDb.toggleTaskCompleted(id);

@@ -22,6 +22,8 @@ import {
   useAuth,
 } from '@/app/context/AuthContext';
 
+import AppLockGate from '@/components/AppLockGate';
+
 function createGabaiNavigationTheme(
   colorScheme: 'light' | 'dark',
   colors: any,
@@ -49,7 +51,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppNavigation />
+        <AppLockGate>
+          <AppNavigation />
+        </AppLockGate>
       </AuthProvider>
     </ThemeProvider>
   );
@@ -80,7 +84,8 @@ function AppNavigation() {
     const isAppRoute =
       segments[0] === '(tabs)' ||
       segments[0] === 'assistant' ||
-      segments[0] === 'productivity';
+      segments[0] === 'productivity' ||
+      segments[0] === 'settings';
 
     if (!session && isAppRoute) {
       router.replace(
@@ -143,6 +148,20 @@ function AppNavigation() {
           options={{
             headerShown: false,
             presentation: 'card',
+          }}
+        />
+
+        <Stack.Screen
+          name="settings/notifications"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="settings/privacy"
+          options={{
+            headerShown: false,
           }}
         />
 

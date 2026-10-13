@@ -31,6 +31,11 @@ function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Hides Markdown bold markers (**text**) so messages show as clean text. */
+function cleanText(text: string): string {
+  return text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*\*/g, '');
+}
+
 interface MessageBubbleProps {
   item: Message;
   primaryBrown: string;
@@ -80,7 +85,7 @@ export function MessageBubble({
                 isUser ? styles.userMessageText : { color: textPrimary },
               ]}
             >
-              {item.text}
+              {cleanText(item.text)}
             </Text>
 
             {item.customWidget === 'focus' && (

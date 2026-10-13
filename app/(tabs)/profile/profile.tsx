@@ -17,7 +17,7 @@ import { profileStyles as styles } from './styles/profile.styles';
 export default function ProfileScreen() {
   const { openDrawer } = useDrawer();
   const theme = useProfileTheme();
-  const { userProfile, stats, handleLogout } = useProfileData();
+  const { userProfile, stats, handleStatPress, handleLogout } = useProfileData();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bgTheme }]} edges={['top']}>
@@ -35,9 +35,10 @@ export default function ProfileScreen() {
           primaryAccent={theme.primaryAccent}
         />
 
-        {/* 3. Live Stats Row */}
+        {/* 3. Live Stats Row (tap to open Tasks / Calendar / Expenses) */}
         <ProfileStatsRow
           stats={stats}
+          onStatPress={handleStatPress}
           cardTheme={theme.cardTheme}
           borderTheme={theme.borderTheme}
           textTheme={theme.textTheme}

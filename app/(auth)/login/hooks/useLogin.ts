@@ -7,9 +7,17 @@ import { useAuth } from "@/app/context/AuthContext";
 import { validateLoginForm } from "../utils";
 import { configureGoogleSignIn } from "@/app/services/googleAuth";
 
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { firebaseAuth } from "@/app/services/firebase";
+
+function getGoogleSigninClient() {
+  try {
+    const googleSignInModule = require("@react-native-google-signin/google-signin");
+    return googleSignInModule?.GoogleSignin ?? googleSignInModule?.default?.GoogleSignin ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function decodeJwtPayload(token: string) {
   try {
@@ -145,6 +153,17 @@ export function useLogin() {
       return;
     }
 
+    const GoogleSignin = getGoogleSigninClient();
+
+    if (!GoogleSignin) {
+      setIsLoading(false);
+      Alert.alert(
+        "Google Sign-In unavailable",
+        "Google authentication is not available in this environment.",
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -193,7 +212,7 @@ export function useLogin() {
       console.log("FIREBASE ID TOKEN RECEIVED");
 
       // Send Firebase ID token to GabAi backend.
-      const response = await api.post("/api/auth/google", {
+      const response = await api.post("/auth/google", {
         idToken: firebaseIdToken,
       });
 

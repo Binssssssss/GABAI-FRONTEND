@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import {
   Animated,
   Dimensions,
@@ -87,9 +87,9 @@ export default function AppDrawer({
   const isDark = textPrimary === Colors.dark.text;
   const drawerColors = isDark ? DRAWER_PALETTES.dark : DRAWER_PALETTES.light;
 
-  const slideAnim = useRef(
-    new Animated.Value(-drawerWidth)
-  ).current;
+  const [slideAnim] = React.useState(
+    () => new Animated.Value(-drawerWidth)
+  );
 
   useEffect(() => {
     AsyncStorage.getItem('gabai_user').then((storedUser: string | null) => {

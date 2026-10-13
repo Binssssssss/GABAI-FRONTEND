@@ -1,169 +1,191 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
-import { localDb } from '@/app/services/localDb';
+import api from '@/app/services/api';
 import { useAuth } from '@/app/context/AuthContext';
 
 import { UserProfile, ProfileStatItem } from '../types';
 
-const EMPTY_USER_PROFILE: UserProfile = {
-  name: '',
-  email: '',
-  course: '',
-  initials: '',
+// Where each stat card goes when tapped.
+const STAT_ROUTES: Record<string, string> = {
+  tasks: '/(tabs)/tasks/task',
+  events: '/(tabs)/calendar/calendar',
+  budget: '/(tabs)/expenses/expenses',
+};
+
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatPeso = (amount: number): string => {
+  const formatted = Math.abs(amount).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${amount < 0 ? '-' : ''}₱${formatted}`;
+};
+
+// Same response handling as useTaskData.
+const extractTaskList = (responseData: any): any[] => {
+  if (Array.isArray(responseData?.data)) return responseData.data;
+  if (Array.isArray(responseData?.tasks)) return responseData.tasks;
+  if (Array.isArray(responseData)) return responseData;
+  return [];
 };
 
 export function useProfileData() {
   const router = useRouter();
   const { user, signOut } = useAuth();
 
-  const [userProfile, setUserProfile] =
-    useState<UserProfile>(EMPTY_USER_PROFILE);
+  const [completedTasksCount, setCompletedTasksCount] = useState(0);
+  const [eventsCount, setEventsCount] = useState(0);
+  const [netBalance, setNetBalance] = useState(0);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadUserProfile = async () => {
-      try {
-        const currentUser = user || {};
+  // ------------------------------------------------------
+  // USER PROFILE
+  // ------------------------------------------------------
 
-        const name = String(
-          currentUser.name ||
-            currentUser.fullName ||
-            currentUser.userName ||
-            currentUser.email ||
-            '',
-        );
+  // Derived from `user` during render (no effect + setState needed).
+  const userProfile: UserProfile = useMemo(() => {
+    const currentUser = user || {};
 
-        setUserProfile({
-          name,
-          email: String(currentUser.email || ''),
-          course: String(currentUser.course || ''),
-          initials: name
-            .split(' ')
-            .filter(Boolean)
-            .map((part: string) => part[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase(),
-        });
+    const name = String(
+      currentUser.name ||
+        currentUser.fullName ||
+        currentUser.userName ||
+        currentUser.email ||
+        '',
+    );
 
-        console.log('CURRENT STORED USER:', currentUser);
-      } catch (error) {
-        console.error(
-          'Failed to load stored user:',
-          error,
-        );
-      }
+    return {
+      name,
+      email: String(currentUser.email || ''),
+      course: String(currentUser.course || ''),
+      initials: name
+        .split(' ')
+        .filter(Boolean)
+        .map((part: string) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase(),
     };
-
-    loadUserProfile();
   }, [user]);
 
-  // Sync state from central local database.
-  const [tasks, setTasks] = useState(() =>
-    localDb.getTasks(),
-  );
+  // ------------------------------------------------------
+  // LOAD STATS FROM BACKEND
+  // ------------------------------------------------------
 
-  const [events, setEvents] = useState(() =>
-    localDb.getEvents(),
-  );
+  const loadStats = useCallback(async () => {
+    setIsStatsLoading(true);
 
-  const [transactions, setTransactions] = useState(() =>
-    localDb.getTransactions(),
-  );
+    // Run both requests together; one failing shouldn't blank the other.
+    const [tasksResult, balanceResult] = await Promise.allSettled([
+      api.get('/tasks'),
+      api.get('/transactions/balance'),
+    ]);
 
-  useEffect(() => {
-    const unsubscribe = localDb.subscribe(() => {
-      setTasks(localDb.getTasks());
-      setEvents(localDb.getEvents());
-      setTransactions(localDb.getTransactions());
-    });
+    // Tasks Done + Events (calendar events are tasks with due dates)
+    if (tasksResult.status === 'fulfilled') {
+      const tasks = extractTaskList(tasksResult.value.data);
+      const todayStr = formatLocalDate(new Date());
 
-    return unsubscribe;
+      setCompletedTasksCount(
+        tasks.filter((task) => Boolean(task?.completed)).length,
+      );
+
+      setEventsCount(
+        tasks.filter((task) => {
+          const dueDate = String(task?.dueDate ?? '').slice(0, 10);
+          return !task?.completed && dueDate !== '' && dueDate >= todayStr;
+        }).length,
+      );
+    } else {
+      console.error('Profile: failed to load tasks:', tasksResult.reason);
+    }
+
+    // Budget (same endpoint as the Expenses wallet card)
+    if (balanceResult.status === 'fulfilled') {
+      const data = balanceResult.value.data?.data;
+      setNetBalance(Number(data?.netBalance) || 0);
+    } else if (balanceResult.reason?.response?.status === 404) {
+      setNetBalance(0); // no transactions yet
+    } else {
+      console.error('Profile: failed to load balance:', balanceResult.reason);
+    }
+
+    setIsStatsLoading(false);
   }, []);
 
-  // Compute live statistics.
-  const completedTasksCount = useMemo(
-    () => tasks.filter((task) => task.completed).length,
-    [tasks],
+  // Reload every time the Profile tab comes into view,
+  // so changes made in Tasks / Calendar / Expenses show up.
+  useFocusEffect(
+    useCallback(() => {
+      void loadStats();
+    }, [loadStats]),
   );
 
-  const eventsCount = useMemo(
-    () => events.length,
-    [events],
-  );
-
-  const walletBalance = useMemo(() => {
-    const income = transactions
-      .filter((transaction) => transaction.type === 'income')
-      .reduce(
-        (sum, transaction) => sum + transaction.amount,
-        0,
-      );
-
-    const expense = transactions
-      .filter((transaction) => transaction.type === 'expense')
-      .reduce(
-        (sum, transaction) => sum + transaction.amount,
-        0,
-      );
-
-    return income - expense;
-  }, [transactions]);
+  // ------------------------------------------------------
+  // STAT CARDS
+  // ------------------------------------------------------
 
   const stats: ProfileStatItem[] = useMemo(
     () => [
       {
         id: 'tasks',
         label: 'Tasks Done',
-        value: completedTasksCount.toString(),
+        value: isStatsLoading ? '…' : completedTasksCount.toString(),
         icon: 'check-square',
       },
       {
         id: 'events',
         label: 'Events',
-        value: eventsCount.toString(),
+        value: isStatsLoading ? '…' : eventsCount.toString(),
         icon: 'calendar',
       },
       {
         id: 'budget',
         label: 'Budget',
-        value: `₱${walletBalance.toLocaleString(
-          undefined,
-          {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          },
-        )}`,
+        value: isStatsLoading ? '…' : formatPeso(netBalance),
         icon: 'credit-card',
       },
     ],
-    [completedTasksCount, eventsCount, walletBalance],
+    [isStatsLoading, completedTasksCount, eventsCount, netBalance],
   );
+
+  const handleStatPress = useCallback(
+    (statId: string) => {
+      const route = STAT_ROUTES[statId];
+      if (route) {
+        router.push(route as any);
+      }
+    },
+    [router],
+  );
+
+  // ------------------------------------------------------
+  // LOGOUT
+  // ------------------------------------------------------
 
   const handleLogout = useCallback(() => {
     Alert.alert(
       'Log Out',
       'Are you sure you want to log out of GabAi?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Log Out',
           style: 'destructive',
           onPress: async () => {
             try {
               await signOut();
-
               router.replace('/(auth)/login/login');
             } catch (error) {
-              console.error(
-                'Logout failed:',
-                error,
-              );
-
+              console.error('Logout failed:', error);
               Alert.alert(
                 'Logout Error',
                 'Something went wrong while logging out. Please try again.',
@@ -172,15 +194,16 @@ export function useProfileData() {
           },
         },
       ],
-      {
-        cancelable: true,
-      },
+      { cancelable: true },
     );
   }, [router, signOut]);
 
   return {
     userProfile,
     stats,
+    isStatsLoading,
+    refreshStats: loadStats,
+    handleStatPress,
     handleLogout,
   };
 }

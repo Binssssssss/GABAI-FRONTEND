@@ -183,7 +183,7 @@ export function useNotesData() {
 
         const response =
           await api.get<NotesApiResponse>(
-            '/api/notes',
+            '/notes',
           );
 
         if (!response.data.success) {
@@ -408,7 +408,7 @@ export function useNotesData() {
 
         const response =
           await api.post<NoteApiResponse>(
-            '/api/notes',
+            '/notes',
             payload,
           );
 
@@ -491,7 +491,7 @@ export function useNotesData() {
 
         const response =
           await api.patch<NoteApiResponse>(
-            `/api/notes/${noteId}`,
+            `/notes/${noteId}`,
             updates,
           );
 
@@ -588,7 +588,7 @@ export function useNotesData() {
         }
 
         await api.delete(
-          `/api/notes/${noteId}`,
+          `/notes/${noteId}`,
         );
 
         setNotes((current) =>
@@ -1004,7 +1004,7 @@ export function useNotesData() {
 
         const response =
           await api.post(
-            '/api/tasks',
+            '/tasks',
             {
               title,
               description:
@@ -1086,7 +1086,7 @@ export function useNotesData() {
 
       try {
         await api.post(
-          '/api/tasks',
+          '/tasks',
           {
             title:
               linkTaskTitle.trim(),
