@@ -106,32 +106,44 @@ export default function WhatShouldIDoNow({
   // LOAD RECOMMENDATION
   // ===============================
 
-  const loadRecommendation =
-    useCallback(async () => {
-      try {
-        setLoading(true);
-        setError(false);
-
-        const result =
-          await taskService.getTaskRecommendation();
-
-        setRecommendation(result);
-      } catch (err) {
-        console.error(
-          'Failed to load task recommendation:',
-          err,
-        );
-
-        setError(true);
-        setRecommendation(null);
-      } finally {
-        setLoading(false);
-      }
+  // State is only set once the request settles (in the
+  // .then callbacks), so the effect below can start it.
+  const handleRecommendation =
+    useCallback((result: TaskRecommendation | null) => {
+      setRecommendation(result);
+      setError(false);
+      setLoading(false);
     }, []);
 
+  const handleRecommendationError =
+    useCallback((err: unknown) => {
+      console.error(
+        'Failed to load task recommendation:',
+        err,
+      );
+
+      setError(true);
+      setRecommendation(null);
+      setLoading(false);
+    }, []);
+
+  // Retry button: show the spinner again, then reload.
+  const loadRecommendation =
+    useCallback(() => {
+      setLoading(true);
+      setError(false);
+
+      return taskService
+        .getTaskRecommendation()
+        .then(handleRecommendation, handleRecommendationError);
+    }, [handleRecommendation, handleRecommendationError]);
+
+  // Initial load (loading already starts as true).
   useEffect(() => {
-    loadRecommendation();
-  }, [loadRecommendation]);
+    taskService
+      .getTaskRecommendation()
+      .then(handleRecommendation, handleRecommendationError);
+  }, [handleRecommendation, handleRecommendationError]);
 
   // ===============================
   // LOADING STATE
@@ -292,7 +304,7 @@ export default function WhatShouldIDoNow({
               },
             ]}
           >
-            We couldn't analyze your tasks right now.
+            We couldn&apos;t analyze your tasks right now.
           </Text>
 
           <TouchableOpacity

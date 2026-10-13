@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -48,14 +48,9 @@ export default function FloatingAssistant({
   const initialX = screenWidth - BUTTON_SIZE - 18;
   const initialY = screenHeight - (insets.bottom || 20) - 130;
 
-  const pan = useRef(new Animated.ValueXY({ x: initialX, y: initialY })).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-
-  // Drag tracking refs
-  const isDragging = useRef(false);
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const pressStartTime = useRef<number>(0);
+  const [pan] = useState(() => new Animated.ValueXY({ x: initialX, y: initialY }));
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [pulseAnim] = useState(() => new Animated.Value(0));
 
   // Breathing Pulse Animation
   useEffect(() => {
@@ -96,17 +91,22 @@ export default function FloatingAssistant({
   }, [router]);
 
   // Pan Responder for Dragging, Edge Docking & Tap Detection
-  const panResponder = useRef(
-    PanResponder.create({
+  const [panResponder] = useState(() => {
+    // Drag tracking (only read inside the gesture handlers)
+    let isDragging = false;
+    let dragStartPos = { x: 0, y: 0 };
+    let pressStartTime = 0;
+
+    return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         // Only treat as drag if finger moves noticeably
         return Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6;
       },
       onPanResponderGrant: (_, gestureState) => {
-        isDragging.current = false;
-        pressStartTime.current = Date.now();
-        dragStartPos.current = { x: gestureState.x0, y: gestureState.y0 };
+        isDragging = false;
+        pressStartTime = getCurrentTime();
+        dragStartPos = { x: gestureState.x0, y: gestureState.y0 };
 
         // Save current animated value offset
         pan.setOffset({
@@ -126,11 +126,11 @@ export default function FloatingAssistant({
       },
       onPanResponderMove: (_, gestureState) => {
         const dist = Math.hypot(
-          gestureState.moveX - dragStartPos.current.x,
-          gestureState.moveY - dragStartPos.current.y
+          gestureState.moveX - dragStartPos.x,
+          gestureState.moveY - dragStartPos.y
         );
-        if (dist > 8 && !isDragging.current) {
-          isDragging.current = true;
+        if (dist > 8 && !isDragging) {
+          isDragging = true;
           try {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           } catch {
@@ -150,10 +150,10 @@ export default function FloatingAssistant({
           bounciness: 6,
         }).start();
 
-        const pressDuration = Date.now() - pressStartTime.current;
+        const pressDuration = getCurrentTime() - pressStartTime;
         const dist = Math.hypot(
-          gestureState.moveX - dragStartPos.current.x,
-          gestureState.moveY - dragStartPos.current.y
+          gestureState.moveX - dragStartPos.x,
+          gestureState.moveY - dragStartPos.y
         );
 
         // Tap detected (minimal movement or quick tap)
@@ -187,8 +187,8 @@ export default function FloatingAssistant({
           tension: 40,
         }).start();
       },
-    })
-  ).current;
+    });
+  });
 
   if (isAssistantRoute) {
     return null;

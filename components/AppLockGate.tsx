@@ -39,13 +39,8 @@ export default function AppLockGate({ children }: { children: React.ReactNode })
 
   // Lock when the app opens with a saved session.
   useEffect(() => {
-    if (isLoading) return;
-
-    if (!session?.token) {
-      setLocked(false);
-      setChecking(false);
-      return;
-    }
+    // Logged out: nothing to lock (the overlay below also requires a session).
+    if (isLoading || !session?.token) return;
 
     let active = true;
 
@@ -95,7 +90,9 @@ export default function AppLockGate({ children }: { children: React.ReactNode })
     return () => subscription.remove();
   }, [session?.token, unlock]);
 
-  const showOverlay = locked || (checking && !!session?.token);
+  const hasSession = !!session?.token;
+  const isLocked = locked && hasSession;
+  const showOverlay = hasSession && (locked || checking);
 
   return (
     <View style={{ flex: 1 }}>
@@ -103,7 +100,7 @@ export default function AppLockGate({ children }: { children: React.ReactNode })
 
       {showOverlay && (
         <View style={styles.overlay}>
-          {locked && (
+          {isLocked && (
             <>
               <Feather name="lock" size={44} color={ACCENT} />
               <Text style={styles.title}>GabAi is locked</Text>
@@ -120,7 +117,7 @@ export default function AppLockGate({ children }: { children: React.ReactNode })
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#0B0B0B',
     alignItems: 'center',
     justifyContent: 'center',

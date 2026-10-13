@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Animated } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { assistantStyles as styles } from '../styles';
 
 function BouncingDot({ delay }: { delay: number }) {
-  const animatedValue = useRef(new Animated.Value(0)).current;
+  const [animatedValue] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const timer = setTimeout(() => {
