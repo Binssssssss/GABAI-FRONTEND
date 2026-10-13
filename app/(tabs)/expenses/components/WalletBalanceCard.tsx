@@ -27,8 +27,8 @@ export default function WalletBalanceCard({
   return (
     <View style={[styles.dashboardCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
       <Text style={[styles.dashboardLabel, { color: textSecondary }]}>Wallet Balance</Text>
-      <Text style={[styles.dashboardValue, { color: netBalance >= 0 ? successGreen : errorRed }]}>
-        ₱{netBalance.toFixed(2)}
+      <Text style={[styles.dashboardValue, { color: Math.max(0, netBalance) > 0 ? successGreen : errorRed }]}>
+        ₱{Math.max(0, netBalance).toFixed(2)}
       </Text>
 
       <View style={[styles.dashboardDivider, { backgroundColor: borderCol }]} />

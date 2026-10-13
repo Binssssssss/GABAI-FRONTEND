@@ -111,7 +111,7 @@ export function useProfileData() {
     // Budget (same endpoint as the Expenses wallet card)
     if (balanceResult.status === 'fulfilled') {
       const data = balanceResult.value.data?.data;
-      setNetBalance(Number(data?.netBalance) || 0);
+      setNetBalance(Math.max(0, Number(data?.netBalance) || 0));
     } else if (balanceResult.reason?.response?.status === 404) {
       setNetBalance(0); // no transactions yet
     } else {

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Transaction } from '../types';
-import { getTransactionIcon } from '../utils/expenseHelpers';
+import { formatTransactionDate, getTransactionIcon } from '../utils/expenseHelpers';
 import { expenseStyles as styles } from '../styles/expenses.styles';
 
 interface TransactionItemProps {
@@ -44,7 +44,7 @@ export default function TransactionItem({
       <View style={styles.itemDetails}>
         <Text style={[styles.itemTitle, { color: textPrimary }]}>{item.title}</Text>
         <Text style={[styles.itemSubtitle, { color: textSecondary }]}>
-          {item.category} • {item.date}
+          {item.category} • {formatTransactionDate(item.date)}
         </Text>
       </View>
       <Text
