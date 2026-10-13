@@ -1,5 +1,6 @@
 import api from '@/app/services/api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -139,8 +140,9 @@ export function useExpensesData() {
     [walletBalance.totalExpenses],
   );
 
+  // Never show a negative balance.
   const netBalance = useMemo(
-    () => walletBalance.netBalance,
+    () => Math.max(0, walletBalance.netBalance),
     [walletBalance.netBalance],
   );
 
@@ -193,6 +195,15 @@ export function useExpensesData() {
       return;
     }
 
+    // Stop an expense that is bigger than the wallet balance.
+    if (transactionType === 'expense' && amount > netBalance) {
+      Alert.alert(
+        'Insufficient balance',
+        `You only have ₱${netBalance.toFixed(2)} left. Add income first or lower the amount.`,
+      );
+      return;
+    }
+
     try {
       const response = await api.post('/transactions', {
         title: newTitle.trim(),
@@ -229,6 +240,12 @@ export function useExpensesData() {
         'Request data:',
         error?.config?.data,
       );
+
+      // Show the backend's message (e.g. "Insufficient balance...")
+      Alert.alert(
+        'Unable to save',
+        error?.response?.data?.message ?? 'Please try again.',
+      );
     }
   }, [
     newTitle,
@@ -236,6 +253,7 @@ export function useExpensesData() {
     newDate,
     newCategory,
     transactionType,
+    netBalance,
     refreshWallet,
   ]);
 
