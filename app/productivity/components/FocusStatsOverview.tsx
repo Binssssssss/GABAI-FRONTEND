@@ -1,50 +1,63 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { FocusStats } from '../types';
+import { View, Text, Pressable } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { FocusPalette, FocusStats } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
 
 interface FocusStatsOverviewProps {
   stats: FocusStats;
-  cardBg: string;
-  borderCol: string;
-  textPrimary: string;
-  textSecondary: string;
-  primaryAccent: string;
+  isLoading: boolean;
+  onOpenHistory: () => void;
+  colors: FocusPalette;
 }
 
 export default function FocusStatsOverview({
   stats,
-  cardBg,
-  borderCol,
-  textPrimary,
-  textSecondary,
-  primaryAccent,
+  isLoading,
+  onOpenHistory,
+  colors,
 }: FocusStatsOverviewProps) {
+  const items = [
+    { icon: 'clock' as const, value: `${stats.todayMinutes}m`, label: 'Focused today', color: colors.primary },
+    { icon: 'target' as const, value: `${stats.todaySessions}`, label: 'Sessions', color: colors.text },
+    { icon: 'zap' as const, value: `${stats.streakDays}d`, label: 'Streak', color: '#F59E0B' },
+  ];
+
   return (
-    <View style={{ marginBottom: 20 }}>
-      <Text style={[styles.sectionTitle, { color: textSecondary }]}>Today&apos;s Focus Metrics</Text>
-      <View style={styles.statsGrid}>
-        {/* Today Focus Minutes */}
-        <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-          <Text style={{ fontSize: 18 }}>⏱️</Text>
-          <Text style={[styles.statVal, { color: primaryAccent }]}>{stats.todayMinutes}m</Text>
-          <Text style={[styles.statLabel, { color: textSecondary }]}>Focused</Text>
-        </View>
-
-        {/* Sessions Completed */}
-        <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-          <Text style={{ fontSize: 18 }}>🎯</Text>
-          <Text style={[styles.statVal, { color: textPrimary }]}>{stats.todaySessions}</Text>
-          <Text style={[styles.statLabel, { color: textSecondary }]}>Sessions</Text>
-        </View>
-
-        {/* Daily Streak */}
-        <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-          <Text style={{ fontSize: 18 }}>🔥</Text>
-          <Text style={[styles.statVal, { color: '#F59E0B' }]}>{stats.streakDays} Days</Text>
-          <Text style={[styles.statLabel, { color: textSecondary }]}>Streak</Text>
-        </View>
+    <View>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionTitle, { color: colors.subtext }]}>Today</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open focus history and statistics"
+          onPress={onOpenHistory}
+          hitSlop={10}
+        >
+          <Text style={[styles.sectionLink, { color: colors.primary }]}>
+            History & stats
+          </Text>
+        </Pressable>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open focus history and statistics"
+        onPress={onOpenHistory}
+        style={({ pressed }) => [styles.statsGrid, pressed && { opacity: 0.85 }]}
+      >
+        {items.map((item) => (
+          <View
+            key={item.label}
+            style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Feather name={item.icon} size={16} color={colors.subtext} />
+            <Text style={[styles.statVal, { color: item.color }]}>
+              {isLoading ? '–' : item.value}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.subtext }]}>{item.label}</Text>
+          </View>
+        ))}
+      </Pressable>
     </View>
   );
 }

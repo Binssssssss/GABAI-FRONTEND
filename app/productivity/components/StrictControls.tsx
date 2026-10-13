@@ -1,231 +1,144 @@
-
+import type { ComponentProps } from 'react';
 import { Feather } from '@expo/vector-icons';
-import { Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { FocusPalette } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
 
 interface StrictControlsProps {
+  isReady: boolean;
   isRunning: boolean;
   isPaused: boolean;
-  isFocusLocked: boolean;
-  isStrict: boolean;
-  onToggleStrict: (val: boolean) => void;
+  isLocked: boolean;
+  isBreak: boolean;
+  accent: string;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
   onReset: () => void;
-  onFinishEarly: () => void;
-  cardBg: string;
-  borderCol: string;
-  textPrimary: string;
-  textSecondary: string;
-  primaryAccent: string;
+  onEnd: () => void;
+  colors: FocusPalette;
+}
+
+type FeatherName = ComponentProps<typeof Feather>['name'];
+
+function SecondaryControl({
+  icon,
+  label,
+  disabled,
+  dimmed,
+  onPress,
+  colors,
+}: {
+  icon: FeatherName;
+  label: string;
+  disabled: boolean;
+  dimmed?: boolean;
+  onPress: () => void;
+  colors: FocusPalette;
+}) {
+  return (
+    <View style={[styles.controlColumn, (disabled || dimmed) && { opacity: 0.4 }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        hitSlop={6}
+        style={({ pressed }) => [
+          styles.controlSecondaryBtn,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          pressed && styles.pressed,
+        ]}
+      >
+        <Feather name={icon} size={20} color={colors.text} />
+      </Pressable>
+      <Text style={[styles.controlLabel, { color: colors.subtext }]}>
+        {label}
+      </Text>
+    </View>
+  );
 }
 
 export default function StrictControls({
+  isReady,
   isRunning,
   isPaused,
-  isStrict,
-  onToggleStrict,
+  isLocked,
+  isBreak,
+  accent,
   onStart,
   onPause,
   onResume,
   onReset,
-  onFinishEarly,
-  cardBg,
-  borderCol,
-  isFocusLocked,
-  textPrimary,
-  textSecondary,
-  primaryAccent,
+  onEnd,
+  colors,
 }: StrictControlsProps) {
-  const strictSessionActive = isFocusLocked;
+  // While locked the main button stays tappable and explains why
+  // pausing is unavailable instead of silently doing nothing.
+  const main: {
+    label: string;
+    icon: FeatherName;
+    onPress: () => void;
+    outlined: boolean;
+  } = !isRunning
+    ? { label: isBreak ? 'Start Break' : 'Start Focus', icon: 'play', onPress: onStart, outlined: false }
+    : isPaused
+      ? { label: 'Resume', icon: 'play', onPress: onResume, outlined: false }
+      : isLocked
+        ? { label: 'Locked In', icon: 'lock', onPress: onPause, outlined: true }
+        : { label: 'Pause', icon: 'pause', onPress: onPause, outlined: false };
 
   return (
-    <View style={{ marginBottom: 20 }}>
-      <View style={styles.primaryControlsRow}>
-        {/* Reset is unavailable during Strict Focus */}
-        {strictSessionActive ? (
-          <View
-            accessibilityRole="image"
-            accessibilityLabel="Reset unavailable during Strict Focus"
-            style={[
-              styles.controlSecondaryBtn,
-              {
-                borderColor: borderCol,
-                backgroundColor: cardBg,
-                opacity: 0.45,
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-            ]}
-          >
-            <Feather
-              name="shield"
-              size={18}
-              color={textSecondary}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Reset timer"
-            style={[
-              styles.controlSecondaryBtn,
-              {
-                borderColor: borderCol,
-                backgroundColor: cardBg,
-              },
-            ]}
-            onPress={onReset}
-          >
-            <Feather
-              name="rotate-ccw"
-              size={18}
-              color={textSecondary}
-            />
-          </TouchableOpacity>
-        )}
+    <View style={styles.controlsRow}>
+      <SecondaryControl
+        icon={isLocked ? 'lock' : 'rotate-ccw'}
+        label="Reset"
+        disabled={!isRunning}
+        dimmed={isLocked}
+        onPress={onReset}
+        colors={colors}
+      />
 
-        {/* Main Play / Pause / Resume Button */}
-        {!isRunning ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Start focus timer"
-            style={[
-              styles.controlMainBtn,
-              { backgroundColor: primaryAccent },
-            ]}
-            onPress={onStart}
-          >
-            <Feather
-              name="play"
-              size={28}
-              color="#FFFFFF"
-              style={{ marginLeft: 3 }}
-            />
-          </TouchableOpacity>
-        ) : isPaused ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Resume focus timer"
-            style={[
-              styles.controlMainBtn,
-              { backgroundColor: primaryAccent },
-            ]}
-            onPress={onResume}
-          >
-            <Feather
-              name="play"
-              size={28}
-              color="#FFFFFF"
-              style={{ marginLeft: 3 }}
-            />
-          </TouchableOpacity>
-        ) : strictSessionActive ? (
-          <View
-            accessibilityRole="image"
-            accessibilityLabel="Strict Focus is active"
-            style={[
-              styles.controlMainBtn,
-              {
-                backgroundColor: cardBg,
-                borderWidth: 1,
-                borderColor: primaryAccent,
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-            ]}
-          >
-            <Feather
-              name="shield"
-              size={25}
-              color={primaryAccent}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Pause focus timer"
-            style={[
-              styles.controlMainBtn,
-              { backgroundColor: '#C97878' },
-            ]}
-            onPress={onPause}
-          >
-            <Feather
-              name="pause"
-              size={28}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-        )}
-
-        {/* Finish Early remains available for confirmed early completion */}
-        <TouchableOpacity
+      <View style={styles.controlColumn}>
+        <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Finish focus session early"
-          style={[
-            styles.controlSecondaryBtn,
-            {
-              borderColor: borderCol,
-              backgroundColor: cardBg,
-              opacity: isRunning ? 1 : 0.5,
-            },
+          accessibilityLabel={main.label}
+          accessibilityState={{ disabled: !isReady }}
+          disabled={!isReady}
+          onPress={main.onPress}
+          style={({ pressed }) => [
+            styles.controlMainBtn,
+            main.outlined
+              ? { backgroundColor: colors.card, borderWidth: 1.5, borderColor: accent }
+              : { backgroundColor: accent },
+            !isReady && { opacity: 0.5 },
+            pressed && styles.pressed,
           ]}
-          onPress={onFinishEarly}
         >
           <Feather
-            name="check"
+            name={main.icon}
             size={20}
-            color={textSecondary}
+            color={main.outlined ? accent : colors.onPrimary}
           />
-        </TouchableOpacity>
-      </View>
-
-      {/* Strict Mode Toggle */}
-      <View
-        style={[
-          styles.strictToggleRow,
-          {
-            backgroundColor: cardBg,
-            borderColor: borderCol,
-          },
-        ]}
-      >
-        <View style={styles.strictToggleLeft}>
           <Text
             style={[
-              styles.strictToggleTitle,
-              { color: textPrimary },
+              styles.controlMainText,
+              { color: main.outlined ? accent : colors.onPrimary },
             ]}
           >
-            🛡️ Strict Study Guard
+            {main.label}
           </Text>
-
-          <Text
-            style={[
-              styles.strictToggleSub,
-              { color: textSecondary },
-            ]}
-          >
-            {strictSessionActive
-              ? 'Strict Focus is locked. Pausing, resetting, and changing modes are disabled.'
-              : 'Restricts navigation and timer controls while a Strict Focus session is active.'}
-          </Text>
-        </View>
-
-        <Switch
-          value={isStrict}
-          onValueChange={onToggleStrict}
-          disabled={isRunning || isPaused}
-          accessibilityLabel="Strict Study Guard"
-          trackColor={{
-            false: borderCol,
-            true: primaryAccent,
-          }}
-          thumbColor="#FFFFFF"
-        />
+        </Pressable>
       </View>
+
+      <SecondaryControl
+        icon={isBreak ? 'skip-forward' : 'square'}
+        label={isBreak ? 'Skip' : 'End'}
+        disabled={!isRunning}
+        onPress={onEnd}
+        colors={colors}
+      />
     </View>
   );
 }

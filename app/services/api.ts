@@ -1,4 +1,4 @@
-﻿
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
@@ -16,11 +16,10 @@ const API_BASE_URL = API_URL.endsWith('/api')
   : `${API_URL}/api`;
 
 const api = axios.create({
-  baseURL:
-    process.env.EXPO_PUBLIC_API_URL ||
-    'http://192.168.1.10:8000/api',
-  timeout: 10000,
+  baseURL: API_BASE_URL,
+  timeout: 30000,
   headers: {
+    'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
@@ -56,8 +55,6 @@ api.interceptors.request.use(
       if (!token) {
         token = await AsyncStorage.getItem('gabai_token');
       }
-
-      config.headers = config.headers ?? {};
 
       if (token) {
         config.headers.set(
@@ -100,6 +97,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // An expired token on logout is expected; the caller clears the session.
+    const isExpiredLogout =
+      error.response?.status === 401 &&
+      error.config?.url === '/auth/logout';
+
+    if (isExpiredLogout) {
+      return Promise.reject(error);
+    }
+
     if (error.response) {
       console.error('========== GABAI API ERROR ==========');
       console.error('STATUS:', error.response.status);

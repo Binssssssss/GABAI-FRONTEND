@@ -2,7 +2,7 @@ export interface Note {
   id: string;
   title: string;
   content: string;
-  type: string;
+  type?: string;
   category: string;
   tags: string[];
   isPinned: boolean;

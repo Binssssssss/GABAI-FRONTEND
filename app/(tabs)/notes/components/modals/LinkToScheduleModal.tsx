@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { localDb, Note } from '@/app/services/localDb';
+import api from '@/app/services/api';
+import { Note } from '@/app/services/localDb';
 import { getNotePreview, triggerHaptic } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
 

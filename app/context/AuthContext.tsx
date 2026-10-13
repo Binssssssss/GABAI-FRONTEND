@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { clearNotificationPrefs } from '@/app/services/notificationPrefs';
 import { localDb } from '@/app/services/localDb';
+import { isAxiosError } from 'axios';
 import api from '@/app/services/api';
 
 import {
@@ -368,11 +369,14 @@ export function AuthProvider({
       /*
        * Even if the backend request fails, continue
        * clearing the local authentication data.
+       * A 401 only means the token already expired.
        */
-      console.warn(
-        'Backend logout request failed. Clearing local session anyway.',
-        error,
-      );
+      if (!isAxiosError(error) || error.response?.status !== 401) {
+        console.warn(
+          'Backend logout request failed. Clearing local session anyway.',
+          error,
+        );
+      }
     } finally {
       await AsyncStorage.multiRemove([
         SESSION_KEY,

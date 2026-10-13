@@ -5,19 +5,10 @@ import { useRouter } from "expo-router";
 import api from "@/app/services/api";
 import { useAuth } from "@/app/context/AuthContext";
 import { validateLoginForm } from "../utils";
-import { configureGoogleSignIn } from "@/app/services/googleAuth";
+import { configureGoogleSignIn, getGoogleSignin } from "@/app/services/googleAuth";
 
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { firebaseAuth } from "@/app/services/firebase";
-
-function getGoogleSigninClient() {
-  try {
-    const googleSignInModule = require("@react-native-google-signin/google-signin");
-    return googleSignInModule?.GoogleSignin ?? googleSignInModule?.default?.GoogleSignin ?? null;
-  } catch {
-    return null;
-  }
-}
 
 function decodeJwtPayload(token: string) {
   try {
@@ -153,7 +144,7 @@ export function useLogin() {
       return;
     }
 
-    const GoogleSignin = getGoogleSigninClient();
+    const GoogleSignin = getGoogleSignin();
 
     if (!GoogleSignin) {
       setIsLoading(false);

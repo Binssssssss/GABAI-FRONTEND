@@ -1,64 +1,56 @@
 import React from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ACADEMIC_SUBJECTS } from '../constants/focusConfig';
+import { FocusPalette } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
 
 interface SubjectSelectorProps {
   selectedSubject: string;
   onSelectSubject: (subject: string) => void;
-  cardBg: string;
-  borderCol: string;
-  textPrimary: string;
-  textSecondary: string;
-  primaryAccent: string;
+  colors: FocusPalette;
 }
 
 export default function SubjectSelector({
   selectedSubject,
   onSelectSubject,
-  cardBg,
-  borderCol,
-  textPrimary,
-  textSecondary,
-  primaryAccent,
+  colors,
 }: SubjectSelectorProps) {
   return (
-    <View style={{ marginBottom: 20 }}>
-      <Text style={[styles.sectionTitle, { color: textSecondary }]}>Study Target / Subject</Text>
-
+    <View>
       {/* Editable Subject Input Box */}
       <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: cardBg,
-          borderColor: borderCol,
-          borderWidth: 1,
-          borderRadius: 14,
-          paddingHorizontal: 14,
-          height: 48,
-          marginBottom: 12,
-        }}
+        style={[
+          styles.subjectInput,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
       >
-        <Feather name="book-open" size={16} color={primaryAccent} style={{ marginRight: 10 }} />
+        <Feather name="book-open" size={16} color={colors.primary} style={{ marginRight: 10 }} />
         <TextInput
           value={selectedSubject}
           onChangeText={onSelectSubject}
           placeholder="Type any subject, exam, or topic..."
-          placeholderTextColor={textSecondary}
+          placeholderTextColor={colors.subtext}
+          returnKeyType="done"
+          maxLength={60}
           style={{
             flex: 1,
-            color: textPrimary,
+            color: colors.text,
             fontSize: 14,
             fontWeight: '600',
             height: '100%',
           }}
         />
         {selectedSubject.length > 0 && (
-          <TouchableOpacity onPress={() => onSelectSubject('')} style={{ padding: 4 }}>
-            <Feather name="x-circle" size={16} color={textSecondary} />
-          </TouchableOpacity>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear subject"
+            onPress={() => onSelectSubject('')}
+            hitSlop={10}
+            style={{ padding: 4 }}
+          >
+            <Feather name="x-circle" size={16} color={colors.subtext} />
+          </Pressable>
         )}
       </View>
 
@@ -66,31 +58,35 @@ export default function SubjectSelector({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.subjectsScroll}
       >
         {ACADEMIC_SUBJECTS.map((subject) => {
           const isSelected = selectedSubject.trim().toLowerCase() === subject.toLowerCase();
           return (
-            <TouchableOpacity
+            <Pressable
               key={subject}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected }}
               onPress={() => onSelectSubject(subject)}
-              style={[
+              style={({ pressed }) => [
                 styles.subjectPill,
                 {
-                  backgroundColor: isSelected ? primaryAccent : cardBg,
-                  borderColor: isSelected ? primaryAccent : borderCol,
+                  backgroundColor: isSelected ? colors.primary : colors.card,
+                  borderColor: isSelected ? colors.primary : colors.border,
                 },
+                pressed && styles.pressed,
               ]}
             >
               <Text
                 style={[
                   styles.subjectPillText,
-                  { color: isSelected ? '#FFFFFF' : textPrimary },
+                  { color: isSelected ? colors.onPrimary : colors.text },
                 ]}
               >
                 {subject}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </ScrollView>
