@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -97,55 +97,62 @@ export default function AddTaskModal({
   *
   * This is important when opening the modal for editing because
   * the task already has an existing due date and time.
+  *
+  * Done during render (not in an effect) whenever the modal opens,
+  * closes or switches task, so the picker never shows stale values.
     */
-  useEffect(() => {
-    if (!isAdding) {
-      setPicker(null);
-      return;
-    }
+  const [syncedFor, setSyncedFor] = useState<{
+    isAdding: boolean;
+    editingTask: typeof editingTask;
+  } | null>(null);
 
-
-    const parsedDate = newDueDate
-
-      ? new Date(`${newDueDate}T12:00:00`)
-      : new Date();
-
-    if (!Number.isNaN(parsedDate.getTime())) {
-      setMonth(parsedDate.getMonth());
-      setYear(parsedDate.getFullYear());
-    }
-
-    const [rawHour, rawMinute] = (
-      newDueTime || '18:00'
-    )
-      .split(':')
-      .map(Number);
-
-    const h24 = Number.isFinite(rawHour)
-      ? rawHour
-      : 18;
-
-    const m = Number.isFinite(rawMinute)
-      ? Math.max(0, Math.min(59, rawMinute))
-      : 0;
-
-    setHour(
-      h24 % 12 === 0
-        ? 12
-        : h24 % 12
-    );
-
-    setMinute(m);
-
-    setPeriod(
-      h24 >= 12
-        ? 'PM'
-        : 'AM'
-    );
-
+  if (
+    syncedFor === null ||
+    syncedFor.isAdding !== isAdding ||
+    syncedFor.editingTask !== editingTask
+  ) {
+    setSyncedFor({ isAdding, editingTask });
     setPicker(null);
 
-  }, [isAdding, editingTask]);
+    if (isAdding) {
+      const parsedDate = newDueDate
+        ? new Date(`${newDueDate}T12:00:00`)
+        : new Date();
+
+      if (!Number.isNaN(parsedDate.getTime())) {
+        setMonth(parsedDate.getMonth());
+        setYear(parsedDate.getFullYear());
+      }
+
+      const [rawHour, rawMinute] = (
+        newDueTime || '18:00'
+      )
+        .split(':')
+        .map(Number);
+
+      const h24 = Number.isFinite(rawHour)
+        ? rawHour
+        : 18;
+
+      const m = Number.isFinite(rawMinute)
+        ? Math.max(0, Math.min(59, rawMinute))
+        : 0;
+
+      setHour(
+        h24 % 12 === 0
+          ? 12
+          : h24 % 12
+      );
+
+      setMinute(m);
+
+      setPeriod(
+        h24 >= 12
+          ? 'PM'
+          : 'AM'
+      );
+    }
+  }
 
   /* ---------------- CLOSE ---------------- */
 

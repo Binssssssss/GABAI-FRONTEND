@@ -1,4 +1,5 @@
 import api from "./api";
+import { loadNotificationPrefs } from "./notificationPrefs";
 
 export interface SmartReminderResponse {
   hasReminder: boolean;
@@ -13,7 +14,13 @@ export interface SmartReminderResponse {
 }
 
 export const getSmartReminder = async (): Promise<SmartReminderResponse> => {
-  const response = await api.get("/api/smart-reminders");
+  const prefs = await loadNotificationPrefs();
+
+  if (!prefs.smartReminders) {
+    return { hasReminder: false, reminderText: null, type: "no_reminder" };
+  }
+
+  const response = await api.get("/smart-reminders");
 
   return response.data.data;
 };

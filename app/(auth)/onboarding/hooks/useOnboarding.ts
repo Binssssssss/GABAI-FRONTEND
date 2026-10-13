@@ -5,6 +5,9 @@ import * as Haptics from 'expo-haptics';
 import { ONBOARDING_SLIDES } from '../constants';
 
 const { width } = Dimensions.get('window');
+const VIEWABILITY_CONFIG = {
+  viewAreaCoveragePercentThreshold: 50,
+};
 
 export function useOnboarding() {
   const router = useRouter();
@@ -15,8 +18,9 @@ export function useOnboarding() {
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
-        setCurrentIndex(viewableItems[0].index);
+      const index = viewableItems[0]?.index;
+      if (index !== null && index !== undefined) {
+        setCurrentIndex(index);
       }
     },
     []

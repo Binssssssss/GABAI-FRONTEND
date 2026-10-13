@@ -58,9 +58,7 @@ export default function RegisterScreen() {
     <SafeAreaView
       style={[
         styles.container,
-        {
-          backgroundColor: colors.background,
-        },
+        { backgroundColor: colors.background },
       ]}
       edges={['top', 'bottom']}
     >
@@ -90,7 +88,6 @@ export default function RegisterScreen() {
                 borderColor: colors.border,
               },
             ]}
-
           >
             <RegisterForm
               name={name}

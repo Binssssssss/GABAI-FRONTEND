@@ -23,3 +23,7 @@ export function useTaskTheme(): TaskTheme {
     inputBg: isDark ? colors.subtleSurface : colors.surfaceStrong,
   };
 }
+
+export default function TaskThemeRoute() {
+  return useTaskTheme();
+}

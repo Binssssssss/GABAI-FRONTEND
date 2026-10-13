@@ -9,24 +9,34 @@ import {
   NotesFabMenu,
   NotesModalContainer,
 } from './components';
+
 import { useNotesData, useNotesTheme } from './hooks';
 import { noteStyles as styles } from './styles/notes.styles';
 
 export default function NotesScreen() {
   const { openDrawer } = useDrawer();
+
   const theme = useNotesTheme();
   const notesData = useNotesData();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.bgTheme }]} edges={['top']}>
-      {/* 1. Header, Search & Filter Bar */}
+    <SafeAreaView
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.bgTheme,
+        },
+      ]}
+      edges={['top']}
+    >
+      {/* Header, Search & Filter Bar */}
       <NotesHeaderSection
         onOpenDrawer={openDrawer}
         notesData={notesData}
         theme={theme}
       />
 
-      {/* 2. Scrollable Notes List & Grid */}
+      {/* Scrollable Notes List & Grid */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -37,11 +47,15 @@ export default function NotesScreen() {
         />
       </ScrollView>
 
-      {/* 3. Floating Speed Dial Action Button */}
+      {/* Floating Speed Dial Action Button */}
       <NotesFabMenu
         isOpen={notesData.isFabMenuOpen}
-        onToggle={() => notesData.setIsFabMenuOpen((prev) => !prev)}
-        onNewBlankNote={() => notesData.handleOpenNewNote()}
+        onToggle={() =>
+          notesData.setIsFabMenuOpen((prev) => !prev)
+        }
+        onNewBlankNote={() =>
+          notesData.handleOpenNewNote()
+        }
         onQuickJot={notesData.handleOpenQuickNote}
         onOpenTemplates={() => {
           notesData.setIsFabMenuOpen(false);
@@ -53,7 +67,7 @@ export default function NotesScreen() {
         primaryBrown={theme.primaryBrown}
       />
 
-      {/* 4. Notes Modals (Editor, Templates, Convert Task, Schedule, Filters) */}
+      {/* Editor, Templates, Convert Task, Schedule & Filters */}
       <NotesModalContainer
         notesData={notesData}
         theme={theme}

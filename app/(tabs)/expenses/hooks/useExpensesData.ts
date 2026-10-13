@@ -1,6 +1,5 @@
 import api from '@/app/services/api';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -25,6 +24,61 @@ interface WalletBalanceResponse {
   totalExpenses: number;
 }
 
+const EMPTY_WALLET_BALANCE: WalletBalanceResponse = {
+  netBalance: 0,
+  totalIncome: 0,
+  totalExpenses: 0,
+};
+
+// =========================
+// REQUESTS
+// =========================
+// These only fetch and return data; the hook sets state once
+// they settle. `null` means "keep the current value".
+
+const fetchTransactions = async (): Promise<Transaction[] | null> => {
+  try {
+    const response = await api.get('/transactions');
+
+    if (!response.data.success) return null;
+
+    const data: TransactionResponse[] = response.data.data;
+
+    return data.map((item) => ({
+      id: item.id,
+      title: item.title,
+      amount: Number(item.amount),
+      category: item.category,
+      date: item.date,
+      type: item.type,
+    }));
+  } catch (error: any) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load transactions:', error);
+    }
+
+    return [];
+  }
+};
+
+const fetchWalletBalance =
+  async (): Promise<WalletBalanceResponse | null> => {
+    try {
+      const response = await api.get('/transactions/balance');
+
+      return response.data.success ? response.data.data : null;
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        console.error('Failed to load wallet balance:', error);
+      }
+
+      return EMPTY_WALLET_BALANCE;
+    }
+  };
+
+const fetchWallet = () =>
+  Promise.all([fetchTransactions(), fetchWalletBalance()]);
+
 export function useExpensesData() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,72 +97,34 @@ export function useExpensesData() {
   const [isAdding, setIsAdding] = useState(false);
 
   const [walletBalance, setWalletBalance] =
-    useState<WalletBalanceResponse>({
-      netBalance: 0,
-      totalIncome: 0,
-      totalExpenses: 0,
-    });
+    useState<WalletBalanceResponse>(EMPTY_WALLET_BALANCE);
 
   // =========================
-  // LOAD TRANSACTIONS
+  // LOAD WALLET
   // =========================
-  const loadTransactions = useCallback(async () => {
-    try {
-      setIsLoading(true);
-
-      const response = await api.get('/transactions');
-
-      if (response.data.success) {
-        const data: TransactionResponse[] = response.data.data;
-
-        const mappedTransactions: Transaction[] = data.map((item) => ({
-          id: item.id,
-          title: item.title,
-          amount: Number(item.amount),
-          category: item.category,
-          date: item.date,
-          type: item.type,
-        }));
-
-        setTransactions(mappedTransactions);
-      }
-    } catch (error) {
-      console.error('Failed to load transactions:', error);
-    } finally {
+  const applyWallet = useCallback(
+    ([nextTransactions, nextBalance]: Awaited<
+      ReturnType<typeof fetchWallet>
+    >) => {
+      if (nextTransactions) setTransactions(nextTransactions);
+      if (nextBalance) setWalletBalance(nextBalance);
       setIsLoading(false);
-    }
-  }, []);
-
-  // =========================
-  // LOAD WALLET BALANCE
-  // =========================
-  const loadWalletBalance = useCallback(async () => {
-    try {
-      const response = await api.get('/transactions/balance');
-
-      if (response.data.success) {
-        setWalletBalance(response.data.data);
-      }
-    } catch (error) {
-      console.error('Failed to load wallet balance:', error);
-    }
-  }, []);
+    },
+    [],
+  );
 
   // =========================
   // REFRESH
   // =========================
   const refreshWallet = useCallback(async () => {
-    await Promise.all([
-      loadTransactions(),
-      loadWalletBalance(),
-    ]);
-  }, [loadTransactions, loadWalletBalance]);
+    setIsLoading(true);
+    applyWallet(await fetchWallet());
+  }, [applyWallet]);
 
-  useFocusEffect(
-    useCallback(() => {
-      refreshWallet();
-    }, [refreshWallet]),
-  );
+  // Initial load (isLoading already starts as true).
+  useEffect(() => {
+    fetchWallet().then(applyWallet);
+  }, [applyWallet]);
 
   // =========================
   // WALLET VALUES

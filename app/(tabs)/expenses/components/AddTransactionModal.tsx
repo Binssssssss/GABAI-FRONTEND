@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
 
 import { TransactionType } from '../types';
@@ -97,17 +96,11 @@ export default function AddTransactionModal({
     );
   };
 
-  const handleDateChange = (
-    event: any,
-    selectedDate?: Date
-  ) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-
+  const handleDateChange = (selectedDate?: Date) => {
     if (selectedDate) {
       onDateChange(selectedDate);
     }
+    setShowDatePicker(false);
   };
 
   return (
@@ -309,7 +302,7 @@ export default function AddTransactionModal({
 
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => handleDateChange(date)}
                 style={[
                   styles.input,
                   {
@@ -354,17 +347,11 @@ export default function AddTransactionModal({
               </TouchableOpacity>
 
               {showDatePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display={
-                    Platform.OS === 'ios'
-                      ? 'spinner'
-                      : 'default'
-                  }
-                  onChange={handleDateChange}
-                  maximumDate={new Date()}
-                />
+                <View style={{ marginTop: 12, paddingVertical: 8 }}>
+                  <Text style={{ color: textSecondary, fontSize: 13 }}>
+                    Date picker is unavailable in this build. Use the selected date shown above.
+                  </Text>
+                </View>
               )}
 
               {/* Category */}

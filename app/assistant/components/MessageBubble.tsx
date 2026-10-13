@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Message } from '../types';
@@ -6,8 +6,8 @@ import { assistantStyles as styles } from '../styles';
 import { FocusSessionWidget } from './FocusSessionWidget';
 
 function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
-  const fadeAnim = useMemo(() => new Animated.Value(0), []);
-  const slideAnim = useMemo(() => new Animated.Value(15), []);
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(15));
 
   useEffect(() => {
     Animated.parallel([
@@ -29,6 +29,11 @@ function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
       {children}
     </Animated.View>
   );
+}
+
+/** Hides Markdown bold markers (**text**) so messages show as clean text. */
+function cleanText(text: string): string {
+  return text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*\*/g, '');
 }
 
 interface MessageBubbleProps {
@@ -80,7 +85,7 @@ export function MessageBubble({
                 isUser ? styles.userMessageText : { color: textPrimary },
               ]}
             >
-              {item.text}
+              {cleanText(item.text)}
             </Text>
 
             {item.customWidget === 'focus' && (

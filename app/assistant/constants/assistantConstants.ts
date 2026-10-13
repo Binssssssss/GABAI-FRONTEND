@@ -25,5 +25,4 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { label: 'Expenses', query: 'How much did I spend this week?' },
   { label: 'Focus Session', query: 'Start focus session' },
   { label: 'Notes', query: 'Open notepad' },
-  { label: 'Analytics', query: 'Show productivity statistics' },
 ];

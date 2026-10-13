@@ -3,16 +3,35 @@ import {
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from 'expo-router/react-navigation';
-import { Stack, useSegments, useRouter } from 'expo-router';
+import {
+  Stack,
+  useRouter,
+  useSegments,
+} from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
-import { ThemeProvider, useAppTheme } from '@/app/context/ThemeContext';
-import { AuthProvider, useAuth } from '@/app/context/AuthContext';
+import {
+  ThemeProvider,
+  useAppTheme,
+} from '@/app/context/ThemeContext';
 
-function createGabaiNavigationTheme(colorScheme: 'light' | 'dark', colors: any) {
-  const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+import {
+  AuthProvider,
+  useAuth,
+} from '@/app/context/AuthContext';
+
+import AppLockGate from '@/components/AppLockGate';
+
+function createGabaiNavigationTheme(
+  colorScheme: 'light' | 'dark',
+  colors: any,
+) {
+  const baseTheme =
+    colorScheme === 'dark'
+      ? DarkTheme
+      : DefaultTheme;
 
   return {
     ...baseTheme,
@@ -32,43 +51,96 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppNavigation />
+        <AppLockGate>
+          <AppNavigation />
+        </AppLockGate>
       </AuthProvider>
     </ThemeProvider>
   );
 }
 
 function AppNavigation() {
-  const { colorScheme, colors } = useAppTheme();
-  const { session, isLoading } = useAuth();
+  const {
+    colorScheme,
+    colors,
+  } = useAppTheme();
+
+  const {
+    session,
+    isLoading,
+  } = useAuth();
+
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading) {
+      return;
+    }
 
-    const isAuthRoute = segments[0] === '(auth)';
-    const isAppRoute = segments[0] === '(tabs)' || segments[0] === 'assistant' || segments[0] === 'productivity';
+    const isAuthRoute =
+      segments[0] === '(auth)';
+
+    const isAppRoute =
+      segments[0] === '(tabs)' ||
+      segments[0] === 'assistant' ||
+      segments[0] === 'productivity' ||
+      segments[0] === 'settings';
 
     if (!session && isAppRoute) {
-      router.replace('/(auth)/login/login');
-    } else if (session && (segments[0] === undefined || isAuthRoute)) {
-      router.replace('/(tabs)/dashboard/dashboard');
+      router.replace(
+        '/(auth)/login/login',
+      );
+      return;
     }
-  }, [isLoading, router, segments, session]);
 
-  if (isLoading) return null;
+    if (
+      session &&
+      (segments[0] === undefined ||
+        isAuthRoute)
+    ) {
+      router.replace(
+        '/(tabs)/dashboard/dashboard',
+      );
+    }
+  }, [
+    isLoading,
+    router,
+    segments,
+    session,
+  ]);
+
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <NavigationThemeProvider
-      value={createGabaiNavigationTheme(colorScheme, colors)}
+      value={createGabaiNavigationTheme(
+        colorScheme,
+        colors,
+      )}
     >
       <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="index"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="(auth)"
+          options={{
+            headerShown: false,
+          }}
+        />
+
         <Stack.Screen
           name="(tabs)"
-          options={{ headerShown: false }}
+          options={{
+            headerShown: false,
+          }}
         />
 
         <Stack.Screen
@@ -80,10 +152,16 @@ function AppNavigation() {
         />
 
         <Stack.Screen
-          name="calendar"
+          name="settings/notifications"
           options={{
-            presentation: 'modal',
-            title: 'Calendar',
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="settings/privacy"
+          options={{
+            headerShown: false,
           }}
         />
 
@@ -97,7 +175,11 @@ function AppNavigation() {
       </Stack>
 
       <StatusBar
-        style={colorScheme === 'dark' ? 'light' : 'dark'}
+        style={
+          colorScheme === 'dark'
+            ? 'light'
+            : 'dark'
+        }
       />
     </NavigationThemeProvider>
   );

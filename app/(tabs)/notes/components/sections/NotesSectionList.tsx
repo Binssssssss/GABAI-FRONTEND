@@ -17,8 +17,6 @@ export default function NotesSectionList({
   theme,
 }: NotesSectionListProps) {
   const {
-    pinnedNotes,
-    unpinnedNotes,
     filteredNotes,
     viewMode,
     searchQuery,
@@ -31,6 +29,9 @@ export default function NotesSectionList({
     handleDeleteNote,
     handleOpenNewNote,
   } = notesData;
+
+  const pinnedNotes = filteredNotes.filter((note) => note.isPinned);
+  const unpinnedNotes = filteredNotes.filter((note) => !note.isPinned);
 
   const { cardBg, borderCol, textPrimary, textSecondary, primaryBrown } = theme;
 
@@ -67,9 +68,9 @@ export default function NotesSectionList({
                   note={note}
                   viewMode={viewMode}
                   onPress={() => handleOpenNote(note)}
-                  onTogglePin={() => handlePinToggle(note.id, note.isPinned)}
-                  onToggleFavorite={() => handleFavoriteToggle(note.id, note.isFavorite)}
-                  onToggleArchive={() => handleArchiveToggle(note.id, note.isArchived)}
+                  onTogglePin={() => handlePinToggle(note)}
+                  onToggleFavorite={() => handleFavoriteToggle(note)}
+                  onToggleArchive={() => handleArchiveToggle(note)}
                   onDelete={() => handleDeleteNote(note.id)}
                   cardBg={cardBg}
                   borderCol={borderCol}
@@ -100,9 +101,9 @@ export default function NotesSectionList({
                   note={note}
                   viewMode={viewMode}
                   onPress={() => handleOpenNote(note)}
-                  onTogglePin={() => handlePinToggle(note.id, note.isPinned)}
-                  onToggleFavorite={() => handleFavoriteToggle(note.id, note.isFavorite)}
-                  onToggleArchive={() => handleArchiveToggle(note.id, note.isArchived)}
+                  onTogglePin={() => handlePinToggle(note)}
+                  onToggleFavorite={() => handleFavoriteToggle(note)}
+                  onToggleArchive={() => handleArchiveToggle(note)}
                   onDelete={() => handleDeleteNote(note.id)}
                   cardBg={cardBg}
                   borderCol={borderCol}

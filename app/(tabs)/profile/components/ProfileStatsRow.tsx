@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ProfileStatItem } from '../types';
 import { profileStyles as styles } from '../styles/profile.styles';
@@ -11,6 +11,7 @@ interface ProfileStatsRowProps {
   textTheme: string;
   textSubTheme: string;
   primaryAccent: string;
+  onStatPress?: (statId: string) => void;
 }
 
 export default function ProfileStatsRow({
@@ -20,18 +21,28 @@ export default function ProfileStatsRow({
   textTheme,
   textSubTheme,
   primaryAccent,
+  onStatPress,
 }: ProfileStatsRowProps) {
   return (
     <View style={styles.statsRow}>
       {stats.map((stat) => (
-        <View
+        <TouchableOpacity
           key={stat.id}
+          activeOpacity={0.7}
+          disabled={!onStatPress}
+          onPress={() => onStatPress?.(stat.id)}
           style={[styles.statCard, { backgroundColor: cardTheme, borderColor: borderTheme }]}
         >
           <Feather name={stat.icon as any} size={20} color={primaryAccent} />
-          <Text style={[styles.statNumber, { color: textTheme }]}>{stat.value}</Text>
+          <Text
+            style={[styles.statNumber, { color: textTheme }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {stat.value}
+          </Text>
           <Text style={[styles.statLabel, { color: textSubTheme }]}>{stat.label}</Text>
-        </View>
+        </TouchableOpacity>
       ))}
     </View>
   );

@@ -54,13 +54,17 @@ export default function AcademicPressure({
         setPressureLabel(data.label);
         setPressureLevel(data.level);
         setPressureScore(data.score);
-      } catch (error) {
-        console.error (
-          "Failed to fetch academic pressure:",
-          error,
-        );
+      } catch (error: any) {
+        if (error?.response?.status !== 404) {
+          console.error(
+            "Failed to fetch academic pressure:",
+            error,
+          );
+        }
 
-        setPressureLabel("Unable to load");
+        setPressureLabel("Low workload");
+        setPressureLevel("LOW");
+        setPressureScore(0);
       }
     };
 
