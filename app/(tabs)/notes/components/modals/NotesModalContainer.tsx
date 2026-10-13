@@ -16,6 +16,8 @@ export default function NotesModalContainer({
   notesData,
   theme,
 }: NotesModalContainerProps) {
+  const activeNoteId = notesData.editingNoteId;
+
   return (
     <>
       {/* Rich Note Editor Modal */}
@@ -38,31 +40,39 @@ export default function NotesModalContainer({
         onTogglePreview={() => notesData.setIsPreviewMode((prev) => !prev)}
         isFavorite={notesData.editorIsFavorite}
         onToggleFavorite={() => {
-          if (notesData.filteredNotes.length > 0) {
-            notesData.handleFavoriteToggle(notesData.editorTitle, notesData.editorIsFavorite);
+          if (activeNoteId) {
+            notesData.handleFavoriteToggle(activeNoteId, notesData.editorIsFavorite);
+            return;
           }
+          notesData.setEditorIsFavorite((prev) => !prev);
         }}
         isPinned={notesData.editorIsPinned}
         onTogglePin={() => {
-          if (notesData.filteredNotes.length > 0) {
-            notesData.handlePinToggle(notesData.editorTitle, notesData.editorIsPinned);
+          if (activeNoteId) {
+            notesData.handlePinToggle(activeNoteId, notesData.editorIsPinned);
+            return;
           }
+          notesData.setEditorIsPinned((prev) => !prev);
         }}
         isArchived={notesData.editorIsArchived}
         onToggleArchive={() => {
-          if (notesData.filteredNotes.length > 0) {
-            notesData.handleArchiveToggle(notesData.editorTitle, notesData.editorIsArchived);
+          if (activeNoteId) {
+            notesData.handleArchiveToggle(activeNoteId, notesData.editorIsArchived);
+            return;
           }
+          notesData.setEditorIsArchived((prev) => !prev);
         }}
         onDelete={() => {
-          if (notesData.editorTitle || notesData.editorContent) {
-            notesData.handleCloseEditor();
+          if (activeNoteId) {
+            notesData.handleDeleteNote(activeNoteId);
+            return;
           }
+          notesData.handleCloseEditor();
         }}
         onShare={() => notesData.handleShareNote(notesData.editorTitle, notesData.editorContent)}
         onOpenConvertTask={() => {
           notesData.setConvertTargetNote({
-            id: 'temp',
+            id: activeNoteId || 'temp',
             title: notesData.editorTitle || 'Untitled Note',
             content: notesData.editorContent,
             category: notesData.editorCategory,
@@ -77,7 +87,7 @@ export default function NotesModalContainer({
         }}
         onOpenSchedule={() => {
           notesData.setScheduleTargetNote({
-            id: 'temp',
+            id: activeNoteId || 'temp',
             title: notesData.editorTitle || 'Untitled Note',
             content: notesData.editorContent,
             category: notesData.editorCategory,
@@ -91,7 +101,6 @@ export default function NotesModalContainer({
           notesData.setScheduleModalOpen(true);
         }}
         onOpenTemplateModal={() => notesData.setIsTemplateModalOpen(true)}
-        onInsertFormatting={notesData.insertFormatting}
         onUndo={notesData.handleUndo}
         onRedo={notesData.handleRedo}
         isMoreMenuOpen={notesData.isEditorMoreMenuOpen}

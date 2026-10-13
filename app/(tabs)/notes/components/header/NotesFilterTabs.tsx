@@ -37,7 +37,7 @@ export default function NotesFilterTabs({
   primaryBrown,
 }: NotesFilterTabsProps) {
   const tabs: { id: NoteFilterTab; label: string; icon: string }[] = [
-    { id: 'all', label: 'All Notes', icon: 'file-text' },
+    { id: 'all', label: 'All', icon: 'file-text' },
     { id: 'pinned', label: 'Pinned', icon: 'bookmark' },
     { id: 'favorites', label: 'Favorites', icon: 'star' },
     { id: 'archived', label: 'Archived', icon: 'archive' },

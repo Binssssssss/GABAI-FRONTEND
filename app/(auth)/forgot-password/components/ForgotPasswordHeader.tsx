@@ -1,3 +1,4 @@
+
 import { Feather } from '@expo/vector-icons';
 import { Image, TouchableOpacity, View } from 'react-native';
 import { useAppTheme } from '@/app/context/ThemeContext';
@@ -12,9 +13,9 @@ interface ForgotPasswordHeaderProps {
 export default function ForgotPasswordHeader({
   onBack,
   textPrimary,
-  primaryBrown,
 }: ForgotPasswordHeaderProps) {
   const { colorScheme } = useAppTheme();
+
   const logoSource =
     colorScheme === 'dark'
       ? require('@/assets/images/GABAI-LOGO-WHITE.png')
@@ -26,15 +27,26 @@ export default function ForgotPasswordHeader({
         style={styles.backButton}
         onPress={onBack}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
       >
-        <Feather name="arrow-left" size={24} color={textPrimary} />
+        <Feather
+          name="arrow-left"
+          size={24}
+          color={textPrimary}
+        />
       </TouchableOpacity>
 
       <View style={styles.logoContainer}>
         <Image
           source={logoSource}
-          style={styles.logoImage}
+          style={{
+            width: 180,
+            height: 72,
+            alignSelf: 'center',
+          }}
           resizeMode="contain"
+          accessibilityLabel="GabAi logo"
         />
       </View>
     </>

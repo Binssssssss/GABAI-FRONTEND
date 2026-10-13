@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { localDb, Note, Task } from '@/app/services/localDb';
-import { triggerHaptic } from '../../utils/noteHelpers';
+import { getNotePlainText, getNotePreview, triggerHaptic } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
 
 interface ConvertToTaskModalProps {
@@ -48,7 +48,7 @@ export default function ConvertToTaskModal({
     triggerHaptic();
     localDb.addTask({
       title: `Review Note: ${note.title}`,
-      description: note.content.slice(0, 200),
+      description: getNotePreview(note.content, 200),
       subject: subjectInput.trim() || note.category,
       priority: priorityInput,
       category: categoryInput,
@@ -89,7 +89,7 @@ export default function ConvertToTaskModal({
           <View style={[styles.convertNoteSummary, { backgroundColor: inputBg, borderColor: borderCol }]}>
             <Text style={[styles.convertNoteTitle, { color: textPrimary }]}>{note.title}</Text>
             <Text style={[styles.convertNoteSnippet, { color: textSecondary }]} numberOfLines={2}>
-              {note.content}
+              {getNotePlainText(note.content)}
             </Text>
           </View>
 

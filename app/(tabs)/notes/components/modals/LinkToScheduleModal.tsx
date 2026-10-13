@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { localDb, Note } from '@/app/services/localDb';
-import { triggerHaptic } from '../../utils/noteHelpers';
+import { getNotePreview, triggerHaptic } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
 
 interface LinkToScheduleModalProps {
@@ -42,7 +42,7 @@ export default function LinkToScheduleModal({
     triggerHaptic();
     localDb.addEvent({
       title: `Review: ${note.title}`,
-      description: `Study notes from ${note.category}:\n\n${note.content.slice(0, 150)}...`,
+      description: `Study notes from ${note.category}:\n\n${getNotePreview(note.content, 150)}`,
       date: dateInput,
       time: timeInput,
       category: 'Exam',

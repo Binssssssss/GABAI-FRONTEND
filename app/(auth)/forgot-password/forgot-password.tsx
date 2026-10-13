@@ -39,7 +39,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: palette.background }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top', 'bottom']}
     >
       <KeyboardAvoidingView

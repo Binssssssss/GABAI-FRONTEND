@@ -23,13 +23,16 @@ export default function NotesSearchBar({
   return (
     <View style={styles.searchSection}>
       <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderCol }]}>
-        <Feather name="search" size={16} color={textSecondary} style={{ marginRight: 8 }} />
+        <Feather name="search" size={15} color={textSecondary} style={{ marginRight: 8 }} />
         <TextInput
-          placeholder="Search title, content, or #tags..."
+          placeholder="Search notes, tags, or ideas..."
           placeholderTextColor={textSecondary}
           style={[styles.searchInput, { color: textPrimary }]}
           value={searchQuery}
           onChangeText={onSearchChange}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => onSearchChange('')} style={{ padding: 4 }}>
