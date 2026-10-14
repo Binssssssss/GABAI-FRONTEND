@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAxiosError } from 'axios';
 
@@ -65,8 +65,21 @@ export default function EditProfileScreen() {
   const canSave = trimmedName.length > 0 && hasChanges && !isSaving;
 
   const pickPhoto = async () => {
+    // expo-image-picker is a native module. Older app builds don't include
+    // it, so load it only when available instead of crashing the screen.
+    if (!requireOptionalNativeModule('ExponentImagePicker')) {
+      Alert.alert(
+        'Update required',
+        'Photo upload needs the latest version of GabAi. You can still change your name.',
+      );
+      return;
+    }
+
     try {
       setIsPicking(true);
+
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const ImagePicker: typeof import('expo-image-picker') = require('expo-image-picker');
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
