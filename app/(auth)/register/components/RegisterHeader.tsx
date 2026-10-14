@@ -9,6 +9,7 @@ import { Feather } from '@expo/vector-icons';
 
 import { useAppTheme } from '@/app/context/ThemeContext';
 import { registerStyles as styles } from '../styles';
+import { loginStyles } from '../../login/styles';
 
 interface RegisterHeaderProps {
   onBack: () => void;
@@ -25,9 +26,9 @@ export function RegisterHeader({
   const { colorScheme } = useAppTheme();
 
   const logoSource =
-  colorScheme === 'dark'
-    ? require('../../../../assets/images/GABAI-LOGO-WHITE.png')
-    : require('../../../../assets/images/GABAI-LOGO-BLACK.png');
+    colorScheme === 'dark'
+      ? require('../../../../assets/images/GABAI-LOGO-WHITE.png')
+      : require('../../../../assets/images/GABAI-LOGO-BLACK.png');
 
   return (
     <>
@@ -43,10 +44,11 @@ export function RegisterHeader({
         />
       </TouchableOpacity>
 
-      <View style={styles.logoContainer}>
+      {/* Same logo size as the Login screen */}
+      <View style={loginStyles.logoContainer}>
         <Image
           source={logoSource}
-          style={styles.logoIcon}
+          style={loginStyles.logoImage}
           resizeMode="contain"
         />
       </View>

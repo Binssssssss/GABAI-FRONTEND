@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { FlatList, ViewToken, Dimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ONBOARDING_SLIDES } from '../constants';
 
 const { width } = Dimensions.get('window');
-const VIEWABILITY_CONFIG = {
-  viewAreaCoveragePercentThreshold: 50,
+
+/** Remember that onboarding was shown, so it only appears once. */
+const markOnboardingSeen = () => {
+  AsyncStorage.setItem('gabai.onboarding.seen', 'true').catch(() => {});
 };
 
 export function useOnboarding() {
@@ -33,6 +36,7 @@ export function useOnboarding() {
     []
   );
 
+  // "Continue" on each slide, "Get Started" on the last slide
   const handleNext = useCallback(() => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -43,6 +47,7 @@ export function useOnboarding() {
       flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
       setCurrentIndex(nextIndex);
     } else {
+      markOnboardingSeen();
       router.replace('/(auth)/register/register');
     }
   }, [currentIndex, router]);
@@ -51,6 +56,7 @@ export function useOnboarding() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
+    markOnboardingSeen();
     router.replace('/(auth)/register/register');
   }, [router]);
 
@@ -58,6 +64,7 @@ export function useOnboarding() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
+    markOnboardingSeen();
     router.replace('/(auth)/login/login');
   }, [router]);
 
