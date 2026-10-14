@@ -119,7 +119,7 @@ export default function AppDrawer({
     }
   }, [isDrawerOpen, drawerWidth, slideAnim]);
 
-  const personalLabels = ['Expenses', 'Focus Session', 'Virtual Assistant'];
+    const personalLabels = ['Wallet', 'Focus Session', 'Virtual Assistant'];
   const workspaceItems = menuItems.filter(
     (item) => !personalLabels.includes(item.label)
   );

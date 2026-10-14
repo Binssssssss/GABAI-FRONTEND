@@ -150,8 +150,8 @@ export default function TabLayout() {
       route: '/(tabs)/calendar/calendar',
       active: isActiveRoute('calendar'),
     },
-    {
-      label: 'Expenses',
+      {
+      label: 'Wallet',
       icon: 'credit-card' as const,
       route: '/(tabs)/expenses/expenses',
       active: isActiveRoute('expenses'),
