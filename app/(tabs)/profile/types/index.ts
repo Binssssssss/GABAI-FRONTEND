@@ -3,6 +3,8 @@ export interface UserProfile {
   email: string;
   course: string;
   initials: string;
+  /** Profile photo as a data URL, or null when the user has none. */
+  avatar: string | null;
 }
 
 export interface ProfileStatItem {

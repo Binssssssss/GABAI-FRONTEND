@@ -1,65 +1,74 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { taskService } from '@/app/services/task.services';
+
+import { isRealSubject } from '../constants/focusConfig';
 import { FocusPalette, FocusTaskRef } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
 
 const COLLAPSED_COUNT = 4;
 
+/** An open task (or calendar event) the user can focus on. */
+export interface PickerTask extends FocusTaskRef {
+  dueDate?: string;
+}
+
+export type TaskLoadState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ready'; tasks: PickerTask[] };
+
 interface TaskPickerProps {
+  loadState: TaskLoadState;
+  onRetry: () => void;
   selectedTask: FocusTaskRef | null;
   onSelectTask: (task: FocusTaskRef | null) => void;
   colors: FocusPalette;
 }
 
-type LoadState =
-  | { status: 'loading' }
-  | { status: 'error' }
-  | { status: 'ready'; tasks: FocusTaskRef[] };
+const startOfDay = (value: Date) =>
+  new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
 
-/** Lists the user's open tasks (read-only, existing GET /tasks). */
+/* "2026-10-15" -> "due today" / "due tomorrow" / "due Fri" / "due Oct 30" / "overdue" */
+function describeDue(dueDate?: string): string | null {
+  if (!dueDate) return null;
+
+  const due = new Date(`${dueDate.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(due.getTime())) return null;
+
+  const days = Math.round((startOfDay(due) - startOfDay(new Date())) / 86400000);
+
+  if (days < 0) return 'overdue';
+  if (days === 0) return 'due today';
+  if (days === 1) return 'due tomorrow';
+  if (days < 7) return `due ${due.toLocaleDateString('en-US', { weekday: 'short' })}`;
+
+  return `due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+}
+
+/* "Database Systems · due today", or "Calendar · Personal" for events. */
+function describeTask(task: PickerTask): string {
+  const due = describeDue(task.dueDate);
+  const first = isRealSubject(task.subject)
+    ? task.subject
+    : task.subject
+      ? `Calendar · ${task.subject}`
+      : 'No subject';
+
+  return due ? `${first} · ${due}` : first;
+}
+
+/** Lists the user's open tasks. Data is loaded by FocusSetupModal. */
 export default function TaskPicker({
+  loadState,
+  onRetry,
   selectedTask,
   onSelectTask,
   colors,
 }: TaskPickerProps) {
-  const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
   const [showAll, setShowAll] = useState(false);
 
-  // Bumped by "Try again" to refetch.
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    taskService
-      .getTasks()
-      .then((tasks) => {
-        if (cancelled) return;
-
-        setLoadState({
-          status: 'ready',
-          tasks: tasks
-            .filter((task) => task && typeof task.id === 'string' && !task.completed)
-            .map((task) => ({
-              id: task.id,
-              title: String(task.title ?? 'Untitled task'),
-              subject: String(task.subject ?? ''),
-            })),
-        });
-      })
-      .catch((error) => {
-        console.warn('Unable to load tasks for focus timer:', error);
-        if (!cancelled) setLoadState({ status: 'error' });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadKey]);
-
-  const renderRow = (task: FocusTaskRef | null) => {
+  const renderRow = (task: PickerTask | null) => {
     const isSelected = task === null ? selectedTask === null : selectedTask?.id === task.id;
 
     return (
@@ -67,7 +76,9 @@ export default function TaskPicker({
         key={task?.id ?? 'none'}
         accessibilityRole="radio"
         accessibilityState={{ selected: isSelected }}
-        onPress={() => onSelectTask(task)}
+        onPress={() =>
+          onSelectTask(task ? { id: task.id, title: task.title, subject: task.subject } : null)
+        }
         style={({ pressed }) => [
           styles.taskRow,
           {
@@ -87,12 +98,29 @@ export default function TaskPicker({
             {task ? task.title : 'No specific task'}
           </Text>
           <Text numberOfLines={1} style={[styles.taskMeta, { color: colors.subtext }]}>
-            {task ? task.subject || 'No subject' : 'Just study the subject below'}
+            {task ? describeTask(task) : 'Just study a subject'}
           </Text>
         </View>
       </Pressable>
     );
   };
+
+  const emptyBox = (message: string) => (
+    <View
+      style={{
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: colors.border,
+        borderRadius: 14,
+        padding: 14,
+        marginTop: 2,
+      }}
+    >
+      <Text style={[styles.taskStateText, { color: colors.subtext, textAlign: 'center' }]}>
+        {message}
+      </Text>
+    </View>
+  );
 
   if (loadState.status === 'loading') {
     return (
@@ -115,14 +143,7 @@ export default function TaskPicker({
           <Text style={[styles.taskStateText, { color: colors.subtext }]}>
             Couldn&apos;t load your tasks.
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              setLoadState({ status: 'loading' });
-              setReloadKey((key) => key + 1);
-            }}
-            hitSlop={10}
-          >
+          <Pressable accessibilityRole="button" onPress={onRetry} hitSlop={10}>
             <Text style={[styles.sectionLink, { color: colors.primary }]}>Try again</Text>
           </Pressable>
         </View>
@@ -131,7 +152,7 @@ export default function TaskPicker({
   }
 
   // Keep a previously chosen task visible even if it is no longer open.
-  const tasks =
+  const tasks: PickerTask[] =
     selectedTask && !loadState.tasks.some((task) => task.id === selectedTask.id)
       ? [selectedTask, ...loadState.tasks]
       : loadState.tasks;
@@ -143,11 +164,8 @@ export default function TaskPicker({
       {renderRow(null)}
       {visibleTasks.map(renderRow)}
 
-      {tasks.length === 0 && (
-        <Text style={[styles.taskStateText, { color: colors.subtext, paddingVertical: 6 }]}>
-          No open tasks. Add tasks in the Tasks tab to focus on them here.
-        </Text>
-      )}
+      {tasks.length === 0 &&
+        emptyBox('No open tasks yet.\nAdd one in Task Manager to focus on it.')}
 
       {tasks.length > COLLAPSED_COUNT && (
         <Pressable

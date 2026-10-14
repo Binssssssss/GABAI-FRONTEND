@@ -1,4 +1,6 @@
+import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDrawer } from '@/app/(tabs)/_layout';
@@ -69,8 +71,12 @@ export default function DashboardScreen() {
       'User'
   );
 
-  const userName =
-    fullUserName.trim().split(/\s+/)[0] || 'User';
+  const firstName = fullUserName.trim().split(/\s+/)[0] || 'User';
+
+  // "gabai" -> "Gabai" (an email is shown as-is).
+  const userName = firstName.includes('@')
+    ? firstName
+    : firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 
   // ============================================================
   // DASHBOARD DATA
@@ -88,10 +94,13 @@ export default function DashboardScreen() {
     handleToggleComplete,
   } = useDashboardData();
 
-  const reminderTasks = tasks.map((task) => ({
-    ...task,
-    dueDate: task.dueDate ?? '2026-07-26',
-  }));
+  // Smart reminders need a real due date; skip tasks without one.
+  const reminderTasks = tasks
+    .filter((task) => Boolean(task.dueDate))
+    .map((task) => ({
+      ...task,
+      dueDate: task.dueDate as string,
+    }));
 
   // ============================================================
   // EXPENSE DATA
@@ -102,7 +111,29 @@ export default function DashboardScreen() {
     totalIncome,
     totalExpenses,
     isLoading: isMoneyLoading,
+    refreshWallet,
   } = useExpensesData();
+
+  // ============================================================
+  // KEEP EVERY CARD UP TO DATE
+  // ============================================================
+
+  // The dashboard tab stays open in the background, so cards that load
+  // their own data (wallet, academic pressure, recommendation) reload
+  // whenever the dashboard is shown again or pulled to refresh.
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshKey((key) => key + 1);
+      void refreshWallet();
+    }, [refreshWallet]),
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshKey((key) => key + 1);
+    await Promise.all([onRefresh(), refreshWallet()]);
+  }, [onRefresh, refreshWallet]);
 
   // ============================================================
   // PRIORITY COLOR HELPER
@@ -153,7 +184,7 @@ export default function DashboardScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={onRefresh}
+            onRefresh={handleRefresh}
             colors={[primaryBrown]}
             tintColor={primaryBrown}
           />
@@ -194,6 +225,7 @@ export default function DashboardScreen() {
         {/* SMART RECOMMENDATION */}
 <View style={styles.section}>
   <WhatShouldIDoNow
+    refreshKey={refreshKey}
     primaryBrown={primaryBrown}
     textColor={textPrimary}
     secondaryText={textSecondary}
@@ -208,6 +240,7 @@ export default function DashboardScreen() {
 
         <View style={styles.section}>
           <AcademicPressure
+            refreshKey={refreshKey}
             cardBg={cardBg}
             borderCol={borderCol}
             textPrimary={textPrimary}

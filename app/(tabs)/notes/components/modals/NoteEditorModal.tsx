@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  Alert,
   Pressable,
   Animated,
   PanResponder,
@@ -318,15 +319,23 @@ const FORMAT_GROUPS: FormatTool[][] = [
 /* Component props                                                    */
 /* ------------------------------------------------------------------ */
 
+export interface CloseEditorOptions {
+  /** Latest editor HTML to save. */
+  content?: string;
+  /** false = close without saving. Defaults to true. */
+  save?: boolean;
+}
+
 interface NoteEditorModalProps {
   visible: boolean;
-  onClose: () => void;
+  onClose: (options?: CloseEditorOptions) => void;
 
   title: string;
   onTitleChange: (value: string) => void;
 
   content: string;
-  onContentChange: (value: string) => void;
+  /** Not called while typing; content is handed over when the user saves. */
+  onContentChange?: (value: string) => void;
 
   category: string;
   onCategoryChange: (category: string) => void;
@@ -352,9 +361,9 @@ interface NoteEditorModalProps {
   onToggleArchive: () => void;
 
   onDelete: () => void;
-  onShare: () => void;
-  onOpenConvertTask: () => void;
-  onOpenSchedule: () => void;
+  onShare: (content: string) => void;
+  onOpenConvertTask: (content: string) => void;
+  onOpenSchedule: (content: string) => void;
   onOpenTemplateModal: () => void;
 
   // Retained for compatibility with the existing parent. Undo/redo run
@@ -387,7 +396,6 @@ export default function NoteEditorModal({
   onTitleChange,
 
   content,
-  onContentChange,
 
   category,
   onCategoryChange,
@@ -447,10 +455,22 @@ export default function NoteEditorModal({
   /* Last HTML the editor itself reported, to detect outside changes. */
   const lastEditorHtmlRef = useRef(content);
 
+  /*
+   * Latest editor HTML while typing. It stays inside the editor until the
+   * user saves, so typing never re-renders the notes screen and nothing
+   * pushes old text back into the editor (which made the caret jump).
+   */
+  const draftHtmlRef = useRef(content);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   /* Sheet action that waits for the sheet to finish closing (iOS). */
   const pendingMenuActionRef = useRef<(() => void) | null>(null);
 
   const [showSaved, setShowSaved] = useState(false);
+
+  /* Draft shown in counts/preview, and what the note looked like when opened. */
+  const [draftHtml, setDraftHtml] = useState(content);
+  const [baseline, setBaseline] = useState({ content, title });
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -464,7 +484,9 @@ export default function NoteEditorModal({
   const destructive = isLightTheme ? '#DC2626' : '#F87171';
   const handleColor = withAlpha(textSecondary, 0.4);
 
-  const editorHtml = useMemo(() => toEditorHtml(content), [content]);
+  const editorHtml = useMemo(() => toEditorHtml(draftHtml), [draftHtml]);
+  const isDirty =
+    draftHtml !== baseline.content || title !== baseline.title;
   const plainTextContent = useMemo(
     () => htmlToPlainText(editorHtml),
     [editorHtml],
@@ -580,6 +602,12 @@ export default function NoteEditorModal({
   if (visible !== prevVisible) {
     setPrevVisible(visible);
 
+    if (visible) {
+      // A note was opened: this is the saved version to compare against.
+      setDraftHtml(content);
+      setBaseline({ content, title });
+    }
+
     if (!visible) {
       setIsAddingTag(false);
       setKeyboardVisible(false);
@@ -595,22 +623,103 @@ export default function NoteEditorModal({
       lastCursorYRef.current = null;
       bodyFocusedRef.current = false;
     }
+
+    if (visible) {
+      // Each open starts from the note's saved content.
+      draftHtmlRef.current = content;
+      lastEditorHtmlRef.current = content;
+    } else if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    // Only on open/close; outside content changes are handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  useEffect(() => {
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, []);
 
   /*
    * The rich editor only reads initialContentHTML once. When content is
    * replaced from outside (e.g. a template), push it into the editor.
    */
   useEffect(() => {
-    if (content !== lastEditorHtmlRef.current) {
-      lastEditorHtmlRef.current = content;
-      bodyInputRef.current?.setContentHTML(toEditorHtml(content));
-    }
+    // The parent no longer echoes typing back, so any change here is a
+    // real outside change (e.g. a template): load it into the editor.
+    if (content === lastEditorHtmlRef.current) return;
+
+    lastEditorHtmlRef.current = content;
+    draftHtmlRef.current = content;
+    setDraftHtml(content);
+    bodyInputRef.current?.setContentHTML(toEditorHtml(content));
   }, [content]);
 
   const handleEditorChange = (html: string) => {
     lastEditorHtmlRef.current = html;
-    onContentChange(html);
+    draftHtmlRef.current = html;
+
+    // Update word count / "Unsaved" badge after a short pause, not per key.
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      draftTimerRef.current = null;
+      setDraftHtml(html);
+    }, 300);
+  };
+
+  /* Push the latest typed text into local state right away. */
+  const flushDraft = () => {
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    setDraftHtml(draftHtmlRef.current);
+  };
+
+  const hasBodyText = (html: string) =>
+    htmlToPlainText(toEditorHtml(html)).trim().length > 0;
+
+  /* Save is only done by the user: Done, or "Save" when leaving. */
+  const saveAndClose = () => {
+    bodyInputRef.current?.dismissKeyboard();
+    Keyboard.dismiss();
+
+    const html = draftHtmlRef.current;
+
+    onClose({
+      content: html,
+      save: title.trim().length > 0 || hasBodyText(html),
+    });
+  };
+
+  const discardAndClose = () => {
+    bodyInputRef.current?.dismissKeyboard();
+    Keyboard.dismiss();
+    onClose({ save: false });
+  };
+
+  /* Back arrow / Android back: ask before losing unsaved changes. */
+  const requestClose = () => {
+    const changed =
+      draftHtmlRef.current !== baseline.content ||
+      title !== baseline.title;
+
+    if (!changed) {
+      discardAndClose();
+      return;
+    }
+
+    Alert.alert(
+      'Save changes?',
+      'This note has changes that are not saved yet.',
+      [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: discardAndClose },
+        { text: 'Save', onPress: saveAndClose },
+      ],
+    );
   };
 
   /* Scroll so the caret line sits above the toolbar with breathing room. */
@@ -675,19 +784,8 @@ export default function NoteEditorModal({
     });
   };
 
-  /*
-   * Done ends editing first (keyboard down, like Apple Notes); with no
-   * keyboard open it saves and closes through the same onClose handler.
-   */
-  const handleDone = () => {
-    if (keyboardVisible) {
-      bodyInputRef.current?.dismissKeyboard();
-      Keyboard.dismiss();
-      return;
-    }
-
-    onClose();
-  };
+  /* Done saves the note and closes the editor. */
+  const handleDone = saveAndClose;
 
   /* Add a tag using the existing parent handler. */
   const submitTag = () => {
@@ -740,7 +838,7 @@ export default function NoteEditorModal({
       visible={visible}
       animationType="slide"
       presentationStyle="fullScreen"
-      onRequestClose={onClose}
+      onRequestClose={requestClose}
       statusBarTranslucent={Platform.OS === 'android'}
     >
       <KeyboardAvoidingView
@@ -794,6 +892,27 @@ export default function NoteEditorModal({
                     Saving…
                   </Text>
                 </View>
+              ) : isDirty ? (
+                <View
+                  style={styles.saveStatusBadge}
+                  accessibilityLiveRegion="polite"
+                >
+                  <View
+                    style={[
+                      styles.saveStatusDot,
+                      { backgroundColor: primaryBrown },
+                    ]}
+                  />
+
+                  <Text
+                    style={[
+                      styles.saveStatusText,
+                      { color: textSecondary },
+                    ]}
+                  >
+                    Unsaved changes
+                  </Text>
+                </View>
               ) : showSaved ? (
                 <View
                   style={styles.saveStatusBadge}
@@ -819,7 +938,7 @@ export default function NoteEditorModal({
             </View>
 
             <TouchableOpacity
-              onPress={onClose}
+              onPress={requestClose}
               accessibilityRole="button"
               accessibilityLabel="Back to notes"
               style={styles.editorHeaderButton}
@@ -850,11 +969,7 @@ export default function NoteEditorModal({
               <TouchableOpacity
                 onPress={handleDone}
                 accessibilityRole="button"
-                accessibilityLabel={
-                  keyboardVisible
-                    ? 'Finish editing'
-                    : 'Done, close note'
-                }
+                accessibilityLabel="Save and close note"
                 hitSlop={{ top: 6, bottom: 6 }}
                 style={[
                   styles.editorDoneBtn,
@@ -1263,7 +1378,10 @@ export default function NoteEditorModal({
             label={isPreviewMode ? 'Edit note' : 'Preview'}
             iconColor={textSecondary}
             labelColor={textPrimary}
-            onPress={() => closeMenuThen(onTogglePreview)}
+            onPress={() => closeMenuThen(() => {
+              flushDraft();
+              onTogglePreview();
+            })}
           />
 
           <MenuItem
@@ -1298,7 +1416,7 @@ export default function NoteEditorModal({
             label="Convert to task"
             iconColor={textSecondary}
             labelColor={textPrimary}
-            onPress={() => closeMenuThen(onOpenConvertTask)}
+            onPress={() => closeMenuThen(() => onOpenConvertTask(draftHtmlRef.current))}
           />
 
           <MenuItem
@@ -1306,7 +1424,7 @@ export default function NoteEditorModal({
             label="Link to calendar"
             iconColor={textSecondary}
             labelColor={textPrimary}
-            onPress={() => closeMenuThen(onOpenSchedule)}
+            onPress={() => closeMenuThen(() => onOpenSchedule(draftHtmlRef.current))}
           />
 
           <MenuItem
@@ -1314,7 +1432,7 @@ export default function NoteEditorModal({
             label="Share"
             iconColor={textSecondary}
             labelColor={textPrimary}
-            onPress={() => closeMenuThen(onShare)}
+            onPress={() => closeMenuThen(() => onShare(draftHtmlRef.current))}
           />
 
           <View

@@ -2,24 +2,6 @@ import { SettingSection } from '../types';
 
 export const PROFILE_SECTIONS: SettingSection[] = [
   {
-    id: 'academic',
-    title: 'ACADEMIC SUMMARY',
-    items: [
-      {
-        id: 'academic_progress',
-        title: 'Academic Progress',
-        icon: 'graduation-cap',
-        iconType: 'fontawesome',
-      },
-      {
-        id: 'grades',
-        title: 'Grades & Achievements',
-        icon: 'award',
-        iconType: 'feather',
-      },
-    ],
-  },
-  {
     id: 'preferences',
     title: 'PREFERENCES',
     items: [

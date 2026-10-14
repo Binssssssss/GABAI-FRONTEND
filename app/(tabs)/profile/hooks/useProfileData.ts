@@ -37,6 +37,15 @@ const extractTaskList = (responseData: any): any[] => {
   return [];
 };
 
+/** "gabai capstone" -> "Gabai Capstone" (email addresses are left as-is). */
+const toTitleCase = (value: string) =>
+  value.includes('@')
+    ? value
+    : value
+        .trim()
+        .toLowerCase()
+        .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+
 export function useProfileData() {
   const router = useRouter();
   const { user, signOut } = useAuth();
@@ -54,18 +63,21 @@ export function useProfileData() {
   const userProfile: UserProfile = useMemo(() => {
     const currentUser = user || {};
 
-    const name = String(
-      currentUser.name ||
-        currentUser.fullName ||
-        currentUser.userName ||
-        currentUser.email ||
-        '',
+    const name = toTitleCase(
+      String(
+        currentUser.name ||
+          currentUser.fullName ||
+          currentUser.userName ||
+          currentUser.email ||
+          '',
+      ),
     );
 
     return {
       name,
       email: String(currentUser.email || ''),
       course: String(currentUser.course || ''),
+      avatar: typeof currentUser.avatar === 'string' ? currentUser.avatar : null,
       initials: name
         .split(' ')
         .filter(Boolean)

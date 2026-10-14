@@ -1,4 +1,3 @@
-
 import { FlatList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -74,6 +73,7 @@ export default function WalletScreen() {
       {/* Dashboard Balance Card */}
       <WalletBalanceCard
         netBalance={netBalance}
+        textPrimary={textPrimary}
         totalIncome={totalIncome}
         totalExpenses={totalExpenses}
         cardBg={cardBg}
@@ -92,7 +92,7 @@ export default function WalletScreen() {
           },
         ]}
       >
-        Recent Transactions
+        Recent Activity
       </Text>
 
       <FlatList
@@ -106,6 +106,7 @@ export default function WalletScreen() {
             textPrimary={textPrimary}
             textSecondary={textSecondary}
             successGreen={successGreen}
+            errorRed={errorRed}
             primaryBrown={primaryBrown}
           />
         )}
@@ -121,7 +122,7 @@ export default function WalletScreen() {
                 },
               ]}
             >
-              No transactions tracked yet.
+              No activity yet. Tap + to add money in or out.
             </Text>
           </View>
         }
@@ -154,4 +155,3 @@ export default function WalletScreen() {
     </SafeAreaView>
   );
 }
-

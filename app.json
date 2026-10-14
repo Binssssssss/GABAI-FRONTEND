@@ -51,6 +51,12 @@
     }
   ],
   [
+    "expo-image-picker",
+    {
+      "photosPermission": "Allow GabAi to access your photos so you can set a profile picture."
+    }
+  ],
+  [
     "expo-local-authentication",
     {
       "faceIDPermission": "Allow GabAi to use Face ID to unlock the app."

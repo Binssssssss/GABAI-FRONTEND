@@ -4,7 +4,6 @@ import { taskStyles as styles } from '../../styles/task.styles';
 
 interface TaskHeaderProps {
   onOpenDrawer: () => void;
-  onToggleSearch: () => void;
   onOpenAdd: () => void;
   textPrimary: string;
   textSecondary: string;
@@ -15,7 +14,6 @@ interface TaskHeaderProps {
 
 export default function TaskHeader({
   onOpenDrawer,
-  onToggleSearch,
   onOpenAdd,
   textPrimary,
   textSecondary,
@@ -28,7 +26,9 @@ export default function TaskHeader({
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity
           onPress={onOpenDrawer}
-          style={[styles.headerIconButton, { backgroundColor: cardBg, borderColor: borderCol }]}
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          style={{ marginRight: 10, padding: 4 }}
         >
           <Feather name="menu" size={24} color={textPrimary} />
         </TouchableOpacity>
@@ -40,14 +40,10 @@ export default function TaskHeader({
 
       <View style={styles.headerActions}>
         <TouchableOpacity
-          style={[styles.headerIconButton, { backgroundColor: cardBg, borderColor: borderCol }]}
-          onPress={onToggleSearch}
-        >
-          <Feather name="search" size={20} color={textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.headerIconButton, styles.headerPrimaryButton, { backgroundColor: primaryBrown, borderColor: primaryBrown }]}
           onPress={onOpenAdd}
+          accessibilityRole="button"
+          accessibilityLabel="Add task"
         >
           <Feather name="plus" size={22} color="#FFFFFF" />
         </TouchableOpacity>

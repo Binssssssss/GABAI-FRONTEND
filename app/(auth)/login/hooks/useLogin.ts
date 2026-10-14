@@ -207,7 +207,8 @@ export function useLogin() {
         idToken: firebaseIdToken,
       });
 
-      console.log("GABAI GOOGLE AUTH RESPONSE:", response.data);
+      // Never log the whole response: it contains the access and refresh tokens.
+      console.log("GABAI GOOGLE AUTH RESPONSE USER:", response.data?.user);
 
       // Get GabAi JWT.
       const token =

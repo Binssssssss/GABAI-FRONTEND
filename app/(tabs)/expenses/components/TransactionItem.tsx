@@ -12,6 +12,7 @@ interface TransactionItemProps {
   textPrimary: string;
   textSecondary: string;
   successGreen: string;
+  errorRed?: string;
   primaryBrown: string;
 }
 
@@ -22,6 +23,7 @@ export default function TransactionItem({
   textPrimary,
   textSecondary,
   successGreen,
+  errorRed = '#EF4444',
   primaryBrown,
 }: TransactionItemProps) {
   const isIncome = item.type === 'income';
@@ -50,10 +52,10 @@ export default function TransactionItem({
       <Text
         style={[
           styles.itemAmount,
-          { color: isIncome ? successGreen : textPrimary },
+          { color: isIncome ? successGreen : errorRed },
         ]}
       >
-        {isIncome ? '+' : '-'} ₱{item.amount.toFixed(2)}
+        {isIncome ? '+' : '−'} ₱{item.amount.toFixed(2)}
       </Text>
     </View>
   );

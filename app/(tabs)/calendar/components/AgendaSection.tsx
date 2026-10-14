@@ -1,15 +1,9 @@
 import { Feather } from '@expo/vector-icons';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { CATEGORY_COLORS } from '../constants/calendarConfig';
 import { calendarStyles as styles } from '../styles/calendar.styles';
 import { CalendarEvent } from '../types';
-import {
-  getDayWorkload,
-  getEventConflicts,
-  getLocalDateKey,
-  getPriorityColors,
-  getRecommendedEvents,
-} from '../utils/calendarHelpers';
+import { getEventConflicts, getLocalDateKey } from '../utils/calendarHelpers';
 
 interface AgendaSectionProps {
   events: CalendarEvent[];
@@ -28,10 +22,20 @@ interface AgendaSectionProps {
   textSubTheme: string;
 }
 
+/** "09:05" -> "9:05 AM" */
+const formatTime = (time: string) => {
+  const match = time?.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return '';
+
+  const hours = Number(match[1]);
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+
+  return `${hour12}:${match[2]} ${hours >= 12 ? 'PM' : 'AM'}`;
+};
+
 export default function AgendaSection({
   events,
   allEvents,
-  academicPressure,
   isLoadingEvents,
   eventsLoadFailed,
   selectedDate,
@@ -39,209 +43,163 @@ export default function AgendaSection({
   activeReschedulingId,
   onSelectEvent,
   onStartRescheduling,
-  cardTheme,
   borderTheme,
   textTheme,
   textSubTheme,
 }: AgendaSectionProps) {
   const dayEvents = events.filter((e) => e.date === selectedDate);
   const selectedDayEvents = allEvents.filter((event) => event.date === selectedDate);
-  const workload = getDayWorkload(selectedDayEvents);
   const conflicts = getEventConflicts(allEvents);
-  const conflictingEventIds = getEventConflicts(allEvents);
-  const recommendations = getRecommendedEvents(allEvents).slice(0, 4);
-  const recommendation = recommendations[0];
+
   const today = getLocalDateKey();
   const tomorrowDate = new Date(`${today}T00:00:00`);
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const tomorrow = getLocalDateKey(tomorrowDate);
+
   const formattedDate = new Date(`${selectedDate}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
     month: 'long',
     day: 'numeric',
   });
 
   const getEventStatus = (event: CalendarEvent) => {
-    if (event.completed) return { label: 'Completed', color: '#56846F', icon: 'check' as const };
+    if (event.completed) return { label: 'Completed', color: '#56846F' };
     const isDeadline = event.category === 'Assignment' || event.category === 'Exam';
-    if (isDeadline && event.date < today) return { label: 'Overdue', color: '#B85F61', icon: 'alert-circle' as const };
-    if (isDeadline && event.date === today) return { label: 'Due today', color: '#C0783C', icon: 'clock' as const };
-    if (isDeadline && event.date === tomorrow) return { label: 'Due tomorrow', color: '#A8782E', icon: 'clock' as const };
-    if (isDeadline) return { label: 'Upcoming', color: textSubTheme, icon: 'calendar' as const };
+    if (isDeadline && event.date < today) return { label: 'Overdue', color: '#B85F61' };
+    if (isDeadline && event.date === today) return { label: 'Due today', color: '#C0783C' };
+    if (isDeadline && event.date === tomorrow) return { label: 'Due tomorrow', color: '#A8782E' };
     return null;
   };
 
-  const isOverdueDeadline = (event: CalendarEvent) =>
-    !event.completed && event.date < today &&
-    (event.category === 'Assignment' || event.category === 'Exam');
+  const countLabel = isLoadingEvents
+    ? 'Loading'
+    : `${dayEvents.length} ${dayEvents.length === 1 ? 'item' : 'items'}`;
 
   return (
     <>
-      <View style={[styles.workloadSummary, { backgroundColor: cardTheme, borderColor: borderTheme }]}>
-        <View style={styles.workloadSummaryHeader}>
-          <Text style={[styles.workloadSummaryTitle, { color: textSubTheme }]}>Academic load</Text>
-          {isLoadingEvents ? (
-            <Text style={[styles.workloadLevel, { color: textSubTheme }]}>Loading</Text>
-          ) : (
-            <Text style={[styles.workloadLevel, { color: workload.color }]}>{workload.level}</Text>
-          )}
-        </View>
-        {!isLoadingEvents && (
-          <Text style={[styles.workloadSummaryMeta, { color: textSubTheme }]}>
-            {workload.pendingCount} pending | {workload.deadlineCount} deadlines | {workload.overdueCount} overdue
-          </Text>
-        )}
-        {!isLoadingEvents && academicPressure && (
-          <Text style={[styles.pressureSummaryText, { color: textSubTheme }]}>
-            Overall academic pressure: {academicPressure.label} ({academicPressure.score})
-          </Text>
-        )}
-        {!isLoadingEvents && (workload.level === 'HIGH' || workload.level === 'VERY HIGH') && (
-          <View style={styles.workloadAlert}>
-            <Feather name="alert-triangle" size={14} color={workload.color} />
-            <Text style={[styles.workloadAlertText, { color: workload.color }]}>
-              High academic workload on this date
-            </Text>
-          </View>
-        )}
-        {!isLoadingEvents && recommendation && (
-          <>
-            <Text style={[styles.recommendationText, { color: textTheme }]}>
-              GabAi Recommendation: Start with {recommendation.title}
-              {isOverdueDeadline(recommendation) ? ' (overdue)' : ''}
-              {conflictingEventIds.has(recommendation.id) ? ' ⚠️ (schedule conflict)' : ''}.
-            </Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              style={styles.smartPlanButton}
-              onPress={() => Alert.alert(
-                'GabAi Recommendation',
-                recommendations.map((event, index) =>
-                  `${index + 1}. ${event.title} - ${event.date} - ${event.priority} priority${isOverdueDeadline(event) ? ' - overdue' : ''}`
-                ).join('\n'),
-              )}
-            >
-              <Feather name="list" size={14} color={textTheme} />
-              <Text style={[styles.smartPlanButtonText, { color: textTheme }]}>Review smart plan</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-
       <View style={styles.agendaHeader}>
         <Text style={[styles.sectionTitle, { color: textTheme }]}>
           {formattedDate}
         </Text>
         <Text style={[styles.eventsCountText, { color: textSubTheme }]}>
-          {isLoadingEvents ? 'Loading' : `${dayEvents.length} items`}
+          {countLabel}
         </Text>
       </View>
 
       <View style={styles.agendaList}>
         {dayEvents.length > 0 ? (
-          dayEvents.map((evt) => {
-            const priorityColors = getPriorityColors(evt.priority);
+          dayEvents.map((evt, index) => {
             const eventStatus = getEventStatus(evt);
+            const hasConflict = conflicts.has(evt.id);
             const isTargetReschedule = rescheduleMode && activeReschedulingId === evt.id;
+            const isLast = index === dayEvents.length - 1;
 
             return (
               <TouchableOpacity
                 key={evt.id}
+                accessibilityRole="button"
                 onPress={() => onSelectEvent(evt)}
                 onLongPress={() => onStartRescheduling(evt.id)}
                 style={[
-                  styles.agendaCard,
+                  styles.agendaRow,
                   {
-                    backgroundColor: cardTheme,
-                    borderColor: borderTheme,
-                    opacity: isTargetReschedule ? 0.6 : 1,
-                    borderWidth: isTargetReschedule ? 2 : 1,
+                    borderBottomColor: borderTheme,
+                    borderBottomWidth: isLast ? 0 : 1,
+                    opacity: isTargetReschedule ? 0.5 : 1,
                   },
                 ]}
               >
-                <View style={[styles.categoryColorRibbon, { backgroundColor: CATEGORY_COLORS[evt.category] }]} />
-                <View style={styles.agendaCardContent}>
-                  <View style={styles.agendaTitleRow}>
-                    <Text
-                      style={[styles.agendaEventTitle, {
+                {/* Time */}
+                <View style={styles.agendaTimeCol}>
+                  <Text style={[styles.agendaTimeText, { color: textTheme }]}>
+                    {evt.isAllDay ? 'All day' : formatTime(evt.time) || '—'}
+                  </Text>
+                  {!evt.isAllDay && evt.duration > 0 && (
+                    <Text style={[styles.agendaDurationText, { color: textSubTheme }]}>
+                      {evt.duration} min
+                    </Text>
+                  )}
+                </View>
+
+                {/* Category bar */}
+                <View
+                  style={[
+                    styles.agendaCategoryBar,
+                    { backgroundColor: CATEGORY_COLORS[evt.category] ?? textSubTheme },
+                  ]}
+                />
+
+                {/* Details */}
+                <View style={styles.agendaBody}>
+                  <Text
+                    style={[
+                      styles.agendaEventTitle,
+                      {
                         color: textTheme,
                         textDecorationLine: evt.completed ? 'line-through' : 'none',
-                      }]}
-                      numberOfLines={1}
-                    >
-                      {evt.title}
-                    </Text>
-                    <View style={[styles.priorityBadge, { backgroundColor: priorityColors.bg }]}>
-                      <Text style={[styles.priorityBadgeText, { color: priorityColors.text }]}>
-                        {evt.priority}
-                      </Text>
-                    </View>
-                  </View>
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {evt.title}
+                  </Text>
 
-                  <View style={styles.agendaDetailsRow}>
-                    <Feather name="clock" size={14} color={textSubTheme} style={{ marginRight: 4 }} />
-                    <Text style={[styles.agendaDetailText, { color: textSubTheme }]}>
-                      {evt.isAllDay ? 'All Day' : evt.time ? `${evt.time}${evt.duration ? ` (${evt.duration} mins)` : ''}` : 'Time not set'}
-                    </Text>
+                  <Text style={[styles.agendaDetailText, { color: textSubTheme }]} numberOfLines={1}>
+                    {evt.subject && evt.subject !== evt.category
+                      ? `${evt.category} · ${evt.subject}`
+                      : evt.category}
+                    {' · '}
+                    {evt.priority} priority
+                  </Text>
 
-                    <View style={{ width: 12 }} />
-
-                    <Feather name="tag" size={14} color={textSubTheme} style={{ marginRight: 4 }} />
-                    <Text style={[styles.agendaDetailText, { color: textSubTheme }]}>{evt.subject || evt.category}</Text>
-                  </View>
-
-                  {(eventStatus || conflicts.has(evt.id)) && (
-                    <View style={styles.agendaStatusRow}>
+                  {(eventStatus || hasConflict) && (
+                    <Text style={styles.agendaStatusText}>
                       {eventStatus && (
-                        <>
-                          <Feather name={eventStatus.icon} size={12} color={eventStatus.color} />
-                          <Text style={[styles.agendaStatusText, { color: eventStatus.color }]}>
-                            {eventStatus.label}
-                          </Text>
-                        </>
+                        <Text style={{ color: eventStatus.color }}>{eventStatus.label}</Text>
                       )}
-                      {conflicts.has(evt.id) && (
-                        <>
-                          <Feather name="alert-triangle" size={12} color="#B85F61" />
-                          <Text style={[styles.agendaStatusText, { color: '#B85F61' }]}>Schedule conflict</Text>
-                        </>
+                      {eventStatus && hasConflict && (
+                        <Text style={{ color: textSubTheme }}>{' · '}</Text>
                       )}
-                    </View>
+                      {hasConflict && (
+                        <Text style={{ color: '#B85F61' }}>Time conflict</Text>
+                      )}
+                    </Text>
                   )}
 
                   {evt.checklist.length > 0 && (
-                    <View style={styles.agendaProgressContainer}>
-                      <View style={styles.progressLabelRow}>
-                        <Text style={[styles.progressTextLabel, { color: textSubTheme }]}>Checklist progress</Text>
-                        <Text style={[styles.progressValLabel, { color: textTheme }]}>{evt.progress}%</Text>
-                      </View>
+                    <View style={styles.agendaProgressRow}>
                       <View style={[styles.progressBarBg, { backgroundColor: borderTheme }]}>
                         <View
                           style={[
                             styles.progressBarFill,
                             {
-                              backgroundColor: CATEGORY_COLORS[evt.category],
+                              backgroundColor: textSubTheme,
                               width: `${evt.progress}%`,
                             },
                           ]}
                         />
                       </View>
+                      <Text style={[styles.progressValLabel, { color: textSubTheme }]}>
+                        {evt.progress}%
+                      </Text>
                     </View>
                   )}
                 </View>
+
+                <Feather name="chevron-right" size={16} color={textSubTheme} />
               </TouchableOpacity>
             );
           })
         ) : (
-          <View style={[styles.noEventsCard, { backgroundColor: cardTheme, borderColor: borderTheme }]}>
-            <Feather name="calendar" size={32} color={textSubTheme} style={{ marginBottom: 8 }} />
+          <View style={styles.agendaEmpty}>
             <Text style={[styles.noEventsText, { color: textSubTheme }]}>
               {isLoadingEvents
-                ? 'Loading your academic schedule...'
+                ? 'Loading your schedule…'
                 : eventsLoadFailed && allEvents.length === 0
                   ? 'Calendar items could not be loaded.'
                   : selectedDayEvents.length > 0
                     ? 'No items match the current filters.'
-                    : 'Your schedule is clear. No academic tasks scheduled for this day.'}
+                    : 'Nothing scheduled for this day.'}
             </Text>
           </View>
         )}

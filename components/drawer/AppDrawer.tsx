@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import {
   Animated,
   Dimensions,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -14,6 +15,15 @@ import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/theme';
 import { drawerStyles as styles } from './drawer.style';
+
+/** "gabai capstone" -> "Gabai Capstone" (email addresses are left as-is). */
+const toTitleCase = (value: string) =>
+  value.includes('@')
+    ? value
+    : value
+        .trim()
+        .toLowerCase()
+        .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 
 const DRAWER_PALETTES = {
   dark: {
@@ -82,6 +92,23 @@ export default function AppDrawer({
 }: AppDrawerProps) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = React.useState<Record<string, string>>({});
+
+  // Name with capital first letters, and initials taken from it.
+  const displayName = toTitleCase(
+    currentUser.name ||
+      currentUser.fullName ||
+      currentUser.userName ||
+      currentUser.email ||
+      'User',
+  );
+  const displayInitials =
+    displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U';
   const screenWidth = Dimensions.get('window').width;
   const drawerWidth = screenWidth * 0.78;
   const isDark = textPrimary === Colors.dark.text;
@@ -91,7 +118,10 @@ export default function AppDrawer({
     () => new Animated.Value(-drawerWidth)
   );
 
+  // Reload the saved user each time the drawer opens (picks up profile edits).
   useEffect(() => {
+    if (!isDrawerOpen) return;
+
     AsyncStorage.getItem('gabai_user').then((storedUser: string | null) => {
       if (!storedUser) return;
 
@@ -101,7 +131,7 @@ export default function AppDrawer({
         console.error('Failed to load drawer user:', error);
       }
     });
-  }, []);
+  }, [isDrawerOpen]);
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -119,7 +149,7 @@ export default function AppDrawer({
     }
   }, [isDrawerOpen, drawerWidth, slideAnim]);
 
-    const personalLabels = ['Wallet', 'Focus Session', 'Virtual Assistant'];
+    const personalLabels = ['Wallet', 'Focus Session', 'GabAi'];
   const workspaceItems = menuItems.filter(
     (item) => !personalLabels.includes(item.label)
   );
@@ -175,23 +205,6 @@ export default function AppDrawer({
             styles.drawerContent
           }
         >
-          <View
-            style={[
-              styles.brandHeader,
-              { borderBottomColor: drawerColors.border },
-            ]}
-          >
-            <View style={styles.brandInfo}>
-              <View style={[styles.brandMark, { backgroundColor: primaryBrown }]}>
-                <Text style={styles.brandMarkText}>G</Text>
-              </View>
-              <View>
-                <Text style={[styles.brandName, { color: drawerColors.primaryText }]}>GabAi</Text>
-                <Text style={[styles.brandSubtitle, { color: drawerColors.mutedText }]}>Student Workspace</Text>
-              </View>
-            </View>
-          </View>
-
           {/* =====================================
     PROFILE CARD
 ====================================== */}
@@ -222,13 +235,16 @@ export default function AppDrawer({
                 },
               ]}
             >
-              <Text style={[styles.avatarText, { color: drawerColors.highlight }]}>
-                {currentUser.initials ||
-                  currentUser.name
-                    ?.slice(0, 2)
-                    .toUpperCase() ||
-                  'U'}
-              </Text>
+              {currentUser.avatar ? (
+                <Image
+                  source={{ uri: currentUser.avatar }}
+                  style={{ width: '100%', height: '100%', borderRadius: 11 }}
+                />
+              ) : (
+                <Text style={[styles.avatarText, { color: drawerColors.highlight }]}>
+                  {displayInitials}
+                </Text>
+              )}
 
               <View
                 style={[
@@ -251,11 +267,7 @@ export default function AppDrawer({
                 ]}
                 numberOfLines={1}
               >
-                {currentUser.name ||
-                  currentUser.fullName ||
-                  currentUser.userName ||
-                  currentUser.email ||
-                  'User'}
+                {displayName}
               </Text>
 
               <Text

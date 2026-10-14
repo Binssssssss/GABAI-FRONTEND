@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { Message } from '../types';
 import { assistantStyles as styles } from '../styles';
 import { FocusSessionWidget } from './FocusSessionWidget';
+import { SummaryCard } from './SummaryCard';
 
 function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
   const [fadeAnim] = useState(() => new Animated.Value(0));
@@ -45,6 +46,8 @@ interface MessageBubbleProps {
   textPrimary: string;
   textSecondary: string;
   onFocusComplete: (durationSecs: number) => void;
+  /** Used by summary cards to open a feature. */
+  onNavigate?: (route: string) => void;
 }
 
 export function MessageBubble({
@@ -56,9 +59,42 @@ export function MessageBubble({
   textPrimary,
   textSecondary,
   onFocusComplete,
+  onNavigate,
 }: MessageBubbleProps) {
   const isUser = item.sender === 'user';
   const alignSelf = isUser ? 'flex-end' : 'flex-start';
+  const isSummary = item.customWidget === 'summary' && !!item.widgetData;
+
+  // Quick-action answers use the full chat width.
+  if (isSummary) {
+    return (
+      <AnimatedMessageItem>
+        <View style={[styles.messageContainer, { alignSelf: 'stretch', maxWidth: '100%' }]}>
+          <View style={[styles.avatarSymbol, { backgroundColor: primaryBrown }]}>
+            <Feather name="zap" size={10} color="#FFF" />
+          </View>
+          <View
+            style={[
+              styles.messageBubble,
+              styles.assistantBubble,
+              { flex: 1, backgroundColor: cardBg, borderColor: borderCol, paddingHorizontal: 14 },
+            ]}
+          >
+            <SummaryCard
+              data={item.widgetData}
+              primaryBrown={primaryBrown}
+              bgTheme={bgTheme}
+              borderCol={borderCol}
+              textPrimary={textPrimary}
+              textSecondary={textSecondary}
+              onNavigate={(route) => onNavigate?.(route)}
+            />
+            <Text style={[styles.timestamp, { color: textSecondary }]}>{item.timestamp}</Text>
+          </View>
+        </View>
+      </AnimatedMessageItem>
+    );
+  }
 
   return (
     <AnimatedMessageItem>

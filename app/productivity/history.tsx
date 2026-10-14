@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import {
@@ -14,10 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
 import { useAppTheme } from '@/app/context/ThemeContext';
+import { fetchFocusHistory } from '@/app/services/focusSessionApi';
 import { FOCUS_MODE_LABELS } from './constants/focusConfig';
 import { FocusMode } from './types';
 
-const FOCUS_SESSIONS_KEY = 'gabai.focus.sessions';
 const ACCENT = '#A97C50';
 
 type FocusSessionRecord = {
@@ -38,21 +37,14 @@ export default function FocusHistoryScreen() {
 
   const loadSessions = useCallback(async () => {
     try {
-      const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
-      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      // Sessions of the logged-in account (offline copy if no internet).
+      const { records } = await fetchFocusHistory();
 
       setSessions(
-        Array.isArray(parsed)
-          ? parsed.filter(
-              (item): item is FocusSessionRecord =>
-                item !== null &&
-                typeof item === 'object' &&
-                typeof item.id === 'string' &&
-                typeof item.subject === 'string' &&
-                typeof item.durationMinutes === 'number' &&
-                typeof item.completedAt === 'string',
-            )
-          : [],
+        records.filter(
+          (item) =>
+            item.mode !== 'shortBreak' && item.mode !== 'longBreak',
+        ),
       );
     } catch (error) {
       console.error('Failed to load focus history:', error);

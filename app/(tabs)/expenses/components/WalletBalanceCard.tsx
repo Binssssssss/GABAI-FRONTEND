@@ -5,6 +5,7 @@ import { expenseStyles as styles } from '../styles/expenses.styles';
 
 interface WalletBalanceCardProps {
   netBalance: number;
+  textPrimary?: string;
   totalIncome: number;
   totalExpenses: number;
   cardBg: string;
@@ -16,6 +17,7 @@ interface WalletBalanceCardProps {
 
 export default function WalletBalanceCard({
   netBalance,
+  textPrimary = '#ECEDEE',
   totalIncome,
   totalExpenses,
   cardBg,
@@ -26,8 +28,8 @@ export default function WalletBalanceCard({
 }: WalletBalanceCardProps) {
   return (
     <View style={[styles.dashboardCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-      <Text style={[styles.dashboardLabel, { color: textSecondary }]}>Wallet Balance</Text>
-      <Text style={[styles.dashboardValue, { color: Math.max(0, netBalance) > 0 ? successGreen : errorRed }]}>
+      <Text style={[styles.dashboardLabel, { color: textSecondary }]}>Current Balance</Text>
+      <Text style={[styles.dashboardValue, { color: textPrimary }]}>
         ₱{Math.max(0, netBalance).toFixed(2)}
       </Text>
 
@@ -37,7 +39,7 @@ export default function WalletBalanceCard({
         <View style={styles.statColumn}>
           <View style={styles.statHeaderRow}>
             <Feather name="arrow-down-left" size={14} color={successGreen} style={{ marginRight: 4 }} />
-            <Text style={[styles.statLabelText, { color: textSecondary }]}>Income</Text>
+            <Text style={[styles.statLabelText, { color: textSecondary }]}>Money In</Text>
           </View>
           <Text style={[styles.statValueText, { color: successGreen }]}>₱{totalIncome.toFixed(2)}</Text>
         </View>
@@ -47,7 +49,7 @@ export default function WalletBalanceCard({
         <View style={styles.statColumn}>
           <View style={styles.statHeaderRow}>
             <Feather name="arrow-up-right" size={14} color={errorRed} style={{ marginRight: 4 }} />
-            <Text style={[styles.statLabelText, { color: textSecondary }]}>Expenses</Text>
+            <Text style={[styles.statLabelText, { color: textSecondary }]}>Money Out</Text>
           </View>
           <Text style={[styles.statValueText, { color: errorRed }]}>₱{totalExpenses.toFixed(2)}</Text>
         </View>

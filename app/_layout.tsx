@@ -154,6 +154,13 @@ function AppNavigation() {
         />
 
         <Stack.Screen
+          name="settings/profile"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
           name="assistant/index"
           options={{
             presentation: 'modal',

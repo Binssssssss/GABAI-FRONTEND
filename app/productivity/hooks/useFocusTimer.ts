@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from 'expo-router';
 import { useFocusLock } from '@/app/context/FocusLockContext';
+import {
+  addToCachedHistory,
+  fetchFocusHistory,
+  saveFocusSessionToServer,
+} from '@/app/services/focusSessionApi';
 
 import {
   ACADEMIC_SUBJECTS,
@@ -25,8 +31,8 @@ import {
   FocusTaskRef,
 } from '../types';
 
-const FOCUS_SESSIONS_KEY = 'gabai.focus.sessions';
-const FOCUS_STATE_KEY = 'gabai.focus.state';
+// v2: older saved setups had Strict mode on by default; start fresh.
+const FOCUS_STATE_KEY = 'gabai.focus.state.v2';
 
 const VALID_MODES: FocusMode[] = [
   'pomodoro',
@@ -198,7 +204,7 @@ function parsePersistedState(
         ? state.subject
         : ACADEMIC_SUBJECTS[0],
     task,
-    isStrict: typeof state.isStrict === 'boolean' ? state.isStrict : true,
+    isStrict: typeof state.isStrict === 'boolean' ? state.isStrict : false,
     lastFocusMode,
     status:
       state.status === 'running' || state.status === 'paused'
@@ -237,7 +243,8 @@ export function useFocusTimer() {
   const [selectedTask, setSelectedTask] =
     useState<FocusTaskRef | null>(null);
 
-  const [isStrict, setIsStrict] = useState<boolean>(true);
+  // Strict mode is opt-in (turn it on in Set up).
+  const [isStrict, setIsStrict] = useState<boolean>(false);
 
   // Focus mode to return to after a break.
   const [lastFocusMode, setLastFocusMode] =
@@ -302,12 +309,9 @@ export function useFocusTimer() {
       let saved: PersistedFocusState | null = null;
 
       try {
-        const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
-        const parsed: unknown = stored ? JSON.parse(stored) : [];
-
-        records = Array.isArray(parsed)
-          ? parsed.filter(isValidSession)
-          : [];
+        // Sessions of the logged-in account (offline copy if no internet).
+        const { records: history } = await fetchFocusHistory();
+        records = history.filter(isValidSession);
       } catch (error) {
         console.warn('Unable to load focus sessions:', error);
       }
@@ -366,6 +370,24 @@ export function useFocusTimer() {
       cancelled = true;
     };
   }, []);
+
+  // Reload Today stats whenever the screen comes back into view
+  // (e.g. after visiting Focus History or switching accounts).
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      fetchFocusHistory()
+        .then(({ records }) => {
+          if (active) setSessionRecords(records.filter(isValidSession));
+        })
+        .catch(() => {});
+
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   // Persist setup and session progress. While running only `endsAt`
   // is stored, so this does not write on every tick.
@@ -430,33 +452,33 @@ export function useFocusTimer() {
         return;
       }
 
-      const record: FocusSessionRecord = {
+      // Show it right away; the server copy replaces it once saved.
+      const tempRecord: FocusSessionRecord = {
         ...details,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         completedAt: new Date().toISOString(),
       };
 
+      setSessionRecords((previous) => [tempRecord, ...previous]);
+
       try {
-        const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
-        const parsed: unknown = stored ? JSON.parse(stored) : [];
+        const saved = await saveFocusSessionToServer(details);
 
-        const existingRecords: FocusSessionRecord[] =
-          Array.isArray(parsed) ? parsed.filter(isValidSession) : [];
+        await addToCachedHistory(saved);
 
-        const updatedRecords = [...existingRecords, record];
-
-        await AsyncStorage.setItem(
-          FOCUS_SESSIONS_KEY,
-          JSON.stringify(updatedRecords)
-        );
-
-        setSessionRecords(updatedRecords);
+        setSessionRecords((previous) => [
+          saved,
+          ...previous.filter((item) => item.id !== tempRecord.id),
+        ]);
       } catch (error) {
         console.error('[Focus History] Unable to save session:', error);
 
+        // Keep it on this phone so the work is not lost.
+        await addToCachedHistory(tempRecord);
+
         Alert.alert(
-          'Unable to Save Session',
-          'Your focus session could not be saved locally. Please try again.'
+          'Saved on This Phone',
+          'We could not reach the server, so this session was saved on your phone only.'
         );
       }
     },

@@ -5,7 +5,8 @@ import * as Haptics from 'expo-haptics';
 
 import api from '@/app/services/api';
 
-import { Message, ActionButton, CustomWidgetType } from '../types';
+import { Message, ActionButton, CustomWidgetType, QuickActionKey } from '../types';
+import { buildQuickSummary, quickSummaryError } from '../utils/quickSummaries';
 import {
   generateMessageId,
   getCurrentTimestamp,
@@ -17,6 +18,8 @@ export function useAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [activeQuickAction, setActiveQuickAction] =
+    useState<QuickActionKey | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -102,7 +105,7 @@ export function useAssistant() {
         );
 
         let errorMessage =
-          'Sorry, I could not connect to GabAi Assistant right now. Please try again.';
+          'Sorry, I could not connect to GabAi right now. Please try again.';
 
         if (error?.response?.status === 401) {
           errorMessage =
@@ -134,6 +137,44 @@ export function useAssistant() {
       isTyping,
       scrollToBottom,
     ],
+  );
+
+  /**
+   * Quick actions (Tasks, Schedule, Wallet, Focus Session, Notes).
+   * Each one answers only about its own feature, using the user's data.
+   */
+  const handleQuickAction = useCallback(
+    async (key: QuickActionKey, label: string) => {
+      if (isTyping) return;
+
+      setActiveQuickAction(key);
+      addMessage('user', label);
+      setIsTyping(true);
+
+      try {
+        try {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        } catch {
+          // Ignore haptic errors
+        }
+
+        const summary = await buildQuickSummary(key);
+        addMessage('assistant', '', undefined, 'summary', summary);
+      } catch (error: any) {
+        console.error('Quick action error:', error);
+
+        addMessage(
+          'assistant',
+          error?.response?.status === 401
+            ? 'Your session has expired. Please log in again.'
+            : quickSummaryError(key),
+        );
+      } finally {
+        setIsTyping(false);
+        scrollToBottom();
+      }
+    },
+    [addMessage, isTyping, scrollToBottom],
   );
 
   const handleFocusComplete = useCallback(
@@ -172,6 +213,7 @@ export function useAssistant() {
     setMessages([]);
     setInputVal('');
     setIsTyping(false);
+    setActiveQuickAction(null);
 
     try {
       Haptics.impactAsync(
@@ -191,6 +233,8 @@ export function useAssistant() {
     scrollToBottom,
     addMessage,
     handleQuery,
+    handleQuickAction,
+    activeQuickAction,
     handleFocusComplete,
     resetChat,
   };

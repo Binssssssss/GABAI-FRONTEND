@@ -429,12 +429,10 @@ const saveCurrentNote = useCallback(
     setIsEditorOpen(true);
   }, []);
 
-  // Debounced content autosave
- 
+  // Content change (no autosave: notes are saved only when the user saves)
 const handleContentChange = useCallback(
   (newContent: string) => {
     setEditorContent(newContent);
-    setSaveStatus('saving');
 
     // Update undo/redo history.
     if (historyIndexRef.current < historyRef.current.length - 1) {
@@ -449,53 +447,42 @@ const handleContentChange = useCallback(
       historyIndexRef.current = historyRef.current.length - 1;
     }
 
-    // Clear the previous autosave timer.
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-    }
-
-    // Save the latest content after 600 ms of inactivity.
-    autoSaveTimerRef.current = setTimeout(() => {
-      void saveCurrentNote(editorTitle, newContent);
-    }, 600);
   },
-  [editorTitle, saveCurrentNote],
+  [],
 );
 
 
-  // Debounced title autosave
-  const handleTitleChange = useCallback(
-    (newTitle: string) => {
-      setEditorTitle(newTitle);
-      setSaveStatus('saving');
+  // Title change (no autosave)
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setEditorTitle(newTitle);
+  }, []);
+
+  // Close the editor. Saves only when the user chose to save.
+  const handleCloseEditor = useCallback(
+    (options?: { content?: string; save?: boolean }) => {
+      triggerHaptic();
 
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
       }
 
-      autoSaveTimerRef.current = setTimeout(() => {
-        void saveCurrentNote(newTitle, editorContent);
-      }, 600);
+      const content = options?.content ?? editorContent;
+      const shouldSave = options?.save !== false;
+
+      if (
+        shouldSave &&
+        (editorTitle.trim() || getNotePlainText(content).trim())
+      ) {
+        setEditorContent(content);
+        void saveCurrentNote(editorTitle, content);
+      }
+
+      setIsEditorOpen(false);
+      setIsEditorMoreMenuOpen(false);
     },
-    [editorContent, saveCurrentNote],
+    [editorTitle, editorContent, saveCurrentNote],
   );
-
-  // Close editor and save current content
-  const handleCloseEditor = useCallback(() => {
-    triggerHaptic();
-
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-
-    if (editorTitle.trim() || editorContent.trim()) {
-      void saveCurrentNote();
-    }
-
-    setIsEditorOpen(false);
-    setIsEditorMoreMenuOpen(false);
-  }, [editorTitle, editorContent, saveCurrentNote]);
 
   // Insert formatting
   const insertFormatting = useCallback(

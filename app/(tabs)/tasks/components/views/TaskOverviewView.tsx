@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { TaskTheme, Task } from '../../types';
@@ -20,7 +20,6 @@ export default function TaskOverviewView({
     completedTasks,
     activeTasks,
     completionRate,
-    estimatedRemainingHours,
     getWorkloadLevel,
     handleFocusOnTask,
   } = taskData;
@@ -36,23 +35,76 @@ export default function TaskOverviewView({
   const workload = getWorkloadLevel();
   const pinnedTasks = tasks.filter((t) => t.isPinned && !t.completed);
 
-  // Mock heatmap 14 days
-  const heatmapDays = [
-    { date: '12', full: '2026-07-12', load: 1 },
-    { date: '13', full: '2026-07-13', load: 3 },
-    { date: '14', full: '2026-07-14', load: 2 },
-    { date: '15', full: '2026-07-15', load: 0 },
-    { date: '16', full: '2026-07-16', load: 4 },
-    { date: '17', full: '2026-07-17', load: 2 },
-    { date: '18', full: '2026-07-18', load: 1 },
-    { date: '19', full: '2026-07-19', load: 0 },
-    { date: '20', full: '2026-07-20', load: 2 },
-    { date: '21', full: '2026-07-21', load: 3 },
-    { date: '22', full: '2026-07-22', load: 4 },
-    { date: '23', full: '2026-07-23', load: 1 },
-    { date: '24', full: '2026-07-24', load: 2 },
-    { date: '25', full: '2026-07-25', load: 3 },
-  ];
+  // Re-render every minute so the time left stays accurate.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  /*
+   * Next deadline among unfinished tasks, e.g.
+   * "Next due 3:00 PM today · 2h 15m left".
+   */
+  const deadlineSummary = (() => {
+    const toTimestamp = (task: Task) => {
+      if (!task.dueDate) return null;
+      const time = /^\d{1,2}:\d{2}/.test(task.dueTime || '')
+        ? task.dueTime.slice(0, 5).padStart(5, '0')
+        : '23:59';
+      const value = new Date(`${task.dueDate}T${time}:00`).getTime();
+      return Number.isNaN(value) ? null : value;
+    };
+
+    const dated = activeTasks
+      .map((task) => ({ task, at: toTimestamp(task) }))
+      .filter((item): item is { task: Task; at: number } => item.at !== null);
+
+    const overdueCount = dated.filter((item) => item.at <= now).length;
+    const upcoming = dated
+      .filter((item) => item.at > now)
+      .sort((a, b) => a.at - b.at)[0];
+
+    if (!upcoming) {
+      return overdueCount > 0
+        ? `${overdueCount} overdue · no upcoming deadline`
+        : 'No upcoming deadline';
+    }
+
+    const minutesLeft = Math.max(1, Math.round((upcoming.at - now) / 60_000));
+    const days = Math.floor(minutesLeft / 1440);
+    const hours = Math.floor((minutesLeft % 1440) / 60);
+    const minutes = minutesLeft % 60;
+
+    const left =
+      days > 0
+        ? `${days}d ${hours}h left`
+        : hours > 0
+          ? `${hours}h ${minutes}m left`
+          : `${minutes}m left`;
+
+    const due = new Date(upcoming.at);
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const dayDiff = Math.round(
+      (new Date(due).setHours(0, 0, 0, 0) - startOfToday.getTime()) / 86_400_000,
+    );
+
+    const dayLabel =
+      dayDiff === 0
+        ? 'today'
+        : dayDiff === 1
+          ? 'tomorrow'
+          : due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    const timeLabel = due.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+
+    return `Next due ${timeLabel} ${dayLabel} · ${left}`;
+  })();
 
   return (
     <View style={styles.overviewContainer}>
@@ -139,8 +191,17 @@ export default function TaskOverviewView({
               { color: textSecondary },
             ]}
           >
-            {activeTasks.length} active tasks •{' '}
-            {estimatedRemainingHours.toFixed(1)} hrs left
+            {activeTasks.length} active{' '}
+            {activeTasks.length === 1 ? 'task' : 'tasks'}
+          </Text>
+
+          <Text
+            style={[
+              styles.overviewCardSubText,
+              { color: textSecondary, marginTop: 2 },
+            ]}
+          >
+            {deadlineSummary}
           </Text>
         </View>
 
@@ -208,56 +269,6 @@ export default function TaskOverviewView({
           >
             {completedTasks} of {totalTasks} tasks done
           </Text>
-        </View>
-      </View>
-
-      {/* Workload Heatmap Card */}
-      <View style={[styles.heatmapCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-        <Text style={[styles.sectionHeadingTitle, { color: textPrimary, marginBottom: 12 }]}>
-          📅 Workload Heatmap
-        </Text>
-        <View style={styles.heatmapGrid}>
-          {heatmapDays.map((day, idx) => {
-            let cellColor = theme.isDark ? '#1A1A1A' : '#F3F4F6';
-            if (day.load > 0) {
-              if (day.load === 1) cellColor = primaryBrown + '20';
-              else if (day.load === 2) cellColor = primaryBrown + '40';
-              else if (day.load === 3) cellColor = primaryBrown + '70';
-              else cellColor = primaryBrown;
-            }
-            const isToday = day.full === '2026-07-25';
-
-            return (
-              <View key={idx} style={styles.heatmapCellContainer}>
-                <View
-                  style={[
-                    styles.heatmapCell,
-                    {
-                      backgroundColor: cellColor,
-                      borderColor: isToday ? primaryBrown : 'transparent',
-                      borderWidth: isToday ? 1.5 : 0,
-                    },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.heatmapCellText,
-                    { color: isToday ? primaryBrown : textSecondary },
-                  ]}
-                >
-                  {day.date}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-        <View style={styles.heatmapLegend}>
-          <Text style={[styles.legendText, { color: textSecondary }]}>Light</Text>
-          <View style={[styles.legendBox, { backgroundColor: primaryBrown + '20' }]} />
-          <View style={[styles.legendBox, { backgroundColor: primaryBrown + '40' }]} />
-          <View style={[styles.legendBox, { backgroundColor: primaryBrown + '70' }]} />
-          <View style={[styles.legendBox, { backgroundColor: primaryBrown }]} />
-          <Text style={[styles.legendText, { color: textSecondary }]}>Heavy</Text>
         </View>
       </View>
 

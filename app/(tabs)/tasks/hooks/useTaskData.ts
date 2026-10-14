@@ -6,6 +6,7 @@
   useRef,
 } from 'react';
 import { Alert } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 
 import { localDb, Task } from '@/app/services/localDb';
 import api from '@/app/services/api';
@@ -187,7 +188,7 @@ export function useTaskData() {
   // New task form state
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newSubject, setNewSubject] = useState('Capstone Paper');
+  const [newSubject, setNewSubject] = useState('');
   const [newCategory, setNewCategory] =
     useState<TaskCategory>('Academic');
   const [newPriority, setNewPriority] =
@@ -245,7 +246,7 @@ export function useTaskData() {
   const resetTaskForm = useCallback(() => {
     setNewTitle('');
     setNewDesc('');
-    setNewSubject('Capstone Paper');
+    setNewSubject('');
     setNewCategory('Academic');
     setNewPriority('Medium');
     setNewDifficulty('Medium');
@@ -330,13 +331,22 @@ export function useTaskData() {
     [loadAnalytics, setTasks],
   );
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      void loadTasks(true);
-    }, 0);
+  // Load when the Tasks tab is opened, and again every time it is shown
+  // (e.g. after a task was completed from the Dashboard).
+  const hasLoadedOnce = useRef(false);
 
-    return () => clearTimeout(timeoutId);
-  }, [loadTasks]);
+  useFocusEffect(
+    useCallback(() => {
+      const showLoading = !hasLoadedOnce.current;
+      hasLoadedOnce.current = true;
+
+      const timeoutId = setTimeout(() => {
+        void loadTasks(showLoading);
+      }, 0);
+
+      return () => clearTimeout(timeoutId);
+    }, [loadTasks]),
+  );
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -442,9 +452,10 @@ export function useTaskData() {
         case 'Completed':
           return task.completed;
 
+        // Completed tasks only show under the "Completed" filter.
         case 'All':
         default:
-          return true;
+          return !task.completed;
       }
     });
   }, [

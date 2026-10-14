@@ -470,6 +470,8 @@ export function useCalendarData() {
           '/tasks',
           {
             ...eventPayload,
+            // Lets the backend send "Event Created" instead of "Task Created".
+            source: 'calendar',
             duration: Number(newDuration),
             completed: false,
             subTasks: newChecklistItems.map((item) => ({
@@ -850,6 +852,9 @@ export function useCalendarData() {
         searchQuery.toLowerCase();
 
       return events.filter((event) => {
+        // Completed items are hidden from the calendar lists.
+        if (event.completed) return false;
+
         const matchesCategory =
           selectedCategory === 'All' ||
           event.category ===

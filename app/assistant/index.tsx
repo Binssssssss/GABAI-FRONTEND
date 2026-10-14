@@ -1,6 +1,8 @@
 import { useAppTheme } from '@/app/context/ThemeContext';
+import StandaloneDrawer from '@/components/drawer/StandaloneDrawer';
 import { useRouter } from 'expo-router';
-import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, KeyboardAvoidingView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -16,6 +18,7 @@ import { assistantStyles as styles } from './styles';
 
 export default function AssistantScreen() {
   const router = useRouter();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Use GabAi manual theme
   const { colors } = useAppTheme();
@@ -37,11 +40,14 @@ export default function AssistantScreen() {
     flatListRef,
     scrollToBottom,
     handleQuery,
+    handleQuickAction,
+    activeQuickAction,
     handleFocusComplete,
     resetChat,
   } = useAssistant();
 
   return (
+    <View style={{ flex: 1, backgroundColor: bgTheme }}>
     <SafeAreaView
       style={[
         styles.container,
@@ -55,20 +61,14 @@ export default function AssistantScreen() {
         textSecondary={textSecondary}
         primaryBrown={primaryBrown}
         borderCol={borderCol}
-        onBack={() => {
-          if (router.canGoBack()) {
-            router.back();
-            return;
-          }
-
-          router.replace('/(tabs)/dashboard/dashboard');
-        }}
+        onOpenMenu={() => setIsMenuOpen(true)}
         onReset={resetChat}
       />
 
       {/* Main chat history */}
+      {/* Lift the quick actions and input above the keyboard (iOS and Android). */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         style={{ flex: 1 }}
       >
         <View style={{ flex: 1 }}>
@@ -88,6 +88,7 @@ export default function AssistantScreen() {
                 />
               }
               contentContainerStyle={{ paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
             />
           ) : (
             /* Active messages */
@@ -104,6 +105,7 @@ export default function AssistantScreen() {
                   textPrimary={textPrimary}
                   textSecondary={textSecondary}
                   onFocusComplete={handleFocusComplete}
+                  onNavigate={(route) => router.replace(route as any)}
                 />
               )}
               keyExtractor={(item) => item.id}
@@ -112,6 +114,7 @@ export default function AssistantScreen() {
                 isTyping ? <TypingIndicator /> : null
               }
               onContentSizeChange={scrollToBottom}
+              keyboardShouldPersistTaps="handled"
             />
           )}
 
@@ -120,7 +123,9 @@ export default function AssistantScreen() {
             cardBg={cardBg}
             borderCol={borderCol}
             textPrimary={textPrimary}
-            onSelectAction={handleQuery}
+            primaryBrown={primaryBrown}
+            activeKey={activeQuickAction}
+            onSelectAction={handleQuickAction}
           />
 
           {/* Text Input Row */}
@@ -138,5 +143,12 @@ export default function AssistantScreen() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+
+      {/* Side menu (same as the main tabs) */}
+      <StandaloneDrawer
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+      />
+    </View>
   );
 }

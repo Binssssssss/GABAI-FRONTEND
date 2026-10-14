@@ -8,36 +8,52 @@ interface AssistantHeaderProps {
   textSecondary: string;
   primaryBrown: string;
   borderCol: string;
-  onBack: () => void;
+  onOpenMenu: () => void;
   onReset: () => void;
 }
 
+/* Same layout as the Calendar header: ☰ + big title on the left. */
 export function AssistantHeader({
   textPrimary,
   textSecondary,
   primaryBrown,
-  borderCol,
-  onBack,
+  onOpenMenu,
   onReset,
 }: AssistantHeaderProps) {
   return (
-    <View style={[styles.header, { borderBottomColor: borderCol }]}>
-      <TouchableOpacity style={styles.backButton} onPress={onBack}>
-        <Feather name="chevron-left" size={24} color={textPrimary} />
-      </TouchableOpacity>
-      <View style={styles.headerTitleContainer}>
-        <View style={styles.headerLabelRow}>
-          <Text style={[styles.headerTitle, { color: textPrimary }]}>GabAi Assistant</Text>
-          <View style={[styles.offlineBadge, { backgroundColor: primaryBrown + '18' }]}>
-            <Text style={[styles.offlineBadgeText, { color: primaryBrown }]}>Local AI</Text>
-          </View>
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 16,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
+        <TouchableOpacity
+          onPress={onOpenMenu}
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          style={{ marginRight: 10, padding: 4 }}
+        >
+          <Feather name="menu" size={24} color={textPrimary} />
+        </TouchableOpacity>
+
+        <Text style={{ fontSize: 28, fontWeight: 'bold', color: textPrimary }}>GabAi</Text>
+
+        <View style={[styles.offlineBadge, { backgroundColor: primaryBrown + '18' }]}>
+          <Text style={[styles.offlineBadgeText, { color: primaryBrown }]}>Local AI</Text>
         </View>
-        <Text style={[styles.headerSubtitle, { color: textSecondary }]}>
-          Offline Productivity Companion
-        </Text>
       </View>
-      <TouchableOpacity style={styles.headerReset} onPress={onReset}>
-        <Feather name="trash-2" size={18} color={textSecondary} />
+
+      <TouchableOpacity
+        onPress={onReset}
+        accessibilityRole="button"
+        accessibilityLabel="Clear chat"
+        style={styles.headerReset}
+      >
+        <Feather name="trash-2" size={20} color={textSecondary} />
       </TouchableOpacity>
     </View>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -13,13 +13,15 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FocusModeTabs from './FocusModeTabs';
-import SubjectSelector from './SubjectSelector';
-import TaskPicker from './TaskPicker';
+import SubjectSelector, { SubjectOption } from './SubjectSelector';
+import TaskPicker, { TaskLoadState } from './TaskPicker';
+import { taskService } from '@/app/services/task.services';
 import {
   CUSTOM_DURATION_LIMITS,
   CUSTOM_DURATION_PRESETS,
   getModeDurationSeconds,
   isBreakMode,
+  isRealSubject,
 } from '../constants/focusConfig';
 import { FocusPalette, FocusSessionConfig, FocusTaskRef } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
@@ -51,6 +53,66 @@ export default function FocusSetupModal({
   const durationMinutes =
     getModeDurationSeconds(draft.mode, draft.customMinutes) / 60;
 
+  /* ---------- the user's tasks (for Task and Subject) ---------- */
+
+  const [taskLoad, setTaskLoad] = useState<TaskLoadState>({ status: 'loading' });
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    taskService
+      .getTasks()
+      .then((tasks) => {
+        if (cancelled) return;
+
+        setTaskLoad({
+          status: 'ready',
+          tasks: tasks
+            .filter((task) => task && typeof task.id === 'string' && !task.completed)
+            .map((task) => ({
+              id: task.id,
+              title: String(task.title ?? 'Untitled task'),
+              subject: String(task.subject ?? '').trim(),
+              dueDate: task.dueDate ? String(task.dueDate) : undefined,
+            }))
+            // Soonest due first; tasks without a date last.
+            .sort((a, b) =>
+              (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
+            ),
+        });
+      })
+      .catch((error) => {
+        console.warn('Unable to load tasks for focus timer:', error);
+        if (!cancelled) setTaskLoad({ status: 'error' });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  // Subjects the user typed in their tasks, most used first.
+  const subjects = useMemo<SubjectOption[]>(() => {
+    if (taskLoad.status !== 'ready') return [];
+
+    const counts = new Map<string, SubjectOption>();
+
+    for (const task of taskLoad.tasks) {
+      if (!isRealSubject(task.subject)) continue;
+
+      const key = task.subject.toLowerCase();
+      const existing = counts.get(key);
+
+      if (existing) existing.count += 1;
+      else counts.set(key, { name: task.subject, count: 1 });
+    }
+
+    return [...counts.values()].sort(
+      (a, b) => b.count - a.count || a.name.localeCompare(b.name)
+    );
+  }, [taskLoad]);
+
   const update = (changes: Partial<FocusSessionConfig>) =>
     setDraft((previous) => ({ ...previous, ...changes }));
 
@@ -65,12 +127,18 @@ export default function FocusSetupModal({
       ),
     });
 
+  // Picking a task fills in its subject (calendar categories are skipped).
   const selectTask = (task: FocusTaskRef | null) =>
     update(
-      task?.subject && task.subject.toLowerCase() !== 'general'
+      task && isRealSubject(task.subject)
         ? { task, subject: task.subject }
         : { task }
     );
+
+  const isSubjectFromTask =
+    !!draft.task &&
+    isRealSubject(draft.task.subject) &&
+    draft.task.subject.trim().toLowerCase() === draft.subject.trim().toLowerCase();
 
   const sectionTitle = (title: string) => (
     <Text style={[styles.sectionTitle, { color: colors.subtext, marginBottom: 10 }]}>
@@ -242,6 +310,11 @@ export default function FocusSetupModal({
                   <View style={styles.sheetSection}>
                     {sectionTitle('Task')}
                     <TaskPicker
+                      loadState={taskLoad}
+                      onRetry={() => {
+                        setTaskLoad({ status: 'loading' });
+                        setReloadKey((key) => key + 1);
+                      }}
                       selectedTask={draft.task}
                       onSelectTask={selectTask}
                       colors={colors}
@@ -253,6 +326,9 @@ export default function FocusSetupModal({
                     <SubjectSelector
                       selectedSubject={draft.subject}
                       onSelectSubject={(subject) => update({ subject })}
+                      subjects={subjects}
+                      isLoading={taskLoad.status === 'loading'}
+                      isFromTask={isSubjectFromTask}
                       colors={colors}
                     />
                   </View>
@@ -329,7 +405,7 @@ export default function FocusSetupModal({
               >
                 <Feather name="play" size={17} color={colors.onPrimary} />
                 <Text style={[styles.footerBtnText, { color: colors.onPrimary }]}>
-                  {isBreak ? 'Start break' : `Start ${durationMinutes}-min session`}
+                  {isBreak ? 'Start break' : 'Start session'}
                 </Text>
               </Pressable>
             </View>

@@ -185,7 +185,7 @@ export default function TabLayout() {
       active: pathname.includes('productivity'),
     },
     {
-      label: 'Virtual Assistant',
+      label: 'GabAi',
       icon: 'message-square' as const,
       route: '/assistant',
       active: pathname.includes('assistant'),

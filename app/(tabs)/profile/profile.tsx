@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useDrawer } from '@/app/(tabs)/_layout';
 
 import {
@@ -16,6 +17,7 @@ import { profileStyles as styles } from './styles/profile.styles';
 
 export default function ProfileScreen() {
   const { openDrawer } = useDrawer();
+  const router = useRouter();
   const theme = useProfileTheme();
   const { userProfile, stats, handleStatPress, handleLogout } = useProfileData();
 
@@ -33,6 +35,7 @@ export default function ProfileScreen() {
           textTheme={theme.textTheme}
           textSubTheme={theme.textSubTheme}
           primaryAccent={theme.primaryAccent}
+          onEdit={() => router.push('/settings/profile')}
         />
 
         {/* 3. Live Stats Row (tap to open Tasks / Calendar / Expenses) */}
