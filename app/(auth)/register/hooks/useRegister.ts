@@ -34,23 +34,21 @@ export function useRegister() {
 
     setIsLoading(true);
     try {
+      const cleanEmail = email.trim().toLowerCase();
+
       await api.post('/auth/register', {
-        fullName: name,
-        email: email,
+        fullName: name.trim(),
+        email: cleanEmail,
         password: password,
       });
 
       setIsLoading(false);
-      Alert.alert(
-        'Success',
-        'Account created successfully! Please log in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(auth)/login/login'),
-          },
-        ]
-      );
+
+      // Next step: enter the 6-digit code sent to this email.
+      router.replace({
+        pathname: '/(auth)/verify-email/verify-email',
+        params: { email: cleanEmail },
+      });
     } catch (error: any) {
       setIsLoading(false);
       let errorMessage = 'An error occurred during registration. Please try again.';

@@ -123,6 +123,29 @@ export function useLogin() {
     } catch (error: any) {
       setIsLoading(false);
 
+      // Account exists but the email is not verified yet.
+      if (error?.response?.data?.errors?.code === "EMAIL_NOT_VERIFIED") {
+        const unverifiedEmail =
+          error.response.data.errors.email ?? email.trim().toLowerCase();
+
+        Alert.alert(
+          "Verify your email",
+          error.response.data.message ??
+            "Please verify your email before logging in.",
+          [
+            {
+              text: "Enter code",
+              onPress: () =>
+                router.push({
+                  pathname: "/(auth)/verify-email/verify-email",
+                  params: { email: unverifiedEmail },
+                }),
+            },
+          ],
+        );
+        return;
+      }
+
       let errorMessage = "An error occurred during login. Please try again.";
 
       if (error?.response?.data?.message) {
