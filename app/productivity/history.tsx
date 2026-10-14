@@ -1,15 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Feather } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
+
+import { useAppTheme } from '@/app/context/ThemeContext';
+import { FOCUS_MODE_LABELS } from './constants/focusConfig';
+import { FocusMode } from './types';
 
 const FOCUS_SESSIONS_KEY = 'gabai.focus.sessions';
 const ACCENT = '#A97C50';
@@ -17,22 +23,16 @@ const ACCENT = '#A97C50';
 type FocusSessionRecord = {
   id: string;
   subject: string;
+  taskTitle?: string;
   durationMinutes: number;
   mode: string;
   completedAt: string;
   isStrict: boolean;
 };
 
-const modeLabels: Record<string, string> = {
-  pomodoro: 'Pomodoro',
-  deepWork: 'Deep Work',
-  shortBreak: 'Short Break',
-  longBreak: 'Long Break',
-  custom: 'Custom Focus',
-};
-
 export default function FocusHistoryScreen() {
   const router = useRouter();
+  const { colors } = useAppTheme();
   const [sessions, setSessions] = useState<FocusSessionRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,6 +74,8 @@ export default function FocusHistoryScreen() {
     0,
   );
 
+  const strictCount = sessions.filter((session) => session.isStrict).length;
+
   const formatDate = (value: string) => {
     const date = new Date(value);
 
@@ -88,27 +90,58 @@ export default function FocusHistoryScreen() {
     });
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/productivity');
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
+      <Stack.Screen options={{ headerShown: false }} />
+
       <View style={styles.header}>
-        
-        <Text style={styles.title}>Focus History</Text>
-        <Text style={styles.subtitle}>
-          Review your completed focus sessions.
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={handleBack}
+          style={({ pressed }) => [
+            styles.backButton,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <Feather name="arrow-left" size={18} color={colors.text} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { color: colors.text }]}>Focus History</Text>
+          <Text style={[styles.subtitle, { color: colors.secondaryText }]}>
+            Your completed study sessions.
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.summary}>
+      <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{sessions.length}</Text>
-          <Text style={styles.summaryLabel}>Sessions</Text>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>{sessions.length}</Text>
+          <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Sessions</Text>
         </View>
-        <View style={styles.summaryDivider} />
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>
             {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
           </Text>
-          <Text style={styles.summaryLabel}>Total Focus Time</Text>
+          <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Total Focus</Text>
+        </View>
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.summaryItem}>
+          <Text style={[styles.summaryValue, { color: ACCENT }]}>{strictCount}</Text>
+          <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Strict</Text>
         </View>
       </View>
 
@@ -141,45 +174,55 @@ export default function FocusHistoryScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>◷</Text>
-              <Text style={styles.emptyTitle}>No sessions yet</Text>
-              <Text style={styles.emptyText}>
+              <Feather name="clock" size={44} color={ACCENT} style={{ marginBottom: 12 }} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No sessions yet</Text>
+              <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
                 Complete a focus session and it will appear here.
               </Text>
             </View>
           }
           renderItem={({ item }) => (
-            <View style={styles.sessionCard}>
+            <View
+              style={[
+                styles.sessionCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
               <View style={styles.sessionTop}>
                 <View style={styles.sessionInfo}>
-                  <Text style={styles.subject}>{item.subject}</Text>
-                  <Text style={styles.sessionDate}>
+                  <Text style={[styles.subject, { color: colors.text }]}>
+                    {item.taskTitle ?? item.subject}
+                  </Text>
+                  {item.taskTitle ? (
+                    <Text style={[styles.sessionMeta, { color: colors.secondaryText }]}>
+                      {item.subject}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.sessionMeta, { color: colors.secondaryText }]}>
                     {formatDate(item.completedAt)}
                   </Text>
                 </View>
-                <View style={styles.durationBadge}>
-                  <Text style={styles.durationText}>
+                <View style={[styles.durationBadge, { backgroundColor: ACCENT + '22' }]}>
+                  <Text style={[styles.durationText, { color: ACCENT }]}>
                     {item.durationMinutes} min
                   </Text>
                 </View>
               </View>
 
               <View style={styles.sessionBottom}>
-                <Text style={styles.mode}>
-                  {modeLabels[item.mode] ?? item.mode ?? 'Focus'}
+                <Text style={[styles.mode, { color: colors.secondaryText }]}>
+                  {FOCUS_MODE_LABELS[item.mode as FocusMode] ?? item.mode ?? 'Focus'}
                 </Text>
                 <View
                   style={[
                     styles.typeBadge,
-                    item.isStrict ? styles.strictBadge : styles.casualBadge,
+                    { backgroundColor: item.isStrict ? ACCENT + '22' : colors.success + '22' },
                   ]}
                 >
                   <Text
                     style={[
                       styles.typeText,
-                      item.isStrict
-                        ? styles.strictText
-                        : styles.casualText,
+                      { color: item.isStrict ? ACCENT : colors.success },
                     ]}
                   >
                     {item.isStrict ? 'Strict' : 'Casual'}
@@ -197,27 +240,30 @@ export default function FocusHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 20,
   },
   backButton: {
-    color: ACCENT,
-    fontSize: 16,
-    marginBottom: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    color: '#FFFFFF',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
   },
   subtitle: {
-    color: '#9BA1A6',
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: 13,
+    marginTop: 2,
   },
   summary: {
     flexDirection: 'row',
@@ -226,26 +272,23 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     padding: 18,
     borderRadius: 18,
-    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
   },
   summaryItem: {
     flex: 1,
     alignItems: 'center',
   },
   summaryValue: {
-    color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
   },
   summaryLabel: {
-    color: '#9BA1A6',
     fontSize: 12,
     marginTop: 5,
   },
   summaryDivider: {
     width: 1,
     height: 38,
-    backgroundColor: '#333333',
   },
   loader: {
     marginTop: 40,
@@ -265,30 +308,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
-  emptyIcon: {
-    color: ACCENT,
-    fontSize: 48,
-    marginBottom: 12,
-  },
   emptyTitle: {
-    color: '#FFFFFF',
     fontSize: 19,
     fontWeight: '700',
   },
   emptyText: {
-    color: '#9BA1A6',
     textAlign: 'center',
     fontSize: 14,
     marginTop: 8,
     lineHeight: 21,
   },
   sessionCard: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#2E2E2E',
   },
   sessionTop: {
     flexDirection: 'row',
@@ -300,23 +334,19 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   subject: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  sessionDate: {
-    color: '#9BA1A6',
+  sessionMeta: {
     fontSize: 12,
-    marginTop: 6,
+    marginTop: 4,
   },
   durationBadge: {
-    backgroundColor: '#33271E',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
   },
   durationText: {
-    color: '#D8B18A',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -327,7 +357,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   mode: {
-    color: '#C3C6C8',
     fontSize: 13,
   },
   typeBadge: {
@@ -335,20 +364,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
   },
-  strictBadge: {
-    backgroundColor: '#3A2920',
-  },
-  casualBadge: {
-    backgroundColor: '#242C25',
-  },
   typeText: {
     fontSize: 11,
     fontWeight: '600',
-  },
-  strictText: {
-    color: '#D8B18A',
-  },
-  casualText: {
-    color: '#9BC7A4',
   },
 });

@@ -544,10 +544,6 @@ export default function NoteEditorModal({
 
       return () => clearTimeout(timeout);
     }
-
-    if (saveStatus === 'saving') {
-      setShowSaved(false);
-    }
   }, [saveStatus]);
 
   /* Track keyboard visibility for the bottom toolbar. */
@@ -579,7 +575,11 @@ export default function NoteEditorModal({
   }, []);
 
   /* Reset temporary UI when the editor closes. */
-  useEffect(() => {
+  const [prevVisible, setPrevVisible] = useState(visible);
+
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+
     if (!visible) {
       setIsAddingTag(false);
       setKeyboardVisible(false);
@@ -587,6 +587,11 @@ export default function NoteEditorModal({
       setIsScrolled(false);
       setIsCategorySheetOpen(false);
       setActiveFormats([]);
+    }
+  }
+
+  useEffect(() => {
+    if (!visible) {
       lastCursorYRef.current = null;
       bodyFocusedRef.current = false;
     }

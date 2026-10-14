@@ -69,8 +69,6 @@ function AppNavigation() {
       return;
     }
 
-    const isAuthRoute =
-      segments[0] === '(auth)';
 
     const isAuthRoute = segments[0] === '(auth)';
 

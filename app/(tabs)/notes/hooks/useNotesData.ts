@@ -263,22 +263,20 @@ export function useNotesData() {
   }, [filteredNotes, activeTabFilter]);
 
   // Save through the backend. Saves for one editing session are serialized.
-  const saveCurrentNote = useCallback(
-    async (
-      title = editorTitle,
-      content = editorContent,
-      category = editorCategory,
-      tags = editorTags,
-      isFav = editorIsFavorite,
-      isPin = editorIsPinned,
-      isArch = editorIsArchived,
-    ) => {
-      try {
-        setIsSaving(true);
+const saveCurrentNote = useCallback(
+  async (
+    title = editorTitle,
+    content = editorContent,
+    category = editorCategory,
+    tags = editorTags,
+    isFav = editorIsFavorite,
+    isPin = editorIsPinned,
+    isArch = editorIsArchived,
+  ) => {
+    const cleanTitle = title.trim() || 'Untitled Note';
+    const session = draftSessionRef.current;
 
-      const cleanTitle = title.trim() || 'Untitled Note';
-      const session = draftSessionRef.current;
-
+    try {
       const operation = session.queue.then(async () => {
         // Create only once per editing session.
         if (!session.noteId) {
@@ -291,7 +289,6 @@ export function useNotesData() {
 
           session.noteId = created.id;
 
-          // Ignore late editor-state updates if the user opened another note.
           if (draftSessionRef.current === session && mountedRef.current) {
             setEditingNoteId(created.id);
           }
@@ -299,7 +296,7 @@ export function useNotesData() {
           upsertLocalNote(created);
         }
 
-        // Update the same server record with the latest content and flags.
+        // Update the existing note.
         const updated = await updateNoteApi(session.noteId!, {
           title: cleanTitle,
           content,
@@ -317,38 +314,36 @@ export function useNotesData() {
         }
       });
 
-      // Keep the queue usable even if a previous save fails.
+      // Keep the queue usable after a failed save.
       session.queue = operation.then(
         () => undefined,
         () => undefined,
       );
 
-      try {
-        await operation;
-      } catch (error) {
-        console.error('Failed to save note:', error);
+      await operation;
+    } catch (error) {
+      console.error('Failed to save note:', error);
 
-        if (draftSessionRef.current === session && mountedRef.current) {
-          setSaveStatus('saving');
+      if (draftSessionRef.current === session && mountedRef.current) {
+        setSaveStatus('saving');
 
-          Alert.alert(
-            'Save Failed',
-            'Your note could not be saved. Check your connection and try again.',
-          );
-        }
+        Alert.alert(
+          'Save Failed',
+          'Your note could not be saved. Check your connection and try again.',
+        );
       }
-    },
-    [
-      editorTitle,
-      editorContent,
-      editorCategory,
-      editorTags,
-      editorIsFavorite,
-      editorIsPinned,
-      editorIsArchived,
-    ],
-  );
-
+    }
+  },
+  [
+    editorTitle,
+    editorContent,
+    editorCategory,
+    editorTags,
+    editorIsFavorite,
+    editorIsPinned,
+    editorIsArchived,
+  ],
+);
   // Open a new note
   const handleOpenNewNote = useCallback(
     (
@@ -435,36 +430,38 @@ export function useNotesData() {
   }, []);
 
   // Debounced content autosave
-  const handleContentChange = useCallback(
-    (newContent: string) => {
-      setEditorContent(newContent);
-      setSaveStatus('saving');
+ 
+const handleContentChange = useCallback(
+  (newContent: string) => {
+    setEditorContent(newContent);
+    setSaveStatus('saving');
 
-      if (historyIndexRef.current < historyRef.current.length - 1) {
-        historyRef.current = historyRef.current.slice(
-          0,
-          historyIndexRef.current + 1,
-        );
-      }
+    // Update undo/redo history.
+    if (historyIndexRef.current < historyRef.current.length - 1) {
+      historyRef.current = historyRef.current.slice(
+        0,
+        historyIndexRef.current + 1,
+      );
+    }
 
-      if (historyRef.current[historyRef.current.length - 1] !== newContent) {
-        historyRef.current.push(newContent);
-        historyIndexRef.current = historyRef.current.length - 1;
-      }
-    },
-    [editingNoteId],
-  );
+    if (historyRef.current[historyRef.current.length - 1] !== newContent) {
+      historyRef.current.push(newContent);
+      historyIndexRef.current = historyRef.current.length - 1;
+    }
 
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
+    // Clear the previous autosave timer.
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
 
-      autoSaveTimerRef.current = setTimeout(() => {
-        void saveCurrentNote(editorTitle, newContent);
-      }, 600);
-    },
-    [editorTitle, saveCurrentNote],
-  );
+    // Save the latest content after 600 ms of inactivity.
+    autoSaveTimerRef.current = setTimeout(() => {
+      void saveCurrentNote(editorTitle, newContent);
+    }, 600);
+  },
+  [editorTitle, saveCurrentNote],
+);
+
 
   // Debounced title autosave
   const handleTitleChange = useCallback(
@@ -771,75 +768,59 @@ export function useNotesData() {
     notes,
     isLoadingNotes,
     filteredNotes,
-
-    // Loading
-    isLoading,
-    isSaving,
-
-    // Counts
-    totalNotes,
     pinnedNotes,
     unpinnedNotes,
     allUniqueTags,
     activeCustomFiltersCount,
 
+    // Filters, sort and view
     searchQuery,
     setSearchQuery,
-
-    // Filters
-    activeFilter,
-    setActiveFilter,
-
+    activeTabFilter,
+    setActiveTabFilter,
     selectedCategory,
     setSelectedCategory,
-
     selectedTag,
     setSelectedTag,
-
-    // Sort
-    sortOption,
-    setSortOption,
-
-    // View
+    sortBy,
+    setSortBy,
     viewMode,
     setViewMode,
 
+    // Sheets and menus
     isFilterSheetOpen,
     setIsFilterSheetOpen,
     isFabMenuOpen,
     setIsFabMenuOpen,
-
-    // Modals
+    isEditorMoreMenuOpen,
+    setIsEditorMoreMenuOpen,
     isTemplateModalOpen,
     setIsTemplateModalOpen,
 
+    // Editor state
     isEditorOpen,
     editingNoteId,
-
     editorTitle,
     setEditorTitle,
-
     editorContent,
     setEditorContent,
-
     editorCategory,
     setEditorCategory,
-
     editorTags,
     setEditorTags,
-
+    editorTagInput,
+    setEditorTagInput,
     editorIsFavorite,
     setEditorIsFavorite,
-
     editorIsPinned,
     setEditorIsPinned,
-
     editorIsArchived,
     setEditorIsArchived,
     saveStatus,
     isPreviewMode,
     setIsPreviewMode,
 
+    // Convert to task
     convertTaskModalOpen,
     setConvertTaskModalOpen,
     convertTargetNote,
@@ -848,10 +829,10 @@ export function useNotesData() {
     setTaskSubjectInput,
     taskPriorityInput,
     setTaskPriorityInput,
-
     taskCategoryInput,
     setTaskCategoryInput,
 
+    // Link to schedule
     scheduleModalOpen,
     setScheduleModalOpen,
     scheduleTargetNote,
@@ -861,9 +842,12 @@ export function useNotesData() {
     scheduleTimeInput,
     setScheduleTimeInput,
 
+    // Editor actions
     handleOpenNewNote,
     handleOpenQuickNote,
     handleOpenNote,
+    handleApplyTemplate,
+    saveCurrentNote,
     handleCloseEditor,
     handleContentChange,
     handleTitleChange,
@@ -872,26 +856,13 @@ export function useNotesData() {
     handleRedo,
     handleAddTag,
     handleRemoveTag,
-    handleDeleteNote,
 
     // Note actions
+    handleDeleteNote,
     handleFavoriteToggle,
     handlePinToggle,
     handleArchiveToggle,
-
-    // Editor actions
-    handleOpenNewNote,
-    handleOpenNote,
-    handleOpenQuickNote,
-    handleOpenTemplate,
-    saveCurrentNote,
-    handleCloseEditor,
-
-    // Task / schedule
-    handleConvertNoteToTask,
-    handleLinkToSchedule,
-
-    // Share
+    handleDuplicateNote,
     handleShareNote,
   };
 }
