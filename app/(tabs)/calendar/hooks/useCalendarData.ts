@@ -9,7 +9,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 
 import {
   CalendarEvent,
@@ -374,7 +374,7 @@ export function useCalendarData() {
   */
   const saveEvent = useCallback(async () => {
     if (!newTitle.trim()) {
-      Alert.alert(
+      AppAlert.alert(
         'Validation Error',
         'Please enter a title for the event.',
       );
@@ -382,7 +382,7 @@ export function useCalendarData() {
     }
 
     if (!newDate.trim()) {
-      Alert.alert(
+      AppAlert.alert(
         'Validation Error',
         'Please enter an event date.',
       );
@@ -390,7 +390,7 @@ export function useCalendarData() {
     }
 
     if (!newIsAllDay && !newTime.trim()) {
-      Alert.alert(
+      AppAlert.alert(
         'Validation Error',
         'Please enter an event time.',
       );
@@ -407,42 +407,89 @@ export function useCalendarData() {
       hasReminder: newHasReminder,
     };
 
-    try {
-      if (editingEventId) {
-        // UPDATE EXISTING EVENT
-        const response = await api.put(
-          `/tasks/${editingEventId}`,
-          eventPayload,
-        );
+    // Snapshot the form; it is cleared right away.
+    const title = newTitle.trim();
+    const date = newDate;
+    const time = newTime;
+    const isAllDay = newIsAllDay;
+    const hasReminder = newHasReminder;
+    const category = newCategory;
+    const priority = newPriority;
+    const duration = Number(newDuration);
+    const checklistItems = newChecklistItems;
+    const wantsReminder = hasReminder && !isAllDay && time.trim().length > 0;
 
-        const updatedEvent = mapBackendEvent(
-          response.data.data,
+    if (editingEventId) {
+      // UPDATE EXISTING EVENT (real-time: show the change first)
+      const eventId = editingEventId;
+      const original = events.find((event) => event.id === eventId);
+
+      const shownEvent: CalendarEvent = {
+        ...(original ?? mapBackendEvent({ id: eventId, ...eventPayload } as BackendCalendarEvent)),
+        title,
+        description: eventPayload.description,
+        category: mapBackendEvent({ id: eventId, ...eventPayload } as BackendCalendarEvent).category,
+        subject: category,
+        priority,
+        date: toCalendarDateKey(date),
+        time: eventPayload.dueTime,
+        isAllDay,
+        hasReminder,
+      };
+
+      setEvents((prev) =>
+        prev.map((event) => (event.id === eventId ? shownEvent : event)),
+      );
+      setSelectedEvent(shownEvent);
+      setIsAddModalOpen(false);
+      setIsDetailModalOpen(true);
+      setEditingEventId(null);
+      resetForm();
+
+      try {
+        const response = await api.put(`/tasks/${eventId}`, eventPayload);
+        const updatedEvent = mapBackendEvent(response.data.data);
+
+        setEvents((prev) =>
+          prev.map((event) => (event.id === eventId ? updatedEvent : event)),
+        );
+        setSelectedEvent((current) =>
+          current?.id === eventId ? updatedEvent : current,
         );
 
         // Update the device's scheduled notification.
         try {
-          await cancelCalendarReminder(editingEventId);
+          await cancelCalendarReminder(eventId);
 
-          if (
-            newHasReminder &&
-            !newIsAllDay &&
-            newTime.trim()
-          ) {
+          if (wantsReminder) {
             await scheduleCalendarReminder(
-              newTitle.trim(),
-              newDate,
-              newTime,
+              title,
+              date,
+              time,
               undefined, // use the Notification Settings lead time
-              editingEventId,
+              eventId,
+              { category, priority },
             );
           }
         } catch (reminderError) {
-          console.error(
-            'Failed to update event reminder:',
-            reminderError,
+          console.error('Failed to update event reminder:', reminderError);
+        }
+
+        void loadUpcomingDeadlines();
+      } catch (error: any) {
+        console.error('Failed to update event:', error);
+
+        // Undo the instant change.
+        if (original) {
+          setEvents((prev) =>
+            prev.map((event) => (event.id === eventId ? original : event)),
+          );
+          setSelectedEvent((current) =>
+            current?.id === eventId ? original : current,
           );
         }
 
+<<<<<<< HEAD
         setEvents((prev) =>
           prev.map((event) =>
             event.id === editingEventId
@@ -519,25 +566,83 @@ export function useCalendarData() {
         Alert.alert(
           'Event Added',
           'Your event has been successfully scheduled.',
+=======
+        AppAlert.alert(
+          'Error',
+          error?.response?.data?.message || 'Failed to update the event.',
+>>>>>>> 7e336d1d626479de614ab2faa9bf920f4df3e267
         );
       }
-    } catch (error: any) {
-      console.error(
-        editingEventId
-          ? 'Failed to update event:'
-          : 'Failed to create event:',
-        error,
+
+      return;
+    }
+
+    // CREATE NEW EVENT (real-time: show it first, then save)
+    const tempId = `pending-${Date.now()}`;
+    const tempEvent = mapBackendEvent({
+      id: tempId,
+      ...eventPayload,
+      duration,
+      completed: false,
+      subTasks: checklistItems.map((item, index) => ({
+        id: `${tempId}-${index}`,
+        title: item,
+        completed: false,
+      })),
+    } as BackendCalendarEvent);
+
+    setEvents((prev) => [tempEvent, ...prev]);
+    setIsAddModalOpen(false);
+    resetForm();
+
+    try {
+      const response = await api.post('/tasks', {
+        ...eventPayload,
+        // Lets the backend send "Event Created" instead of "Task Created".
+        source: 'calendar',
+        duration,
+        completed: false,
+        subTasks: checklistItems.map((item) => ({
+          title: item,
+          completed: false,
+        })),
+      });
+
+      const createdEvent = mapBackendEvent(response.data.data);
+
+      // Swap the instant copy for the saved event.
+      setEvents((prev) =>
+        prev.map((event) => (event.id === tempId ? createdEvent : event)),
       );
 
-      Alert.alert(
+      if (wantsReminder) {
+        try {
+          await scheduleCalendarReminder(
+            title,
+            date,
+            time,
+            undefined, // use the Notification Settings lead time
+            createdEvent.id,
+            { category, priority },
+          );
+        } catch (reminderError) {
+          console.error('Failed to schedule calendar reminder:', reminderError);
+        }
+      }
+
+      void loadUpcomingDeadlines();
+    } catch (error: any) {
+      console.error('Failed to create event:', error);
+
+      setEvents((prev) => prev.filter((event) => event.id !== tempId));
+
+      AppAlert.alert(
         'Error',
-        error?.response?.data?.message ||
-        (editingEventId
-          ? 'Failed to update the event.'
-          : 'Failed to save the event.'),
+        error?.response?.data?.message || 'Failed to save the event.',
       );
     }
   }, [
+    events,
     editingEventId,
     newTitle,
     newDescription,
@@ -558,7 +663,7 @@ export function useCalendarData() {
    */
   const deleteEvent = useCallback(
     (eventId: string) => {
-      Alert.alert(
+      AppAlert.alert(
         'Delete Event',
         'Are you sure you want to delete this event?',
         [
@@ -570,34 +675,42 @@ export function useCalendarData() {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
+              // Real-time: remove it from the screen first.
+              const removedEvent = events.find(
+                (event) => event.id === eventId,
+              );
+
+              setEvents((prev) =>
+                prev.filter((event) => event.id !== eventId),
+              );
+
+              setUpcomingDeadlines((prev) =>
+                prev.filter((event) => event.id !== eventId),
+              );
+
+              setSelectedEvent(null);
+              setIsDetailModalOpen(false);
+
+              if (eventId.startsWith('pending-')) return;
+
               try {
                 await api.delete(`/tasks/${eventId}`);
                 await cancelCalendarReminder(eventId);
-
-
-                setEvents((prev) =>
-                  prev.filter((event) => event.id !== eventId),
-                );
-
-                setUpcomingDeadlines((prev) =>
-                  prev.filter((event) => event.id !== eventId),
-                );
-
-                setSelectedEvent(null);
-                setIsDetailModalOpen(false);
-
-                Alert.alert(
-                  'Deleted',
-                  'Event deleted successfully.',
-                );
               } catch (error: any) {
+                // Put it back.
+                const restored = removedEvent;
+                if (restored && error?.response?.status !== 404) {
+                  setEvents((prev) => [restored, ...prev]);
+                  void loadUpcomingDeadlines();
+                }
+
                 console.error(
                   'Failed to delete event:',
                   error?.response?.status,
                   error?.response?.data || error.message,
                 );
 
-                Alert.alert(
+                AppAlert.alert(
                   'Error',
                   error?.response?.data?.message ||
                   'Failed to delete event.',
@@ -610,7 +723,7 @@ export function useCalendarData() {
 
 
     },
-    [],
+    [events, loadUpcomingDeadlines],
   );
 
   /*
@@ -689,7 +802,7 @@ export function useCalendarData() {
             error,
           );
 
-          Alert.alert(
+          AppAlert.alert(
             'Error',
             error?.response?.data?.message ||
             'Failed to update checklist item.',
@@ -776,6 +889,7 @@ export function useCalendarData() {
                   updatedEvent.time || event.time,
                   undefined, // use the Notification Settings lead time
                   event.id,
+                  { category: event.category, priority: event.priority },
                 );
               } catch (reminderError) {
                 console.error(
@@ -795,7 +909,7 @@ export function useCalendarData() {
 
             await loadUpcomingDeadlines();
 
-            Alert.alert(
+            AppAlert.alert(
               'Event Rescheduled',
               `"${event.title}" has been moved to ${targetDate}.`,
             );
@@ -805,7 +919,7 @@ export function useCalendarData() {
           } catch (error: any) {
             console.error('Failed to reschedule event:', error);
 
-            Alert.alert(
+            AppAlert.alert(
               'Error',
               error?.response?.data?.message || 'Failed to reschedule event.',
             );
@@ -822,7 +936,7 @@ export function useCalendarData() {
         ]);
 
         if (projectedWorkload.weight > currentWorkload.weight) {
-          Alert.alert(
+          AppAlert.alert(
             'Workload impact',
             `Moving "${event.title}" to ${targetDate} changes that date's workload from ${currentWorkload.level} to ${projectedWorkload.level}.`,
             [
@@ -852,6 +966,9 @@ export function useCalendarData() {
         searchQuery.toLowerCase();
 
       return events.filter((event) => {
+        // Completed items are hidden from the calendar lists.
+        if (event.completed) return false;
+
         const matchesCategory =
           selectedCategory === 'All' ||
           event.category ===

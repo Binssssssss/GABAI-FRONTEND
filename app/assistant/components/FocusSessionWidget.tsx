@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from '@/app/context/ThemeContext';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
@@ -16,7 +16,8 @@ export function FocusSessionWidget({
   onComplete,
   topic = 'Capstone methodology draft review',
 }: FocusSessionWidgetProps) {
-  const colorScheme = useColorScheme();
+  // Follow the app's theme setting (not just the phone's).
+  const { colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const primaryBrown = '#A97C50';
   const textPrimary = isDark ? '#ECEDEE' : '#11181C';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { localDb, Note, Task } from '@/app/services/localDb';
 import { getNotePlainText, getNotePreview, triggerHaptic } from '../../utils/noteHelpers';
@@ -69,6 +69,8 @@ export default function ConvertToTaskModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      {/* Lift the card above the keyboard while typing. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
           <View style={styles.modalCardHeader}>
@@ -152,6 +154,7 @@ export default function ConvertToTaskModal({
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

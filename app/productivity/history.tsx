@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import {
@@ -14,10 +13,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
 import { useAppTheme } from '@/app/context/ThemeContext';
+import {
+  deleteFocusSession,
+  fetchFocusHistory,
+} from '@/app/services/focusSessionApi';
+import { AppAlert } from '@/components/AppAlert';
 import { FOCUS_MODE_LABELS } from './constants/focusConfig';
 import { FocusMode } from './types';
 
-const FOCUS_SESSIONS_KEY = 'gabai.focus.sessions';
 const ACCENT = '#A97C50';
 
 type FocusSessionRecord = {
@@ -38,21 +41,14 @@ export default function FocusHistoryScreen() {
 
   const loadSessions = useCallback(async () => {
     try {
-      const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
-      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      // Sessions of the logged-in account (offline copy if no internet).
+      const { records } = await fetchFocusHistory();
 
       setSessions(
-        Array.isArray(parsed)
-          ? parsed.filter(
-              (item): item is FocusSessionRecord =>
-                item !== null &&
-                typeof item === 'object' &&
-                typeof item.id === 'string' &&
-                typeof item.subject === 'string' &&
-                typeof item.durationMinutes === 'number' &&
-                typeof item.completedAt === 'string',
-            )
-          : [],
+        records.filter(
+          (item) =>
+            item.mode !== 'shortBreak' && item.mode !== 'longBreak',
+        ),
       );
     } catch (error) {
       console.error('Failed to load focus history:', error);
@@ -68,6 +64,38 @@ export default function FocusHistoryScreen() {
       loadSessions();
     }, [loadSessions]),
   );
+
+  const confirmDelete = (session: FocusSessionRecord) => {
+    const name = session.taskTitle ?? session.subject;
+
+    AppAlert.alert(
+      'Delete this session?',
+      `${name} · ${session.durationMinutes} min will be removed from your focus history and totals. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Real-time: remove it from the screen right away.
+            setSessions((prev) => prev.filter((item) => item.id !== session.id));
+
+            try {
+              await deleteFocusSession(session.id);
+            } catch (error) {
+              console.error('Failed to delete focus session:', error);
+              setSessions((prev) =>
+                prev.some((item) => item.id === session.id)
+                  ? prev
+                  : [...prev, session],
+              );
+              AppAlert.alert('Unable to Delete', 'Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const totalMinutes = sessions.reduce(
     (total, session) => total + session.durationMinutes,
@@ -213,20 +241,36 @@ export default function FocusHistoryScreen() {
                 <Text style={[styles.mode, { color: colors.secondaryText }]}>
                   {FOCUS_MODE_LABELS[item.mode as FocusMode] ?? item.mode ?? 'Focus'}
                 </Text>
-                <View
-                  style={[
-                    styles.typeBadge,
-                    { backgroundColor: item.isStrict ? ACCENT + '22' : colors.success + '22' },
-                  ]}
-                >
-                  <Text
+                <View style={styles.sessionActions}>
+                  <View
                     style={[
-                      styles.typeText,
-                      { color: item.isStrict ? ACCENT : colors.success },
+                      styles.typeBadge,
+                      { backgroundColor: item.isStrict ? ACCENT + '22' : colors.success + '22' },
                     ]}
                   >
-                    {item.isStrict ? 'Strict' : 'Casual'}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.typeText,
+                        { color: item.isStrict ? ACCENT : colors.success },
+                      ]}
+                    >
+                      {item.isStrict ? 'Strict' : 'Casual'}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${item.taskTitle ?? item.subject} session`}
+                    onPress={() => confirmDelete(item)}
+                    hitSlop={6}
+                    style={({ pressed }) => [
+                      styles.deleteButton,
+                      { backgroundColor: colors.danger + '1F' },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Feather name="trash-2" size={17} color={colors.danger} />
+                  </Pressable>
                 </View>
               </View>
             </View>
@@ -358,6 +402,18 @@ const styles = StyleSheet.create({
   },
   mode: {
     fontSize: 13,
+  },
+  sessionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  deleteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   typeBadge: {
     paddingHorizontal: 10,

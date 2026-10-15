@@ -13,7 +13,7 @@ export const taskStyles = StyleSheet.create({
   },
   headerGreeting: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   headerDate: {
     fontSize: 12,
@@ -25,17 +25,17 @@ export const taskStyles = StyleSheet.create({
     gap: 8,
   },
   headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -78,7 +78,7 @@ export const taskStyles = StyleSheet.create({
     fontSize: 13,
   },
   scrollContent: {
-    paddingBottom: 112,
+    paddingBottom: 120,
   },
   overviewContainer: {
     paddingHorizontal: 20,
@@ -86,7 +86,7 @@ export const taskStyles = StyleSheet.create({
   motivationBanner: {
     flexDirection: 'row',
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     marginBottom: 20,
@@ -107,7 +107,7 @@ export const taskStyles = StyleSheet.create({
   },
   overviewCard: {
     width: '48%',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     justifyContent: 'space-between',
@@ -151,7 +151,7 @@ export const taskStyles = StyleSheet.create({
     borderRadius: 2.5,
   },
   insightsCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     marginBottom: 20,
@@ -183,7 +183,7 @@ export const taskStyles = StyleSheet.create({
     flex: 1,
   },
   heatmapCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     marginBottom: 20,
@@ -236,7 +236,7 @@ export const taskStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 10,
   },
@@ -263,7 +263,7 @@ export const taskStyles = StyleSheet.create({
     fontSize: 12,
   },
   timelineContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   bulkActionBar: {
     flexDirection: 'row',
@@ -312,8 +312,8 @@ export const taskStyles = StyleSheet.create({
     marginBottom: 20,
   },
   timelineSectionTitle: {
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
     marginBottom: 12,
   },
   emptyTimelineText: {
@@ -321,7 +321,7 @@ export const taskStyles = StyleSheet.create({
     marginLeft: 4,
   },
   taskCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 14,
     flexDirection: 'row',
@@ -478,7 +478,7 @@ export const taskStyles = StyleSheet.create({
     marginTop: 4,
   },
   subjectsContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   subjectCard: {
     borderRadius: 16,
@@ -536,7 +536,7 @@ export const taskStyles = StyleSheet.create({
     marginTop: 2,
   },
   analyticsContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   analyticsGrid: {
     flexDirection: 'row',

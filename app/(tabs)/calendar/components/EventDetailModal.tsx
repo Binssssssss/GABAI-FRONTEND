@@ -4,6 +4,7 @@ import { CATEGORY_COLORS } from '../constants/calendarConfig';
 import { calendarStyles as styles } from '../styles/calendar.styles';
 import { CalendarEvent } from '../types';
 import { getPriorityColors } from '../utils/calendarHelpers';
+import { formatTime12 } from '@/utils/time';
 
 interface EventDetailModalProps {
   onEdit: (event: CalendarEvent) => void;
@@ -132,7 +133,7 @@ export default function EventDetailModal({
                   {event.isAllDay
                     ? "All Day Event"
                     : event.time
-                      ? `${event.time}${event.duration ? ` (${event.duration} minutes)` : ''}`
+                      ? `${formatTime12(event.time)}${event.duration ? ` (${event.duration} minutes)` : ''}`
                       : 'Time not set'}
                 </Text>
               </View>

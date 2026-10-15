@@ -21,6 +21,8 @@ interface WhatShouldIDoNowProps {
   cardColor?: string;
   borderColor?: string;
   onPress?: (taskId: string) => void;
+  /** Changes when the dashboard refreshes, so this card reloads. */
+  refreshKey?: number;
 }
 
 
@@ -81,6 +83,7 @@ const getPriorityLabel = (
 };
 
 export default function WhatShouldIDoNow({
+  refreshKey = 0,
   primaryBrown = '#A97C50',
   textColor = '#ECEDEE',
   secondaryText = '#9BA1A6',
@@ -138,12 +141,12 @@ export default function WhatShouldIDoNow({
         .then(handleRecommendation, handleRecommendationError);
     }, [handleRecommendation, handleRecommendationError]);
 
-  // Initial load (loading already starts as true).
+  // Load on open, and again whenever the dashboard refreshes.
   useEffect(() => {
     taskService
       .getTaskRecommendation()
       .then(handleRecommendation, handleRecommendationError);
-  }, [handleRecommendation, handleRecommendationError]);
+  }, [handleRecommendation, handleRecommendationError, refreshKey]);
 
   // ===============================
   // LOADING STATE
@@ -636,7 +639,7 @@ export default function WhatShouldIDoNow({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 18,
   },
 

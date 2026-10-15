@@ -1,3 +1,5 @@
+import { formatClock } from '@/utils/time';
+
 
 export const formatTimerTime = (
   totalSecs: number,
@@ -20,8 +22,5 @@ export const generateMessageId = (): string => {
 };
 
 export const getCurrentTimestamp = (): string => {
-  return new Date().toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatClock(new Date());
 };

@@ -22,10 +22,12 @@ export default function NotesModalContainer({
   const activeNoteId = notesData.editingNoteId;
 
   // Snapshot of the note currently open in the editor.
-  const createEditorNote = (): LocalNote => ({
+  const createEditorNote = (
+    content: string = notesData.editorContent,
+  ): LocalNote => ({
     id: activeNoteId || 'temp',
     title: notesData.editorTitle || 'Untitled Note',
-    content: notesData.editorContent,
+    content,
     category: notesData.editorCategory,
     tags: notesData.editorTags || [],
     createdAt: Date.now(),
@@ -86,20 +88,21 @@ export default function NotesModalContainer({
             notesData.handleDeleteNote(activeNoteId);
             return;
           }
-          notesData.handleCloseEditor();
+          // Unsaved new note: just close, nothing to delete.
+          notesData.handleCloseEditor({ save: false });
         }}
-        onShare={() =>
+        onShare={(content) =>
           notesData.handleShareNote(
             notesData.editorTitle || 'Untitled Note',
-            notesData.editorContent,
+            content,
           )
         }
-        onOpenConvertTask={() => {
-          notesData.setConvertTargetNote(createEditorNote());
+        onOpenConvertTask={(content) => {
+          notesData.setConvertTargetNote(createEditorNote(content));
           notesData.setConvertTaskModalOpen(true);
         }}
-        onOpenSchedule={() => {
-          notesData.setScheduleTargetNote(createEditorNote());
+        onOpenSchedule={(content) => {
+          notesData.setScheduleTargetNote(createEditorNote(content));
           notesData.setScheduleModalOpen(true);
         }}
         onOpenTemplateModal={() => notesData.setIsTemplateModalOpen(true)}

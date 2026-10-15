@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { Feather } from '@expo/vector-icons';
 import api from '@/app/services/api';
 import { Note } from '@/app/services/localDb';
 import { getNotePreview, triggerHaptic } from '../../utils/noteHelpers';
 import { noteStyles as styles } from '../../styles/notes.styles';
+import { toTime24 } from '@/utils/time';
 
 interface LinkToScheduleModalProps {
   visible: boolean;
@@ -42,6 +44,13 @@ export default function LinkToScheduleModal({
   const handleConfirm = async () => {
   if (!note) return;
 
+  // Users type 12-hour time ("2:00 PM"); the task is saved as "14:00".
+  const dueTime = toTime24(timeInput);
+  if (!dueTime) {
+    AppAlert.alert('Check the time', 'Type a time like 2:00 PM.');
+    return;
+  }
+
   try {
     triggerHaptic();
 
@@ -49,12 +58,12 @@ export default function LinkToScheduleModal({
       title: `Review: ${note.title}`,
       description: `Study notes from ${note.category}:\n\n${getNotePreview(note.content, 150)}`,
       date: dateInput,
-      time: timeInput,
+      time: dueTime,
       category: 'Exam',
       duration: 60,
       priority: 'Medium',
       dueDate: dateInput,
-      dueTime: timeInput,
+      dueTime,
       hasReminder: true,
       subTasks: [],
     });
@@ -67,6 +76,8 @@ export default function LinkToScheduleModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      {/* Lift the card above the keyboard while typing. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
           <View style={styles.modalCardHeader}>
@@ -94,12 +105,13 @@ export default function LinkToScheduleModal({
           />
 
           {/* Time Input */}
-          <Text style={[styles.inputLabel, { color: textSecondary }]}>TIME (HH:MM)</Text>
+          <Text style={[styles.inputLabel, { color: textSecondary }]}>TIME (e.g. 2:00 PM)</Text>
           <TextInput
             style={[styles.modalTextInput, { backgroundColor: inputBg, borderColor: borderCol, color: textPrimary }]}
             value={timeInput}
             onChangeText={onTimeChange}
-            placeholder="14:00"
+            placeholder="2:00 PM"
+            autoCapitalize="characters"
             placeholderTextColor={textSecondary}
           />
 
@@ -122,6 +134,7 @@ export default function LinkToScheduleModal({
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

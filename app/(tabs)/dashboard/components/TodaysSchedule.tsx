@@ -8,6 +8,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { DashboardTimelineItem } from './types';
+import { formatTime12 } from '@/utils/time';
 
 interface TodaysScheduleProps {
   items: DashboardTimelineItem[];
@@ -142,9 +143,7 @@ export default function TodaysSchedule({
                 { color: textSecondary },
               ]}
             >
-              {item.time
-                .replace(' AM', '')
-                .replace(' PM', '')}
+              {formatTime12(item.time)}
             </Text>
 
             <View

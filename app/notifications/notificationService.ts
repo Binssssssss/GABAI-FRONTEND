@@ -1,4 +1,3 @@
-
 import api from "../services/api";
 
 import {
@@ -313,17 +312,34 @@ function removeCachedNotification(
 }
 
 /**
- * Clear all locally stored notifications.
+ * Delete all of the user's notifications.
  *
- * There is currently no DELETE ALL endpoint
- * in the backend, so this only clears local storage.
+ * Deletes each one on the backend (DELETE /api/notifications/:id)
+ * so they do not come back the next time the app loads.
  */
 export async function clearNotifications(): Promise<void> {
+  const ids = (cachedNotifications ?? []).map(
+    (notification) => notification.id
+  );
+
+  // Clear the list on screen right away.
   cachedNotifications = [];
-
   await clearStoredNotifications();
-
   notifyListeners();
+
+  const results = await Promise.allSettled(
+    ids.map((id) => api.delete(`/notifications/${id}`))
+  );
+
+  const failed = results.filter(
+    (result) => result.status === "rejected"
+  ).length;
+
+  if (failed > 0) {
+    console.error(
+      `Failed to delete ${failed} notification(s) from backend.`
+    );
+  }
 }
 
 /**

@@ -36,21 +36,20 @@ export default function NotesHeader({
       <View style={styles.headerLeft}>
         <TouchableOpacity
           onPress={onOpenDrawer}
-          style={[styles.menuButton, { backgroundColor: cardBg, borderColor: borderCol }]}
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          style={{ marginRight: 10, padding: 4 }}
         >
-          <Feather name="menu" size={18} color={textPrimary} />
+          <Feather name="menu" size={24} color={textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerTitleBlock}>
           <View style={styles.titleRow}>
-            <Text style={[styles.headerTitle, { color: textPrimary }]}>My Notes</Text>
+            <Text style={[styles.headerTitle, { color: textPrimary }]}>Notes</Text>
             <View style={[styles.counterBadge, { backgroundColor: primaryBrown + '20' }]}>
               <Text style={[styles.counterText, { color: primaryBrown }]}>{totalNotesCount}</Text>
             </View>
           </View>
-          <Text style={[styles.headerSubtitle, { color: textSecondary }]}>
-            Your ideas, organized.
-          </Text>
         </View>
       </View>
 
@@ -71,10 +70,11 @@ export default function NotesHeader({
 
         <TouchableOpacity
           onPress={onOpenNewNote}
+          accessibilityRole="button"
+          accessibilityLabel="New note"
           style={[styles.primaryHeaderBtn, { backgroundColor: primaryBrown }]}
         >
-          <Feather name="plus" size={17} color="#FFFFFF" />
-          <Text style={styles.primaryHeaderBtnText}>New</Text>
+          <Feather name="plus" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>

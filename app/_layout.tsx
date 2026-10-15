@@ -16,6 +16,9 @@ import 'react-native-reanimated';
 import { FocusLockProvider } from '@/app/context/FocusLockContext';
 import { ThemeProvider, useAppTheme } from '@/app/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
+import { useNotificationTapRouting } from '@/app/services/notificationTapHandler';
+import { AppAlertHost } from '../components/AppAlert';
+import AppLockGate from '@/components/AppLockGate';
 
 function createGabaiNavigationTheme(
   colorScheme: 'light' | 'dark',
@@ -42,9 +45,12 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <FocusLockProvider>
-          <AppNavigation />
-        </FocusLockProvider>
+        {/* App Lock (Privacy & Security): covers the app until unlocked. */}
+        <AppLockGate>
+          <FocusLockProvider>
+            <AppNavigation />
+          </FocusLockProvider>
+        </AppLockGate>
       </AuthProvider>
     </ThemeProvider>
   );
@@ -63,6 +69,9 @@ function AppNavigation() {
 
   const segments = useSegments();
   const router = useRouter();
+
+  // Tapping a notification opens its screen (only when logged in).
+  useNotificationTapRouting(!!session && !isLoading);
 
   useEffect(() => {
     if (isLoading) {
@@ -154,6 +163,27 @@ function AppNavigation() {
         />
 
         <Stack.Screen
+          name="settings/profile"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="activity-history"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="completed-tasks"
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
           name="assistant/index"
           options={{
             presentation: 'modal',
@@ -161,6 +191,9 @@ function AppNavigation() {
           }}
         />
       </Stack>
+
+      {/* GabAi-styled alerts (AppAlert.alert) show here. */}
+      <AppAlertHost />
 
       <StatusBar
         style={

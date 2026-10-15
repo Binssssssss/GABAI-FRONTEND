@@ -8,12 +8,12 @@ export const expenseStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
   },
   addButton: {
     width: 48,
@@ -28,10 +28,10 @@ export const expenseStyles = StyleSheet.create({
     elevation: 2,
   },
   dashboardCard: {
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     marginBottom: 20,
     padding: 20,
-    borderRadius: 22,
+    borderRadius: 16,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -87,18 +87,18 @@ export const expenseStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     marginBottom: 12,
   },
   listContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 12,
     shadowColor: '#000',
@@ -129,6 +129,26 @@ export const expenseStyles = StyleSheet.create({
   itemAmount: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  loadMoreContainer: {
+    alignItems: 'stretch',
+    marginTop: 6,
+  },
+  loadMoreButton: {
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  loadMoreCount: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   emptyContainer: {
     alignItems: 'center',

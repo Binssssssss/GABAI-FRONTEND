@@ -2,15 +2,16 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   BackHandler,
   Pressable,
   ScrollView,
   StatusBar,
   Text,
+  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -25,16 +26,18 @@ import {
   TimerRingDisplay,
 } from './components';
 
+import StandaloneDrawer from '@/components/drawer/StandaloneDrawer';
 import { useAppTheme } from '@/app/context/ThemeContext';
 import { useFocusLock } from '@/app/context/FocusLockContext';
 import { FOCUS_MODE_LABELS } from './constants/focusConfig';
+import DurationPicker from './components/DurationPicker';
 import { useFocusTimer } from './hooks/useFocusTimer';
 import { focusStyles as styles } from './styles/focus.styles';
 import { FocusPalette } from './types';
 
 const LOCKED_TITLE = 'Strict Focus Active';
 
-export default function StrictFocusSessionScreen() {
+export default function FocusSessionScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -60,6 +63,7 @@ export default function StrictFocusSessionScreen() {
   const zenBackground = '#0B0F19';
 
   const [showSetup, setShowSetup] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const {
     currentMode,
@@ -113,7 +117,7 @@ export default function StrictFocusSessionScreen() {
   );
 
   const showLockedAlert = (message: string) =>
-    Alert.alert(LOCKED_TITLE, message, [
+    AppAlert.alert(LOCKED_TITLE, message, [
       { text: 'Continue Focusing', style: 'cancel' },
     ]);
 
@@ -126,7 +130,7 @@ export default function StrictFocusSessionScreen() {
           return false;
         }
 
-        Alert.alert(
+        AppAlert.alert(
           LOCKED_TITLE,
           'You cannot leave while Strict Focus is active. Finish your session first.',
           [{ text: 'Continue Focusing', style: 'cancel' }]
@@ -139,7 +143,8 @@ export default function StrictFocusSessionScreen() {
     return () => subscription.remove();
   }, [isFocusLocked, navigation]);
 
-  const handleBack = () => {
+  // Same menu button as the other main screens (Wallet, Calendar...).
+  const openMenu = () => {
     if (isFocusLocked) {
       showLockedAlert(
         'You cannot leave while Strict Focus is active. Finish your session first.'
@@ -147,11 +152,7 @@ export default function StrictFocusSessionScreen() {
       return;
     }
 
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(tabs)/dashboard/dashboard');
-    }
+    setIsMenuOpen(true);
   };
 
   const openHistory = () => {
@@ -252,6 +253,7 @@ export default function StrictFocusSessionScreen() {
 
   // Main Screen
   return (
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
     <SafeAreaView
       edges={['top', 'bottom']}
       style={[styles.container, { backgroundColor: COLORS.background }]}
@@ -261,35 +263,32 @@ export default function StrictFocusSessionScreen() {
         backgroundColor={COLORS.background}
       />
 
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header (same layout as Calendar) */}
+      <View style={[styles.header, { paddingHorizontal: 24, paddingVertical: 16 }]}>
         <View style={styles.headerLeft}>
-          <Pressable
+          <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={handleBack}
-            style={({ pressed }) => [
-              styles.iconButton,
-              {
-                backgroundColor: COLORS.card,
-                borderColor: COLORS.border,
-                opacity: isFocusLocked ? 0.5 : 1,
-              },
-              pressed && styles.pressed,
-            ]}
+            accessibilityLabel="Open menu"
+            onPress={openMenu}
+            style={{ marginRight: 10, padding: 4, opacity: isFocusLocked ? 0.5 : 1 }}
           >
             <Feather
-              name={isFocusLocked ? 'lock' : 'arrow-left'}
-              size={18}
+              name="menu"
+              size={24}
               color={COLORS.text}
             />
-          </Pressable>
+          </TouchableOpacity>
 
           <Text
             numberOfLines={1}
-            style={[styles.headerTitle, { color: COLORS.text }]}
+            style={{
+              color: COLORS.text,
+              fontSize: 28,
+              fontWeight: 'bold',
+              flexShrink: 1,
+            }}
           >
-            Strict Study Timer
+            Focus Session
           </Text>
         </View>
 
@@ -419,6 +418,28 @@ export default function StrictFocusSessionScreen() {
           </View>
         )}
 
+        {/* Choose any length before starting */}
+        {isHydrated && !isRunning && !isBreak && (
+          <DurationPicker
+            minutes={durationMinutes}
+            colors={COLORS}
+            onChange={(minutes) =>
+              applyConfig({
+                mode:
+                  minutes === 25
+                    ? 'pomodoro'
+                    : minutes === 50
+                      ? 'deepWork'
+                      : 'custom',
+                customMinutes: minutes,
+                subject: selectedSubject,
+                task: selectedTask,
+                isStrict,
+              })
+            }
+          />
+        )}
+
         {/* Timer Controls */}
         <StrictControls
           isReady={isHydrated}
@@ -478,5 +499,12 @@ export default function StrictFocusSessionScreen() {
 
       {completionModal}
     </SafeAreaView>
+
+      {/* Side menu (same as the main tabs) */}
+      <StandaloneDrawer
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+      />
+    </View>
   );
 }

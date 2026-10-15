@@ -10,7 +10,7 @@ export const focusStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 10,
   },
   headerLeft: {
@@ -19,8 +19,8 @@ export const focusStyles = StyleSheet.create({
     flexShrink: 1,
   },
   headerTitle: {
-    fontSize: 19,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     letterSpacing: -0.3,
     marginLeft: 10,
     flexShrink: 1,
@@ -176,7 +176,7 @@ export const focusStyles = StyleSheet.create({
 
   // Session summary card
   sessionCard: {
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     marginBottom: 22,

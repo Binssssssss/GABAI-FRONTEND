@@ -1,15 +1,8 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
-import { useAppTheme } from '@/app/context/ThemeContext';
 import { registerStyles as styles } from '../styles';
-import { loginStyles } from '../../login/styles';
 
 interface RegisterHeaderProps {
   onBack: () => void;
@@ -23,19 +16,14 @@ export function RegisterHeader({
   textPrimary,
   textSecondary,
 }: RegisterHeaderProps) {
-  const { colorScheme } = useAppTheme();
-
-  const logoSource =
-    colorScheme === 'dark'
-      ? require('../../../../assets/images/GABAI-LOGO-WHITE.png')
-      : require('../../../../assets/images/GABAI-LOGO-BLACK.png');
-
   return (
     <>
       <TouchableOpacity
         style={styles.backButton}
         onPress={onBack}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
       >
         <Feather
           name="arrow-left"
@@ -44,16 +32,7 @@ export function RegisterHeader({
         />
       </TouchableOpacity>
 
-      {/* Same logo size as the Login screen */}
-      <View style={loginStyles.logoContainer}>
-        <Image
-          source={logoSource}
-          style={loginStyles.logoImage}
-          resizeMode="contain"
-        />
-      </View>
-
-      <View style={styles.welcomeContainer}>
+      <View style={[styles.welcomeContainer, { marginTop: 24 }]}>
         <Text
           style={[
             styles.welcomeTitle,

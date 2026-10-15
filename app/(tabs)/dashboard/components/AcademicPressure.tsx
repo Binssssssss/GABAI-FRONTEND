@@ -14,6 +14,8 @@ interface AcademicPressureProps {
   textSecondary: string;
   errorRed: string;
   primaryBrown: string;
+  /** Changes when the dashboard refreshes, so this card reloads. */
+  refreshKey?: number;
 }
 
 type PressureLevel = "LOW" | "MEDIUM" | "HIGH";
@@ -35,6 +37,7 @@ export default function AcademicPressure({
   textSecondary,
   errorRed,
   primaryBrown,
+  refreshKey = 0,
 }: AcademicPressureProps) {
   const router = useRouter();
 
@@ -69,7 +72,7 @@ export default function AcademicPressure({
     };
 
     fetchAcademicPressure();
-  }, []);
+  }, [refreshKey]);
 
   const getPressureColor = () => {
     switch (pressureLevel) {
@@ -149,7 +152,7 @@ const styles = StyleSheet.create({
     minHeight: 132,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 16,
     flexDirection: "row",

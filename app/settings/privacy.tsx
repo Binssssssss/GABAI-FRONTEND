@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
-  Platform,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
+import { Feather } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,10 +34,73 @@ import {
   SwitchRow,
 } from '@/components/settings/SettingsUI';
 
+/* Password input with a label and a show/hide (eye) button. */
+function PasswordField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  theme,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  theme: ReturnType<typeof useProfileTheme>;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <View>
+      <Text style={[styles.fieldLabel, { color: theme.textSubTheme }]}>{label}</Text>
+      <View
+        style={[
+          styles.passwordRow,
+          {
+            borderColor: focused ? theme.primaryAccent : theme.borderTheme,
+            backgroundColor: theme.bgTheme,
+          },
+        ]}
+      >
+        <TextInput
+          style={[styles.passwordInput, { color: theme.textTheme }]}
+          placeholder={placeholder}
+          placeholderTextColor={theme.textSubTheme}
+          secureTextEntry={!visible}
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={visible ? `Hide ${label}` : `Show ${label}`}
+          onPress={() => setVisible((v) => !v)}
+          hitSlop={10}
+          style={styles.eyeButton}
+        >
+          <Feather
+            name={visible ? 'eye-off' : 'eye'}
+            size={19}
+            color={visible ? theme.primaryAccent : theme.textSubTheme}
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 export default function PrivacySecurityScreen() {
   const theme = useProfileTheme();
   const router = useRouter();
   const { signOut } = useAuth();
+
+  // "google" accounts manage their password in their Google Account.
+  const [authProvider, setAuthProvider] = useState<'email' | 'google' | null>(null);
+  const [accountEmail, setAccountEmail] = useState('');
 
   // App lock
   const [appLock, setAppLock] = useState(false);
@@ -62,11 +126,23 @@ export default function PrivacySecurityScreen() {
     })();
   }, []);
 
+  // Find out how this account signs in.
+  useEffect(() => {
+    api
+      .get('/account/profile')
+      .then((response) => {
+        const profile = response.data?.data ?? response.data;
+        setAuthProvider(profile?.authProvider === 'google' ? 'google' : 'email');
+        setAccountEmail(profile?.email ?? '');
+      })
+      .catch(() => setAuthProvider('email'));
+  }, []);
+
   // ---------------- APP LOCK ----------------
 
   const handleAppLockToggle = async (value: boolean) => {
     if (!lockSupported) {
-      Alert.alert(
+      AppAlert.alert(
         'Update needed',
         'App Lock needs the latest version of GabAi. Please install the newest build.',
       );
@@ -74,7 +150,7 @@ export default function PrivacySecurityScreen() {
     }
 
     if (value && !lockAvailable) {
-      Alert.alert(
+      AppAlert.alert(
         'Set up a screen lock first',
         'Add a fingerprint, face, PIN or pattern in your phone settings, then try again.',
       );
@@ -95,17 +171,17 @@ export default function PrivacySecurityScreen() {
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Missing information', 'Please fill in all three fields.');
+      AppAlert.alert('Missing information', 'Please fill in all three fields.');
       return;
     }
 
     if (newPassword.length < 8) {
-      Alert.alert('Password too short', 'Your new password must be at least 8 characters.');
+      AppAlert.alert('Password too short', 'Your new password must be at least 8 characters.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Passwords do not match', 'Please re-enter your new password.');
+      AppAlert.alert('Passwords do not match', 'Please re-enter your new password.');
       return;
     }
 
@@ -119,9 +195,9 @@ export default function PrivacySecurityScreen() {
       setConfirmPassword('');
       setShowPasswordForm(false);
 
-      Alert.alert('Password updated', 'Your password was changed successfully.');
+      AppAlert.alert('Password updated', 'Your password was changed successfully.');
     } catch (error: any) {
-      Alert.alert(
+      AppAlert.alert(
         'Unable to change password',
         error?.response?.data?.message ?? 'Please check your connection and try again.',
       );
@@ -144,7 +220,7 @@ export default function PrivacySecurityScreen() {
 
       router.replace('/(auth)/login/login');
     } catch (error: any) {
-      Alert.alert(
+      AppAlert.alert(
         'Unable to delete account',
         error?.response?.data?.message ?? 'Please check your connection and try again.',
       );
@@ -154,7 +230,7 @@ export default function PrivacySecurityScreen() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    AppAlert.alert(
       'Delete your account?',
       'This permanently deletes your account and all of your tasks, notes, expenses and focus sessions. This cannot be undone.',
       [
@@ -176,7 +252,7 @@ export default function PrivacySecurityScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <ScrollView
           contentContainerStyle={styles.content}
@@ -200,6 +276,45 @@ export default function PrivacySecurityScreen() {
           </SettingsCard>
 
           <SectionLabel text="PASSWORD" theme={theme} />
+          {authProvider === 'google' ? (
+            <SettingsCard theme={theme}>
+              <View style={styles.googleBox}>
+                <View style={styles.googleHeader}>
+                  <View style={styles.googleLogo}>
+                    <Text style={styles.googleG}>G</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.googleTitle, { color: theme.textTheme }]}>
+                      Signed in with Google
+                    </Text>
+                    {!!accountEmail && (
+                      <Text style={[styles.googleEmail, { color: theme.textSubTheme }]}>
+                        {accountEmail}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                <Text style={[styles.googleNote, { color: theme.textSubTheme }]}>
+                  Your password is managed by Google. To change it, go to your Google Account.
+                </Text>
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() => Linking.openURL('https://myaccount.google.com/security')}
+                  style={[
+                    styles.googleButton,
+                    { borderColor: theme.borderTheme, backgroundColor: theme.bgTheme },
+                  ]}
+                >
+                  <Feather name="external-link" size={15} color={theme.textTheme} />
+                  <Text style={[styles.googleButtonText, { color: theme.textTheme }]}>
+                    Manage Google Account
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </SettingsCard>
+          ) : (
           <SettingsCard theme={theme}>
             <ActionRow
               theme={theme}
@@ -211,33 +326,56 @@ export default function PrivacySecurityScreen() {
 
             {showPasswordForm && (
               <View style={styles.form}>
-                <TextInput
-                  style={inputStyle}
-                  placeholder="Current password"
-                  placeholderTextColor={theme.textSubTheme}
-                  secureTextEntry
-                  autoCapitalize="none"
+                <PasswordField
+                  label="Current password"
+                  placeholder="Enter your current password"
                   value={currentPassword}
                   onChangeText={setCurrentPassword}
+                  theme={theme}
                 />
-                <TextInput
-                  style={inputStyle}
-                  placeholder="New password (min. 8 characters)"
-                  placeholderTextColor={theme.textSubTheme}
-                  secureTextEntry
-                  autoCapitalize="none"
+                <PasswordField
+                  label="New password"
+                  placeholder="At least 8 characters"
                   value={newPassword}
                   onChangeText={setNewPassword}
+                  theme={theme}
                 />
-                <TextInput
-                  style={inputStyle}
-                  placeholder="Confirm new password"
-                  placeholderTextColor={theme.textSubTheme}
-                  secureTextEntry
-                  autoCapitalize="none"
+                <PasswordField
+                  label="Confirm new password"
+                  placeholder="Type the new password again"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
+                  theme={theme}
                 />
+
+                {/* Live checks */}
+                {newPassword.length > 0 && (
+                  <View style={styles.rules}>
+                    {[
+                      { ok: newPassword.length >= 8, text: 'At least 8 characters' },
+                      {
+                        ok: confirmPassword.length > 0 && confirmPassword === newPassword,
+                        text: 'Passwords match',
+                      },
+                    ].map((rule) => (
+                      <View key={rule.text} style={styles.ruleRow}>
+                        <Feather
+                          name={rule.ok ? 'check-circle' : 'circle'}
+                          size={13}
+                          color={rule.ok ? '#22C55E' : theme.textSubTheme}
+                        />
+                        <Text
+                          style={[
+                            styles.ruleText,
+                            { color: rule.ok ? '#22C55E' : theme.textSubTheme },
+                          ]}
+                        >
+                          {rule.text}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
                 <TouchableOpacity
                   style={[styles.primaryButton, { backgroundColor: theme.primaryAccent }]}
@@ -252,12 +390,13 @@ export default function PrivacySecurityScreen() {
                 </TouchableOpacity>
 
                 <Text style={[styles.hint, { color: theme.textSubTheme }]}>
-                  Signed up with Google? You may not have a password yet. Use
-                  {' "Forgot Password" '}on the login screen to set one.
+                  Forgot your current password? Log out and use
+                  {' "Forgot Password" '}on the login screen.
                 </Text>
               </View>
             )}
           </SettingsCard>
+          )}
 
           <SectionLabel text="DANGER ZONE" theme={theme} />
           <SettingsCard theme={theme}>
@@ -334,4 +473,41 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   hint: { fontSize: 12, lineHeight: 18, marginTop: 4 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, marginLeft: 2 },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingLeft: 14,
+  },
+  passwordInput: { flex: 1, fontSize: 15, paddingVertical: 12 },
+  eyeButton: { paddingHorizontal: 12, paddingVertical: 10 },
+  rules: { gap: 5, marginLeft: 2 },
+  googleBox: { padding: 14, gap: 12 },
+  googleHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  googleLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleG: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
+  googleTitle: { fontSize: 14, fontWeight: '600' },
+  googleEmail: { fontSize: 12, marginTop: 2 },
+  googleNote: { fontSize: 12.5, lineHeight: 19 },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  googleButtonText: { fontSize: 14, fontWeight: '700' },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  ruleText: { fontSize: 12 },
 });

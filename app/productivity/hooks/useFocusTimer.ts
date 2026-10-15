@@ -1,8 +1,18 @@
-import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+﻿import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import { AppAlert } from '@/components/AppAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect } from 'expo-router';
 import { useFocusLock } from '@/app/context/FocusLockContext';
+import {
+  cancelFocusEndNotification,
+  scheduleFocusEndNotification,
+} from '@/app/services/focusNotificationService';
+import {
+  addToCachedHistory,
+  fetchFocusHistory,
+  saveFocusSessionToServer,
+} from '@/app/services/focusSessionApi';
 
 import {
   ACADEMIC_SUBJECTS,
@@ -25,8 +35,8 @@ import {
   FocusTaskRef,
 } from '../types';
 
-const FOCUS_SESSIONS_KEY = 'gabai.focus.sessions';
-const FOCUS_STATE_KEY = 'gabai.focus.state';
+// v2: older saved setups had Strict mode on by default; start fresh.
+const FOCUS_STATE_KEY = 'gabai.focus.state.v2';
 
 const VALID_MODES: FocusMode[] = [
   'pomodoro',
@@ -198,7 +208,7 @@ function parsePersistedState(
         ? state.subject
         : ACADEMIC_SUBJECTS[0],
     task,
-    isStrict: typeof state.isStrict === 'boolean' ? state.isStrict : true,
+    isStrict: typeof state.isStrict === 'boolean' ? state.isStrict : false,
     lastFocusMode,
     status:
       state.status === 'running' || state.status === 'paused'
@@ -237,7 +247,8 @@ export function useFocusTimer() {
   const [selectedTask, setSelectedTask] =
     useState<FocusTaskRef | null>(null);
 
-  const [isStrict, setIsStrict] = useState<boolean>(true);
+  // Strict mode is opt-in (turn it on in Set up).
+  const [isStrict, setIsStrict] = useState<boolean>(false);
 
   // Focus mode to return to after a break.
   const [lastFocusMode, setLastFocusMode] =
@@ -302,12 +313,9 @@ export function useFocusTimer() {
       let saved: PersistedFocusState | null = null;
 
       try {
-        const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
-        const parsed: unknown = stored ? JSON.parse(stored) : [];
-
-        records = Array.isArray(parsed)
-          ? parsed.filter(isValidSession)
-          : [];
+        // Sessions of the logged-in account (offline copy if no internet).
+        const { records: history } = await fetchFocusHistory();
+        records = history.filter(isValidSession);
       } catch (error) {
         console.warn('Unable to load focus sessions:', error);
       }
@@ -367,6 +375,24 @@ export function useFocusTimer() {
     };
   }, []);
 
+  // Reload Today stats whenever the screen comes back into view
+  // (e.g. after visiting Focus History or switching accounts).
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      fetchFocusHistory()
+        .then(({ records }) => {
+          if (active) setSessionRecords(records.filter(isValidSession));
+        })
+        .catch(() => {});
+
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
   // Persist setup and session progress. While running only `endsAt`
   // is stored, so this does not write on every tick.
   const pausedRemaining = isRunning && isPaused ? timeRemaining : null;
@@ -406,6 +432,25 @@ export function useFocusTimer() {
     pausedRemaining,
   ]);
 
+  // Phone notification at the end of the session or break
+  // ("Time's up!" / "Break's over"), even if the app is closed.
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (isRunning && !isPaused && endsAt !== null) {
+      void scheduleFocusEndNotification({
+        endsAt,
+        isBreak,
+        minutes: Math.round(totalDuration / 60),
+        subject: selectedTask?.title ?? selectedSubject,
+      });
+    } else {
+      void cancelFocusEndNotification();
+    }
+    // Reschedule only when the end time changes (start, resume, stop).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrated, isRunning, isPaused, endsAt]);
+
   // Rotate motivational messages.
   useEffect(() => {
     const interval = setInterval(() => {
@@ -430,33 +475,33 @@ export function useFocusTimer() {
         return;
       }
 
-      const record: FocusSessionRecord = {
+      // Show it right away; the server copy replaces it once saved.
+      const tempRecord: FocusSessionRecord = {
         ...details,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         completedAt: new Date().toISOString(),
       };
 
+      setSessionRecords((previous) => [tempRecord, ...previous]);
+
       try {
-        const stored = await AsyncStorage.getItem(FOCUS_SESSIONS_KEY);
-        const parsed: unknown = stored ? JSON.parse(stored) : [];
+        const saved = await saveFocusSessionToServer(details);
 
-        const existingRecords: FocusSessionRecord[] =
-          Array.isArray(parsed) ? parsed.filter(isValidSession) : [];
+        await addToCachedHistory(saved);
 
-        const updatedRecords = [...existingRecords, record];
-
-        await AsyncStorage.setItem(
-          FOCUS_SESSIONS_KEY,
-          JSON.stringify(updatedRecords)
-        );
-
-        setSessionRecords(updatedRecords);
+        setSessionRecords((previous) => [
+          saved,
+          ...previous.filter((item) => item.id !== tempRecord.id),
+        ]);
       } catch (error) {
         console.error('[Focus History] Unable to save session:', error);
 
-        Alert.alert(
-          'Unable to Save Session',
-          'Your focus session could not be saved locally. Please try again.'
+        // Keep it on this phone so the work is not lost.
+        await addToCachedHistory(tempRecord);
+
+        AppAlert.alert(
+          'Saved on This Phone',
+          'We could not reach the server, so this session was saved on your phone only.'
         );
       }
     },
@@ -542,7 +587,7 @@ export function useFocusTimer() {
         Haptics.NotificationFeedbackType.Success
       ).catch(() => {});
 
-      Alert.alert(
+      AppAlert.alert(
         'Break Completed',
         `Your break is over. Your ${FOCUS_MODE_LABELS[lastFocusMode]} session is ready when you are.`
       );
@@ -583,7 +628,7 @@ export function useFocusTimer() {
       options?: { start?: boolean }
     ): boolean => {
       if (isRunning) {
-        Alert.alert(
+        AppAlert.alert(
           isStrictSessionActive
             ? 'Strict Focus Active'
             : 'Session in Progress',
@@ -629,7 +674,7 @@ export function useFocusTimer() {
     if (!isRunning || isPaused) return;
 
     if (isStrictSessionActive) {
-      Alert.alert(
+      AppAlert.alert(
         'Strict Focus Active',
         'Pausing is disabled during Strict Focus. Continue focusing or end the session.'
       );
@@ -663,7 +708,7 @@ export function useFocusTimer() {
   // Strict Focus cannot be reset while active, including while paused.
   const resetTimer = useCallback(() => {
     if (isStrictSessionActive) {
-      Alert.alert(
+      AppAlert.alert(
         'Strict Focus Active',
         'Resetting is disabled during Strict Focus. Finish the session, or use End to stop it.'
       );
@@ -675,7 +720,7 @@ export function useFocusTimer() {
       return;
     }
 
-    Alert.alert(
+    AppAlert.alert(
       isBreak ? 'Reset Break' : 'Reset Focus Session',
       isBreak
         ? 'Restart the break timer from the beginning?'
@@ -697,7 +742,7 @@ export function useFocusTimer() {
     if (!isRunning) return;
 
     if (isBreak) {
-      Alert.alert(
+      AppAlert.alert(
         'End Break Early?',
         'Ending a break will not add focused study time.',
         [
@@ -717,7 +762,7 @@ export function useFocusTimer() {
     );
 
     if (elapsedMinutes < MIN_LOGGABLE_MINUTES) {
-      Alert.alert(
+      AppAlert.alert(
         isStrictSessionActive ? 'End Strict Session?' : 'End Session?',
         `You have focused for ${elapsedMinutes} min. Sessions shorter than ${MIN_LOGGABLE_MINUTES} minutes are not recorded, so this session will be discarded.`,
         [
@@ -735,7 +780,7 @@ export function useFocusTimer() {
 
     const subject = selectedSubject.trim() || 'General Study';
 
-    Alert.alert(
+    AppAlert.alert(
       'Finish Session Early',
       `Record ${elapsedMinutes} minutes of focused study for ${subject}?`,
       [

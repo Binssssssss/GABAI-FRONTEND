@@ -1,24 +1,85 @@
 import React from 'react';
-import { View, Text, TextInput, ScrollView, Pressable } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { ACADEMIC_SUBJECTS } from '../constants/focusConfig';
+
 import { FocusPalette } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
+
+/** A subject from the user's own tasks and how many tasks use it. */
+export interface SubjectOption {
+  name: string;
+  count: number;
+}
 
 interface SubjectSelectorProps {
   selectedSubject: string;
   onSelectSubject: (subject: string) => void;
+  /** Subjects taken from the user's tasks (most used first). */
+  subjects: SubjectOption[];
+  isLoading: boolean;
+  /** True when the subject was filled in from the selected task. */
+  isFromTask?: boolean;
   colors: FocusPalette;
 }
 
 export default function SubjectSelector({
   selectedSubject,
   onSelectSubject,
+  subjects,
+  isLoading,
   colors,
 }: SubjectSelectorProps) {
+  const current = selectedSubject.trim().toLowerCase();
+
+  const chip = (label: string, count?: number, dashed?: boolean) => {
+    const isSelected = current === label.toLowerCase();
+
+    return (
+      <Pressable
+        key={label}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: isSelected }}
+        onPress={() => onSelectSubject(label)}
+        style={({ pressed }) => [
+          styles.subjectPill,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: isSelected ? colors.primary : colors.card,
+            borderColor: isSelected ? colors.primary : colors.border,
+            borderStyle: dashed && !isSelected ? 'dashed' : 'solid',
+          },
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text
+          style={[
+            styles.subjectPillText,
+            { color: isSelected ? colors.onPrimary : colors.text },
+          ]}
+        >
+          {label}
+        </Text>
+        {count !== undefined && (
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '600',
+              color: isSelected ? colors.onPrimary : colors.subtext,
+              opacity: 0.8,
+            }}
+          >
+            {count}
+          </Text>
+        )}
+      </Pressable>
+    );
+  };
+
   return (
     <View>
-      {/* Editable Subject Input Box */}
+      {/* Type any subject */}
       <View
         style={[
           styles.subjectInput,
@@ -29,7 +90,7 @@ export default function SubjectSelector({
         <TextInput
           value={selectedSubject}
           onChangeText={onSelectSubject}
-          placeholder="Type any subject, exam, or topic..."
+          placeholder="Type a subject, e.g. Math"
           placeholderTextColor={colors.subtext}
           returnKeyType="done"
           maxLength={60}
@@ -54,42 +115,12 @@ export default function SubjectSelector({
         )}
       </View>
 
-      {/* Quick-pick Preset Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.subjectsScroll}
-      >
-        {ACADEMIC_SUBJECTS.map((subject) => {
-          const isSelected = selectedSubject.trim().toLowerCase() === subject.toLowerCase();
-          return (
-            <Pressable
-              key={subject}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: isSelected }}
-              onPress={() => onSelectSubject(subject)}
-              style={({ pressed }) => [
-                styles.subjectPill,
-                {
-                  backgroundColor: isSelected ? colors.primary : colors.card,
-                  borderColor: isSelected ? colors.primary : colors.border,
-                },
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.subjectPillText,
-                  { color: isSelected ? colors.onPrimary : colors.text },
-                ]}
-              >
-                {subject}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {/* Subjects from the user's tasks (only when there are some) */}
+      {!isLoading && subjects.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+          {subjects.map((subject) => chip(subject.name))}
+        </View>
+      )}
     </View>
   );
 }

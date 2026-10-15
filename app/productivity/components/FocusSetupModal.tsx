@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Switch,
@@ -12,14 +11,12 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import FocusModeTabs from './FocusModeTabs';
-import SubjectSelector from './SubjectSelector';
-import TaskPicker from './TaskPicker';
+import SubjectSelector, { SubjectOption } from './SubjectSelector';
+import TaskPicker, { TaskLoadState } from './TaskPicker';
+import { taskService } from '@/app/services/task.services';
 import {
-  CUSTOM_DURATION_LIMITS,
-  CUSTOM_DURATION_PRESETS,
-  getModeDurationSeconds,
   isBreakMode,
+  isRealSubject,
 } from '../constants/focusConfig';
 import { FocusPalette, FocusSessionConfig, FocusTaskRef } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
@@ -45,62 +42,106 @@ export default function FocusSetupModal({
   colors,
 }: FocusSetupModalProps) {
   const insets = useSafeAreaInsets();
-  const [draft, setDraft] = useState<FocusSessionConfig>(initialConfig);
+  // Setup is for focus sessions; breaks start from the completion screen.
+  const [draft, setDraft] = useState<FocusSessionConfig>(() =>
+    isBreakMode(initialConfig.mode)
+      ? { ...initialConfig, mode: 'pomodoro' }
+      : initialConfig,
+  );
 
   const isBreak = isBreakMode(draft.mode);
-  const durationMinutes =
-    getModeDurationSeconds(draft.mode, draft.customMinutes) / 60;
+
+  /* ---------- the user's tasks (for Task and Subject) ---------- */
+
+  const [taskLoad, setTaskLoad] = useState<TaskLoadState>({ status: 'loading' });
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    taskService
+      .getTasks()
+      .then((tasks) => {
+        if (cancelled) return;
+
+        setTaskLoad({
+          status: 'ready',
+          tasks: tasks
+            .filter((task) => task && typeof task.id === 'string' && !task.completed)
+            .map((task) => ({
+              id: task.id,
+              title: String(task.title ?? 'Untitled task'),
+              subject: String(task.subject ?? '').trim(),
+              dueDate: task.dueDate ? String(task.dueDate) : undefined,
+            }))
+            // Soonest due first; tasks without a date last.
+            .sort((a, b) =>
+              (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
+            ),
+        });
+      })
+      .catch((error) => {
+        console.warn('Unable to load tasks for focus timer:', error);
+        if (!cancelled) setTaskLoad({ status: 'error' });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  // Subjects the user typed in their tasks, most used first.
+  const subjects = useMemo<SubjectOption[]>(() => {
+    if (taskLoad.status !== 'ready') return [];
+
+    const counts = new Map<string, SubjectOption>();
+
+    for (const task of taskLoad.tasks) {
+      if (!isRealSubject(task.subject)) continue;
+
+      const key = task.subject.toLowerCase();
+      const existing = counts.get(key);
+
+      if (existing) existing.count += 1;
+      else counts.set(key, { name: task.subject, count: 1 });
+    }
+
+    return [...counts.values()].sort(
+      (a, b) => b.count - a.count || a.name.localeCompare(b.name)
+    );
+  }, [taskLoad]);
 
   const update = (changes: Partial<FocusSessionConfig>) =>
     setDraft((previous) => ({ ...previous, ...changes }));
 
-  const stepCustom = (direction: 1 | -1) =>
-    update({
-      customMinutes: Math.min(
-        CUSTOM_DURATION_LIMITS.max,
-        Math.max(
-          CUSTOM_DURATION_LIMITS.min,
-          draft.customMinutes + direction * CUSTOM_DURATION_LIMITS.step
-        )
-      ),
-    });
-
+  // Picking a task fills in its subject (calendar categories are skipped).
   const selectTask = (task: FocusTaskRef | null) =>
     update(
-      task?.subject && task.subject.toLowerCase() !== 'general'
+      task && isRealSubject(task.subject)
         ? { task, subject: task.subject }
         : { task }
     );
 
-  const sectionTitle = (title: string) => (
-    <Text style={[styles.sectionTitle, { color: colors.subtext, marginBottom: 10 }]}>
-      {title}
-    </Text>
+  const isSubjectFromTask =
+    !!draft.task &&
+    isRealSubject(draft.task.subject) &&
+    draft.task.subject.trim().toLowerCase() === draft.subject.trim().toLowerCase();
+
+  const sectionTitle = (title: string, right?: string) => (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+      }}
+    >
+      <Text style={[styles.sectionTitle, { color: colors.subtext }]}>{title}</Text>
+      {!!right && (
+        <Text style={{ fontSize: 12, color: colors.subtext }}>{right}</Text>
+      )}
+    </View>
   );
-
-  const stepperButton = (direction: 1 | -1) => {
-    const atLimit =
-      direction === 1
-        ? draft.customMinutes >= CUSTOM_DURATION_LIMITS.max
-        : draft.customMinutes <= CUSTOM_DURATION_LIMITS.min;
-
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={direction === 1 ? 'Add 5 minutes' : 'Remove 5 minutes'}
-        accessibilityState={{ disabled: atLimit }}
-        disabled={atLimit}
-        onPress={() => stepCustom(direction)}
-        style={({ pressed }) => [
-          styles.stepperBtn,
-          { backgroundColor: colors.cardStrong, opacity: atLimit ? 0.4 : 1 },
-          pressed && styles.pressed,
-        ]}
-      >
-        <Feather name={direction === 1 ? 'plus' : 'minus'} size={20} color={colors.text} />
-      </Pressable>
-    );
-  };
 
   return (
     <Modal
@@ -113,7 +154,7 @@ export default function FocusSetupModal({
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
       >
         <View style={styles.sheetOverlay}>
           {/* Tapping the backdrop closes without applying changes. */}
@@ -140,9 +181,6 @@ export default function FocusSetupModal({
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>Session setup</Text>
-                <Text style={[styles.sheetSubtitle, { color: colors.subtext }]}>
-                  Changes apply when you save or start.
-                </Text>
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -166,82 +204,16 @@ export default function FocusSetupModal({
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.sheetSection}>
-                {sectionTitle('Study mode')}
-                <FocusModeTabs
-                  currentMode={draft.mode}
-                  customMinutes={draft.customMinutes}
-                  onSelectMode={(mode) => update({ mode })}
-                  colors={colors}
-                />
-              </View>
-
-              <View style={styles.sheetSection}>
-                {sectionTitle('Duration')}
-                {draft.mode === 'custom' ? (
-                  <>
-                    <View
-                      style={[
-                        styles.durationRow,
-                        { backgroundColor: colors.card, borderColor: colors.border },
-                      ]}
-                    >
-                      {stepperButton(-1)}
-                      <Text style={[styles.durationValue, { color: colors.text }]}>
-                        {draft.customMinutes} min
-                      </Text>
-                      {stepperButton(1)}
-                    </View>
-                    <View style={styles.presetRow}>
-                      {CUSTOM_DURATION_PRESETS.map((minutes) => {
-                        const isSelected = draft.customMinutes === minutes;
-                        return (
-                          <Pressable
-                            key={minutes}
-                            accessibilityRole="radio"
-                            accessibilityState={{ selected: isSelected }}
-                            onPress={() => update({ customMinutes: minutes })}
-                            style={({ pressed }) => [
-                              styles.subjectPill,
-                              {
-                                backgroundColor: isSelected ? colors.primary : colors.card,
-                                borderColor: isSelected ? colors.primary : colors.border,
-                              },
-                              pressed && styles.pressed,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.subjectPillText,
-                                { color: isSelected ? colors.onPrimary : colors.text },
-                              ]}
-                            >
-                              {minutes} min
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Text style={[styles.durationValue, { color: colors.text }]}>
-                      {durationMinutes} minutes
-                    </Text>
-                    <Text style={[styles.durationNote, { color: colors.subtext }]}>
-                      {isBreak
-                        ? 'Breaks do not count toward focus statistics.'
-                        : 'Choose Custom to set your own length.'}
-                    </Text>
-                  </>
-                )}
-              </View>
-
               {!isBreak && (
                 <>
                   <View style={styles.sheetSection}>
-                    {sectionTitle('Task')}
+                    {sectionTitle('Task', 'Optional')}
                     <TaskPicker
+                      loadState={taskLoad}
+                      onRetry={() => {
+                        setTaskLoad({ status: 'loading' });
+                        setReloadKey((key) => key + 1);
+                      }}
                       selectedTask={draft.task}
                       onSelectTask={selectTask}
                       colors={colors}
@@ -253,6 +225,9 @@ export default function FocusSetupModal({
                     <SubjectSelector
                       selectedSubject={draft.subject}
                       onSelectSubject={(subject) => update({ subject })}
+                      subjects={subjects}
+                      isLoading={taskLoad.status === 'loading'}
+                      isFromTask={isSubjectFromTask}
                       colors={colors}
                     />
                   </View>
@@ -260,27 +235,31 @@ export default function FocusSetupModal({
                   <View style={[styles.sheetSection, { marginBottom: 4 }]}>
                     {sectionTitle('Strict mode')}
                     <View
-                      style={[
-                        styles.strictToggleRow,
-                        {
-                          backgroundColor: draft.isStrict ? colors.primary + '14' : colors.card,
-                          borderColor: draft.isStrict ? colors.primary : colors.border,
-                        },
-                      ]}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        paddingVertical: 12,
+                        paddingHorizontal: 14,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        backgroundColor: colors.card,
+                        borderColor: draft.isStrict ? colors.primary : colors.border,
+                      }}
                     >
-                      <View style={styles.strictToggleLeft}>
-                        <Text style={[styles.strictToggleTitle, { color: colors.text }]}>
-                          {draft.isStrict ? 'Strict Study Guard on' : 'Strict Study Guard off'}
+                      <Feather name="shield" size={18} color={colors.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                          Strict mode
                         </Text>
-                        <Text style={[styles.strictToggleSub, { color: colors.subtext }]}>
-                          Locks pausing, resetting, setup changes and leaving the timer until
-                          the session ends. You can still end early after confirming.
+                        <Text style={{ fontSize: 11.5, marginTop: 2, color: colors.subtext }}>
+                          Locks pause, reset and leaving until the session ends.
                         </Text>
                       </View>
                       <Switch
                         value={draft.isStrict}
                         onValueChange={(isStrict) => update({ isStrict })}
-                        accessibilityLabel="Strict Study Guard"
+                        accessibilityLabel="Strict mode"
                         trackColor={{ false: colors.border, true: colors.primary }}
                         thumbColor="#FFFFFF"
                       />
@@ -329,7 +308,7 @@ export default function FocusSetupModal({
               >
                 <Feather name="play" size={17} color={colors.onPrimary} />
                 <Text style={[styles.footerBtnText, { color: colors.onPrimary }]}>
-                  {isBreak ? 'Start break' : `Start ${durationMinutes}-min session`}
+                  {isBreak ? 'Start break' : 'Start session'}
                 </Text>
               </Pressable>
             </View>

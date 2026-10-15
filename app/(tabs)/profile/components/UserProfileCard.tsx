@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import DefaultAvatar from '@/components/DefaultAvatar';
 import { UserProfile } from '../types';
 import { profileStyles as styles } from '../styles/profile.styles';
 
@@ -9,7 +10,8 @@ interface UserProfileCardProps {
   borderTheme: string;
   textTheme: string;
   textSubTheme: string;
-  primaryAccent: string;
+  /** Kept so callers don't need to change; the avatar is always the default one. */
+  primaryAccent?: string;
 }
 
 export default function UserProfileCard({
@@ -18,19 +20,17 @@ export default function UserProfileCard({
   borderTheme,
   textTheme,
   textSubTheme,
-  primaryAccent,
 }: UserProfileCardProps) {
   return (
-    <View style={[styles.profileCard, { backgroundColor: cardTheme, borderColor: borderTheme }]}>
-      <View style={[styles.avatarContainer, { backgroundColor: primaryAccent }]}>
-        <Text style={styles.avatarText}>{userProfile.initials}</Text>
+    <View
+      style={[styles.profileCard, { backgroundColor: cardTheme, borderColor: borderTheme }]}
+    >
+      <View style={{ marginRight: 16 }}>
+        <DefaultAvatar name={userProfile.name} size={64} />
       </View>
       <View style={styles.userInfo}>
         <Text style={[styles.userName, { color: textTheme }]}>{userProfile.name}</Text>
         <Text style={[styles.userEmail, { color: textSubTheme }]}>{userProfile.email}</Text>
-        <View style={[styles.badge, { backgroundColor: primaryAccent + '15' }]}>
-          <Text style={[styles.badgeText, { color: primaryAccent }]}>{userProfile.course}</Text>
-        </View>
       </View>
     </View>
   );

@@ -32,7 +32,7 @@ export function EmptyStateView({
         <Feather name="zap" size={28} color={primaryBrown} />
       </View>
       <Text style={[styles.welcomeTitle, { color: textPrimary }]}>
-        Hello! I&apos;m your GabAi Assistant.
+        Hello! I&apos;m GabAi.
       </Text>
       <Text style={[styles.welcomeSubtitle, { color: textSecondary }]}>
         I can help you find information, manage your tasks, calculate spendings, and answer

@@ -19,7 +19,6 @@ export default function NotesSectionList({
   const {
     filteredNotes,
     viewMode,
-    searchQuery,
     selectedCategory,
     selectedTag,
     handleOpenNote,
@@ -38,7 +37,6 @@ export default function NotesSectionList({
   if (filteredNotes.length === 0) {
     return (
       <NotesEmptyState
-        searchQuery={searchQuery}
         selectedCategory={selectedCategory}
         selectedTag={selectedTag}
         onOpenNewNote={() => handleOpenNewNote()}

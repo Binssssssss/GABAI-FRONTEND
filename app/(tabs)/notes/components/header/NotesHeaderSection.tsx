@@ -1,7 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
 import NotesHeader from './NotesHeader';
-import NotesSearchBar from './NotesSearchBar';
 import NotesFilterTabs from './NotesFilterTabs';
 import { NotesTheme } from '../../types';
 import type { useNotesData } from '../../hooks/useNotesData';
@@ -36,17 +35,7 @@ export default function NotesHeaderSection({
         primaryBrown={theme.primaryBrown}
       />
 
-      {/* 2. Search Bar */}
-      <NotesSearchBar
-        searchQuery={notesData.searchQuery}
-        onSearchChange={notesData.setSearchQuery}
-        cardBg={theme.cardBg}
-        borderCol={theme.borderCol}
-        textPrimary={theme.textPrimary}
-        textSecondary={theme.textSecondary}
-      />
-
-      {/* 3. Filter Tabs & Category Scroll */}
+      {/* 2. Filter Tabs & Category Scroll */}
       <NotesFilterTabs
         activeTabFilter={notesData.activeTabFilter}
         onSelectTabFilter={notesData.setActiveTabFilter}

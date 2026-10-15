@@ -86,15 +86,15 @@ export const dashboardHeaderStyles = StyleSheet.create({
   },
 
   notificationButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 15,
     borderWidth: 1,
 
     alignItems: 'center',
     justifyContent: 'center',
 
-    marginRight: 9,
+    marginRight: 0,
     position: 'relative',
   },
 
@@ -114,9 +114,9 @@ export const dashboardHeaderStyles = StyleSheet.create({
   },
 
   avatarWrapper: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
 
     borderWidth: 2,
 
@@ -125,9 +125,30 @@ export const dashboardHeaderStyles = StyleSheet.create({
   },
 
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+
+  /* Avatar + greeting together act as one "open profile" button. */
+  profileButton: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 0,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  avatarInitialsCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  avatarInitialsText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 
   /* =========================================

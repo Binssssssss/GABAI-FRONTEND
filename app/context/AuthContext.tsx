@@ -39,6 +39,8 @@ interface AuthContextValue {
   isLoading: boolean;
   signIn: (session: AuthSession) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Merge new fields (e.g. fullName, avatar) into the saved user. */
+  updateUser: (changes: AuthUser) => Promise<void>;
 }
 
 const SESSION_KEY = 'gabai.auth.session';
@@ -391,6 +393,29 @@ export function AuthProvider({
     }
   }, [session]);
 
+  const updateUser = useCallback(
+    async (changes: AuthUser) => {
+      if (!session) return;
+
+      const nextSession: AuthSession = {
+        ...session,
+        user: {
+          ...(session.user || {}),
+          ...changes,
+        },
+      };
+
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
+      await AsyncStorage.setItem(
+        LEGACY_USER_KEY,
+        JSON.stringify(nextSession.user),
+      );
+
+      setSession(nextSession);
+    },
+    [session],
+  );
+
   const value = useMemo(
     () => ({
       session,
@@ -398,12 +423,14 @@ export function AuthProvider({
       isLoading,
       signIn,
       signOut,
+      updateUser,
     }),
     [
       isLoading,
       session,
       signIn,
       signOut,
+      updateUser,
     ],
   );
 

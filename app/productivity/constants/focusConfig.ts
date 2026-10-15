@@ -9,7 +9,7 @@ export const FOCUS_MODE_DURATIONS: Record<FocusMode, number> = {
 };
 
 export const CUSTOM_DURATION_LIMITS = {
-  min: 5,
+  min: 1,
   max: 180,
   step: 5,
 };
@@ -20,7 +20,7 @@ export const CUSTOM_DURATION_PRESETS = [15, 30, 45, 60, 90];
 export const SESSIONS_BEFORE_LONG_BREAK = 4;
 
 /** Minimum focused minutes required to log an early finish. */
-export const MIN_LOGGABLE_MINUTES = 5;
+export const MIN_LOGGABLE_MINUTES = 1;
 
 export function getModeDurationSeconds(
   mode: FocusMode,
@@ -58,15 +58,31 @@ export const FOCUS_MODE_LABELS: Record<FocusMode, string> = {
   custom: 'Custom',
 };
 
-export const ACADEMIC_SUBJECTS: string[] = [
-  'Capstone Paper',
-  'Algorithms & Complexity',
-  'Database Systems',
-  'Economics',
-  'Technopreneurship',
-  'Ethics',
-  'General Study',
+/**
+ * Fallback subject only. The real subject list comes from the subjects
+ * the user typed in their own tasks (see FocusSetupModal).
+ */
+export const ACADEMIC_SUBJECTS: string[] = ['General Study'];
+
+/**
+ * Calendar events are stored as tasks with their category as the subject.
+ * These names are categories, not school subjects.
+ */
+export const NON_SUBJECT_NAMES = [
+  'general',
+  'general study',
+  'assignment',
+  'exam',
+  'class',
+  'meeting',
+  'personal',
+  'focus session',
 ];
+
+export function isRealSubject(value: string | null | undefined): boolean {
+  const name = (value ?? '').trim().toLowerCase();
+  return name.length > 0 && !NON_SUBJECT_NAMES.includes(name);
+}
 
 export const MOTIVATIONAL_AFFIRMATIONS: string[] = [
   'Deep work produces rare and valuable outcomes.',

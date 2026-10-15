@@ -4,6 +4,7 @@ import { CalendarEvent } from '../types';
 import { CATEGORY_COLORS, DAY_HOURS } from '../constants/calendarConfig';
 import { getPriorityColors } from '../utils/calendarHelpers';
 import { calendarStyles as styles } from '../styles/calendar.styles';
+import { formatHourLabel } from '@/utils/time';
 
 interface DayViewProps {
   events: CalendarEvent[];
@@ -51,7 +52,7 @@ export default function DayView({
           return (
             <View key={hour} style={[styles.timelineRow, { borderColor: borderTheme }]}>
               <View style={styles.timelineTimeCol}>
-                <Text style={[styles.timelineTimeText, { color: textSubTheme }]}>{hour}</Text>
+                <Text style={[styles.timelineTimeText, { color: textSubTheme }]}>{formatHourLabel(hour)}</Text>
               </View>
               <View style={styles.timelineContentCol}>
                 {hourEvts.map((evt) => {
