@@ -120,7 +120,8 @@ export default function QuickAddEventModal({
           <View style={[styles.addModalHeader, { borderBottomColor: borderTheme }]}>
             <Text style={[styles.modalHeaderTitle, { color: textTheme }]}>
               {mode === 'edit' ? 'Edit Academic Event' : 'Quick Add Academic Event'}
-            </Text>            <TouchableOpacity onPress={onClose}>
+            </Text>
+            <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={24} color={textTheme} />
             </TouchableOpacity>
           </View>

@@ -470,6 +470,8 @@ export function useCalendarData() {
           '/tasks',
           {
             ...eventPayload,
+            // Lets the backend send "Event Created" instead of "Task Created".
+            source: 'calendar',
             duration: Number(newDuration),
             completed: false,
             subTasks: newChecklistItems.map((item) => ({

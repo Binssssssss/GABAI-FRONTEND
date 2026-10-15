@@ -447,6 +447,14 @@ export default function NoteEditorModal({
   /* Last HTML the editor itself reported, to detect outside changes. */
   const lastEditorHtmlRef = useRef(content);
 
+  /*
+   * Recent HTML values the editor itself produced. While typing fast, the
+   * parent can re-render with an older value than the editor already has.
+   * Those stale echoes must never be pushed back, or the caret jumps to
+   * the start of the note.
+   */
+  const editorEmittedRef = useRef<Set<string>>(new Set());
+
   /* Sheet action that waits for the sheet to finish closing (iOS). */
   const pendingMenuActionRef = useRef<(() => void) | null>(null);
 
@@ -595,6 +603,9 @@ export default function NoteEditorModal({
       lastCursorYRef.current = null;
       bodyFocusedRef.current = false;
     }
+
+    // Each open starts a fresh editing session.
+    editorEmittedRef.current.clear();
   }, [visible]);
 
   /*
@@ -602,14 +613,30 @@ export default function NoteEditorModal({
    * replaced from outside (e.g. a template), push it into the editor.
    */
   useEffect(() => {
-    if (content !== lastEditorHtmlRef.current) {
-      lastEditorHtmlRef.current = content;
-      bodyInputRef.current?.setContentHTML(toEditorHtml(content));
-    }
+    // Same as what the editor already shows: nothing to do.
+    if (content === lastEditorHtmlRef.current) return;
+
+    // An older value the editor typed itself (render lagging behind
+    // fast typing). Pushing it back would reset the text and the caret.
+    if (editorEmittedRef.current.has(content)) return;
+
+    // A real outside change, such as a template: load it into the editor.
+    lastEditorHtmlRef.current = content;
+    bodyInputRef.current?.setContentHTML(toEditorHtml(content));
   }, [content]);
 
   const handleEditorChange = (html: string) => {
     lastEditorHtmlRef.current = html;
+
+    const emitted = editorEmittedRef.current;
+    emitted.add(html);
+
+    // Keep only the most recent values.
+    if (emitted.size > 200) {
+      const oldest = emitted.values().next().value;
+      if (oldest !== undefined) emitted.delete(oldest);
+    }
+
     onContentChange(html);
   };
 
