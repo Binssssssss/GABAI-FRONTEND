@@ -5,7 +5,8 @@
   useCallback,
   useRef,
 } from 'react';
-import { Alert } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
+import { useFocusEffect } from 'expo-router';
 
 import { localDb, Task } from '@/app/services/localDb';
 import api from '@/app/services/api';
@@ -56,7 +57,7 @@ const getTodayAndTomorrow = () => {
 // API HELPERS
 // ------------------------------------------------------
 
-const normalizeBackendTask = (
+export const normalizeBackendTask = (
   task: Record<string, any>,
 ): Task => {
   const safeSubTasks = Array.isArray(task.subTasks)
@@ -108,8 +109,32 @@ const normalizeBackendTask = (
 
       return Date.now();
     })(),
+    updatedAt: (() => {
+      const updatedAt = task.updatedAt;
+
+      if (typeof updatedAt === 'number') {
+        return updatedAt;
+      }
+
+      if (typeof updatedAt === 'string') {
+        const parsed = Date.parse(updatedAt);
+        return Number.isNaN(parsed) ? undefined : parsed;
+      }
+
+      return undefined;
+    })(),
   };
 };
+
+/** When a completed task was finished (best guess: its last update). */
+export const getCompletedTime = (task: Task): number =>
+  task.updatedAt ?? task.createdAt;
+
+/** Completed tasks, most recently finished first. */
+export const sortByMostRecentlyCompleted = (list: Task[]): Task[] =>
+  [...list].sort(
+    (a, b) => getCompletedTime(b) - getCompletedTime(a),
+  );
 
 const getApiErrorMessage = (
   error: unknown,
@@ -142,14 +167,7 @@ const showErrorAlert = (
   title: string,
   message: string,
 ) => {
-  Alert.alert(title, message);
-};
-
-const showSuccessAlert = (
-  title: string,
-  message: string,
-) => {
-  Alert.alert(title, message);
+  AppAlert.alert(title, message);
 };
 
 // ------------------------------------------------------
@@ -187,7 +205,7 @@ export function useTaskData() {
   // New task form state
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newSubject, setNewSubject] = useState('Capstone Paper');
+  const [newSubject, setNewSubject] = useState('');
   const [newCategory, setNewCategory] =
     useState<TaskCategory>('Academic');
   const [newPriority, setNewPriority] =
@@ -245,7 +263,7 @@ export function useTaskData() {
   const resetTaskForm = useCallback(() => {
     setNewTitle('');
     setNewDesc('');
-    setNewSubject('Capstone Paper');
+    setNewSubject('');
     setNewCategory('Academic');
     setNewPriority('Medium');
     setNewDifficulty('Medium');
@@ -330,13 +348,22 @@ export function useTaskData() {
     [loadAnalytics, setTasks],
   );
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      void loadTasks(true);
-    }, 0);
+  // Load when the Tasks tab is opened, and again every time it is shown
+  // (e.g. after a task was completed from the Dashboard).
+  const hasLoadedOnce = useRef(false);
 
-    return () => clearTimeout(timeoutId);
-  }, [loadTasks]);
+  useFocusEffect(
+    useCallback(() => {
+      const showLoading = !hasLoadedOnce.current;
+      hasLoadedOnce.current = true;
+
+      const timeoutId = setTimeout(() => {
+        void loadTasks(showLoading);
+      }, 0);
+
+      return () => clearTimeout(timeoutId);
+    }, [loadTasks]),
+  );
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -442,9 +469,10 @@ export function useTaskData() {
         case 'Completed':
           return task.completed;
 
+        // Completed tasks only show under the "Completed" filter.
         case 'All':
         default:
-          return true;
+          return !task.completed;
       }
     });
   }, [
@@ -534,8 +562,12 @@ export function useTaskData() {
     [tasks, tomorrowStr],
   );
 
+  // Most recently finished first.
   const completedTasksList = useMemo(
-    () => tasks.filter((task) => task.completed),
+    () =>
+      sortByMostRecentlyCompleted(
+        tasks.filter((task) => task.completed),
+      ),
     [tasks],
   );
 
@@ -583,34 +615,28 @@ export function useTaskData() {
         return;
       }
 
+      // Still being created on the server; wait for it.
+      if (currentTask.isPending) return;
+
       const newCompletedState = !currentTask.completed;
 
-      console.log('TOGGLING BACKEND TASK:', {
-        id: taskId,
-        title: currentTask.title,
-        completed: newCompletedState,
-      });
+      // Update the screen right away (real-time), then the server.
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                completed: newCompletedState,
+                updatedAt: Date.now(),
+              }
+            : task,
+        ),
+      );
 
       try {
-        // Update the server first to avoid a false local success.
         await taskService.updateTask(taskId, {
           completed: newCompletedState,
         });
-
-        setTasks((prev) =>
-          prev.map((task) =>
-            task.id === taskId
-              ? { ...task, completed: newCompletedState }
-              : task,
-          ),
-        );
-
-        showSuccessAlert(
-          newCompletedState ? 'Task Completed' : 'Task Restored',
-          newCompletedState
-            ? `"${currentTask.title}" has been marked as completed.`
-            : `"${currentTask.title}" has been restored to your active tasks.`,
-        );
       } catch (error: any) {
         console.error('Failed to update task completion:', {
           taskId,
@@ -619,8 +645,17 @@ export function useTaskData() {
           response: error?.response?.data,
         });
 
+        // Undo the instant change.
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? { ...task, completed: currentTask.completed }
+              : task,
+          ),
+        );
+
         if (error?.response?.status === 404) {
-          Alert.alert(
+          AppAlert.alert(
             'Task Not Found',
             'This task could not be found on the server. Refreshing your task list now.',
             [
@@ -659,24 +694,26 @@ export function useTaskData() {
         return;
       }
 
+      // Show it as active right away, then tell the server.
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? { ...task, completed: false, updatedAt: Date.now() }
+            : task,
+        ),
+      );
+
       try {
         await taskService.updateTask(taskId, {
           completed: false,
         });
-
+      } catch (error: any) {
         setTasks((prev) =>
           prev.map((task) =>
-            task.id === taskId
-              ? { ...task, completed: false }
-              : task,
+            task.id === taskId ? { ...task, completed: true } : task,
           ),
         );
 
-        showSuccessAlert(
-          'Task Restored',
-          `"${currentTask.title}" has been restored to your active tasks.`,
-        );
-      } catch (error: any) {
         console.error('Failed to restore task:', error);
 
         if (error?.response?.status === 404) {
@@ -790,7 +827,7 @@ export function useTaskData() {
 
   const handleDeleteTask = useCallback(
     (taskId: string) => {
-      Alert.alert(
+      AppAlert.alert(
         'Delete Task?',
         'This task will be permanently removed from your task list.',
         [
@@ -802,29 +839,37 @@ export function useTaskData() {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
+              const removedTask = tasks.find((task) => task.id === taskId);
+              if (removedTask?.isPending) return;
+
+              // Remove it from the screen right away.
+              setTasks((prev) =>
+                prev.filter((task) => task.id !== taskId),
+              );
+
+              if (focusedTask?.id === taskId) {
+                setIsFocusActive(false);
+                setFocusedTask(null);
+              }
+
+              if (editingTask?.id === taskId) {
+                setEditingTask(null);
+                setIsAdding(false);
+              }
+
               try {
                 await taskService.deleteTask(taskId);
-
-                setTasks((prev) =>
-                  prev.filter((task) => task.id !== taskId),
-                );
-
-                if (focusedTask?.id === taskId) {
-                  setIsFocusActive(false);
-                  setFocusedTask(null);
-                }
-
-                if (editingTask?.id === taskId) {
-                  setEditingTask(null);
-                  setIsAdding(false);
-                }
-
-                showSuccessAlert(
-                  'Task Deleted',
-                  'The task was deleted successfully.',
-                );
               } catch (error: any) {
                 console.error('Failed to delete task:', error);
+
+                // Put it back.
+                if (removedTask && error?.response?.status !== 404) {
+                  setTasks((prev) =>
+                    prev.some((task) => task.id === taskId)
+                      ? prev
+                      : [removedTask, ...prev],
+                  );
+                }
 
                 if (error?.response?.status === 404) {
                   void loadTasks(false);
@@ -843,7 +888,7 @@ export function useTaskData() {
         ],
       );
     },
-    [editingTask, focusedTask, setTasks, loadTasks],
+    [tasks, editingTask, focusedTask, setTasks, loadTasks],
   );
 
   // ------------------------------------------------------
@@ -895,23 +940,24 @@ export function useTaskData() {
       return;
     }
 
+    // Real-time: update the screen first.
+    setTasks((prev) =>
+      prev.map((task) =>
+        selected.includes(task.id)
+          ? { ...task, completed: true, updatedAt: Date.now() }
+          : task,
+      ),
+    );
+
+    setSelectedTaskIds([]);
+    setIsMultiSelectMode(false);
+
     try {
       await Promise.all(
         selected.map((id) =>
           taskService.updateTask(id, { completed: true }),
         ),
       );
-
-      setTasks((prev) =>
-        prev.map((task) =>
-          selected.includes(task.id)
-            ? { ...task, completed: true }
-            : task,
-        ),
-      );
-
-      setSelectedTaskIds([]);
-      setIsMultiSelectMode(false);
     } catch (error: any) {
       console.error(
         'Failed to complete selected tasks:',
@@ -938,17 +984,17 @@ export function useTaskData() {
       return;
     }
 
+    setTasks((prev) =>
+      prev.filter((task) => !selected.includes(task.id)),
+    );
+
+    setSelectedTaskIds([]);
+    setIsMultiSelectMode(false);
+
     try {
       await Promise.all(
         selected.map((id) => taskService.deleteTask(id)),
       );
-
-      setTasks((prev) =>
-        prev.filter((task) => !selected.includes(task.id)),
-      );
-
-      setSelectedTaskIds([]);
-      setIsMultiSelectMode(false);
     } catch (error: any) {
       console.error(
         'Failed to delete selected tasks:',
@@ -1004,7 +1050,7 @@ export function useTaskData() {
         if (prev <= 1) {
           setIsTimerRunning(false);
 
-          Alert.alert(
+          AppAlert.alert(
             'Focus Time Up!',
             'Great job! Take a small rest break.',
           );
@@ -1083,6 +1129,22 @@ export function useTaskData() {
       subTasks: rawSubTasks,
     };
 
+    // Real-time: show the task right away, marked "Saving…".
+    const tempId = `pending-${Date.now()}`;
+
+    setTasks((prev) => [
+      {
+        ...draftTask,
+        id: tempId,
+        createdAt: Date.now(),
+        isPending: true,
+      },
+      ...prev,
+    ]);
+
+    resetTaskForm();
+    setIsAdding(false);
+
     try {
       const createdTask = await taskService.createTask({
         title: draftTask.title,
@@ -1107,22 +1169,32 @@ export function useTaskData() {
         );
       }
 
-      setTasks((prev) => [
-        normalizedTask,
-        ...prev.filter((task) => task.id !== normalizedTask.id),
-      ]);
-
-      resetTaskForm();
-      setIsAdding(false);
-
-      showSuccessAlert(
-        'Task Added',
-        `"${normalizedTask.title}" was added successfully.`,
+      // Swap the "Saving…" task for the saved one.
+      setTasks((prev) =>
+        prev
+          .filter((task) => task.id !== normalizedTask.id)
+          .map((task) => (task.id === tempId ? normalizedTask : task)),
       );
     } catch (error: any) {
       console.error('Failed to create task:', error);
 
-      // Do not create a local-only task on server failure.
+      // Remove it and put the form back so nothing typed is lost.
+      setTasks((prev) => prev.filter((task) => task.id !== tempId));
+
+      setNewTitle(draftTask.title);
+      setNewDesc(draftTask.description);
+      setNewSubject(draftTask.subject === 'General' ? '' : draftTask.subject);
+      setNewCategory(draftTask.category);
+      setNewPriority(draftTask.priority);
+      setNewDifficulty(draftTask.difficulty);
+      setNewDuration(String(draftTask.duration));
+      setNewDueDate(draftTask.dueDate);
+      setNewDueTime(draftTask.dueTime);
+      setNewHasReminder(draftTask.hasReminder);
+      setNewRepeat(draftTask.repeat);
+      setNewSubTasksList(draftTask.subTasks.map((subTask) => subTask.title));
+      setIsAdding(true);
+
       showErrorAlert(
         'Unable to Create Task',
         getApiErrorMessage(
@@ -1167,50 +1239,54 @@ export function useTaskData() {
       return;
     }
 
+    const original = editingTask;
+    const changes = {
+      title: cleanTitle,
+      description: newDesc.trim(),
+      subject: newSubject.trim() || 'General',
+      priority: newPriority,
+      dueDate: newDueDate || formatLocalDate(new Date()),
+      dueTime: newDueTime || '12:00',
+      hasReminder: newHasReminder,
+    };
+    const subTaskTitles = newSubTasksList;
+
+    // Real-time: show the edit right away.
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === original.id ? { ...task, ...changes } : task,
+      ),
+    );
+
+    setIsAdding(false);
+    setEditingTask(null);
+    resetTaskForm();
+
     try {
-      const updatedTask = await taskService.updateTask(
-        editingTask.id,
-        {
-          title: cleanTitle,
-          description: newDesc.trim(),
-          subject: newSubject.trim() || 'General',
-          priority: newPriority,
-          dueDate: newDueDate || formatLocalDate(new Date()),
-          dueTime: newDueTime || '12:00',
-          hasReminder: newHasReminder,
-          completed: editingTask.completed,
-          subTasks: newSubTasksList,
-        },
-      );
+      const updatedTask = await taskService.updateTask(original.id, {
+        ...changes,
+        completed: original.completed,
+        subTasks: subTaskTitles,
+      });
 
       const normalizedTask = normalizeBackendTask(
         updatedTask as Record<string, any>,
       );
 
-      if (!normalizedTask.id) {
-        throw new Error(
-          'The server did not return a valid updated task.',
+      if (normalizedTask.id) {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === original.id ? { ...task, ...normalizedTask } : task,
+          ),
         );
       }
-
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === editingTask.id
-            ? { ...task, ...normalizedTask }
-            : task,
-        ),
-      );
-
-      setIsAdding(false);
-      setEditingTask(null);
-      resetTaskForm();
-
-      showSuccessAlert(
-        'Task Updated',
-        `"${normalizedTask.title}" has been updated.`,
-      );
     } catch (error: any) {
       console.error('Failed to update task:', error);
+
+      // Undo the edit.
+      setTasks((prev) =>
+        prev.map((task) => (task.id === original.id ? original : task)),
+      );
 
       if (error?.response?.status === 404) {
         void loadTasks(false);

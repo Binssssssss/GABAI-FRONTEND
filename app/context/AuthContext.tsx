@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { clearNotificationPrefs } from '@/app/services/notificationPrefs';
 import { localDb } from '@/app/services/localDb';
+import { isAxiosError } from 'axios';
 import api from '@/app/services/api';
 
 import {
@@ -38,6 +39,8 @@ interface AuthContextValue {
   isLoading: boolean;
   signIn: (session: AuthSession) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Merge new fields (e.g. fullName, avatar) into the saved user. */
+  updateUser: (changes: AuthUser) => Promise<void>;
 }
 
 const SESSION_KEY = 'gabai.auth.session';
@@ -368,11 +371,14 @@ export function AuthProvider({
       /*
        * Even if the backend request fails, continue
        * clearing the local authentication data.
+       * A 401 only means the token already expired.
        */
-      console.warn(
-        'Backend logout request failed. Clearing local session anyway.',
-        error,
-      );
+      if (!isAxiosError(error) || error.response?.status !== 401) {
+        console.warn(
+          'Backend logout request failed. Clearing local session anyway.',
+          error,
+        );
+      }
     } finally {
       await AsyncStorage.multiRemove([
         SESSION_KEY,
@@ -387,6 +393,29 @@ export function AuthProvider({
     }
   }, [session]);
 
+  const updateUser = useCallback(
+    async (changes: AuthUser) => {
+      if (!session) return;
+
+      const nextSession: AuthSession = {
+        ...session,
+        user: {
+          ...(session.user || {}),
+          ...changes,
+        },
+      };
+
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
+      await AsyncStorage.setItem(
+        LEGACY_USER_KEY,
+        JSON.stringify(nextSession.user),
+      );
+
+      setSession(nextSession);
+    },
+    [session],
+  );
+
   const value = useMemo(
     () => ({
       session,
@@ -394,12 +423,14 @@ export function AuthProvider({
       isLoading,
       signIn,
       signOut,
+      updateUser,
     }),
     [
       isLoading,
       session,
       signIn,
       signOut,
+      updateUser,
     ],
   );
 

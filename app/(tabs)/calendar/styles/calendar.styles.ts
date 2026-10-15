@@ -1,6 +1,117 @@
 import { StyleSheet } from 'react-native';
 
 export const calendarStyles = StyleSheet.create({
+  // Compact workload line (replaces the Academic Pressure / Load cards)
+  workloadLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  workloadLineLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  workloadLineDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  workloadLineLevel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  workloadLineMeta: {
+    fontSize: 12,
+  },
+  // Month grid without a card
+  monthContainer: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  dayNumberWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Agenda rows
+  agendaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  agendaTimeCol: {
+    width: 64,
+  },
+  agendaTimeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  agendaDurationText: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  agendaCategoryBar: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  agendaBody: {
+    flex: 1,
+    marginRight: 8,
+  },
+  agendaProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  agendaEmpty: {
+    paddingVertical: 20,
+  },
+  // Upcoming deadline rows
+  deadlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  deadlineDateCol: {
+    width: 44,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  deadlineMonthText: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  deadlineDayText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  deadlineMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  deadlineCategoryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  deadlineStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
   },
@@ -8,20 +119,19 @@ export const calendarStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
   },
   headerAddButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: '#A97C50',
   },
   headerAddButtonText: {
@@ -34,29 +144,30 @@ export const calendarStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 4,
   },
   rangeArrow: {
-    width: 34,
-    height: 34,
-    borderWidth: 1,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rangeLabel: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
   todayButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderRadius: 6,
   },
   todayButtonText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   workloadDot: {
     width: 5,
@@ -65,12 +176,12 @@ export const calendarStyles = StyleSheet.create({
     marginTop: 3,
   },
   workloadSummary: {
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     marginTop: 4,
     marginBottom: 18,
     padding: 14,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   workloadSummaryHeader: {
     flexDirection: 'row',
@@ -163,16 +274,16 @@ export const calendarStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   filterSection: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    height: 44,
+    height: 40,
   },
   searchInput: {
     flex: 1,
@@ -180,34 +291,33 @@ export const calendarStyles = StyleSheet.create({
     height: '100%',
   },
   categoryScroll: {
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   categoryPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
     borderWidth: 1,
-    marginRight: 8,
+    marginRight: 6,
   },
   categoryPillText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   viewToggleContainer: {
     flexDirection: 'row',
-    marginHorizontal: 24,
-    marginBottom: 12,
+    marginHorizontal: 20,
+    marginBottom: 10,
     borderRadius: 8,
-    backgroundColor: 'rgba(169, 124, 80, 0.1)',
+    borderWidth: 1,
     padding: 2,
   },
   viewToggleButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
   viewToggleText: {
     fontSize: 13,
@@ -217,15 +327,10 @@ export const calendarStyles = StyleSheet.create({
   },
   calendarCard: {
     marginHorizontal: 20,
-    borderRadius: 20,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 16,
+    padding: 14,
     marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 2,
   },
   calendarMonthHeader: {
     flexDirection: 'row',
@@ -247,13 +352,14 @@ export const calendarStyles = StyleSheet.create({
   weekdayRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   weekdayLabel: {
     width: '14.28%',
     textAlign: 'center',
-    fontWeight: '600',
-    fontSize: 12,
+    fontWeight: '500',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -261,23 +367,21 @@ export const calendarStyles = StyleSheet.create({
   },
   gridCell: {
     width: '14.28%',
-    aspectRatio: 1,
-    justifyContent: 'center',
+    height: 46,
     alignItems: 'center',
-    borderRadius: 8,
-    marginVertical: 2,
+    justifyContent: 'flex-start',
+    paddingTop: 4,
   },
   emptyGridCell: {
     width: '14.28%',
-    aspectRatio: 1,
+    height: 46,
   },
   cellDayText: {
     fontSize: 14,
-    fontWeight: '600',
   },
   indicatorRow: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 3,
     height: 4,
     justifyContent: 'center',
     width: '100%',
@@ -363,9 +467,10 @@ export const calendarStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
-    borderLeftWidth: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
     marginBottom: 6,
   },
   weekCardLeft: {
@@ -414,8 +519,8 @@ export const calendarStyles = StyleSheet.create({
     paddingLeft: 12,
   },
   dailyEventCard: {
-    borderRadius: 14,
-    borderLeftWidth: 4,
+    borderRadius: 8,
+    borderLeftWidth: 3,
     padding: 10,
     marginBottom: 6,
   },
@@ -453,25 +558,25 @@ export const calendarStyles = StyleSheet.create({
   agendaHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 24,
-    marginBottom: 12,
-    marginTop: 8,
+    alignItems: 'baseline',
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 4,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
   },
   eventsCountText: {
     fontSize: 12,
   },
   agendaList: {
-    marginHorizontal: 24,
-    marginBottom: 20,
+    marginHorizontal: 20,
+    marginBottom: 12,
   },
   agendaCard: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 10,
     overflow: 'hidden',
@@ -497,9 +602,7 @@ export const calendarStyles = StyleSheet.create({
   },
   agendaEventTitle: {
     fontSize: 15,
-    fontWeight: 'bold',
-    flex: 1,
-    marginRight: 12,
+    fontWeight: '600',
   },
   agendaDetailsRow: {
     flexDirection: 'row',
@@ -511,13 +614,13 @@ export const calendarStyles = StyleSheet.create({
     marginTop: 7,
   },
   agendaStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginLeft: 4,
-    marginRight: 12,
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 3,
   },
   agendaDetailText: {
     fontSize: 12,
+    marginTop: 2,
   },
   agendaProgressContainer: {
     marginTop: 12,
@@ -532,20 +635,21 @@ export const calendarStyles = StyleSheet.create({
   },
   progressValLabel: {
     fontSize: 11,
-    fontWeight: 'bold',
+    marginLeft: 8,
   },
   progressBarBg: {
-    height: 6,
-    borderRadius: 3,
-    width: '100%',
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
   noEventsCard: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     borderStyle: 'dashed',
     padding: 24,
     alignItems: 'center',
@@ -558,20 +662,22 @@ export const calendarStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginHorizontal: 24,
-    marginBottom: 12,
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
   },
   deadlinesList: {
-    marginHorizontal: 24,
+    marginHorizontal: 20,
   },
   deadlineCard: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 8,
   },
   deadlineInfoCol: {
     flex: 1,
+    marginRight: 12,
   },
   deadlineHeadingRow: {
     flexDirection: 'row',
@@ -581,9 +687,7 @@ export const calendarStyles = StyleSheet.create({
   },
   deadlineTitleText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    flex: 1,
-    marginRight: 12,
+    fontWeight: '600',
   },
   deadlineBadge: {
     borderRadius: 6,
@@ -595,7 +699,7 @@ export const calendarStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   deadlineDateText: {
-    fontSize: 11,
+    fontSize: 12,
   },
   modalOverlay: {
     flex: 1,

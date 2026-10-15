@@ -6,7 +6,7 @@ export const SUGGESTION_CHIPS: SuggestionChipItem[] = [
   { text: 'How much did I spend this week?', icon: 'dollar-sign' },
   { text: 'Show upcoming deadlines.', icon: 'clock' },
   { text: 'What should I focus on today?', icon: 'target' },
-  { text: 'Open my calendar.', icon: 'calendar' },
+  { text: 'Show my schedule for today.', icon: 'calendar' },
 ];
 
 export const SUGGESTED_QUESTIONS: string[] = [
@@ -19,10 +19,9 @@ export const SUGGESTED_QUESTIONS: string[] = [
 ];
 
 export const QUICK_ACTIONS: QuickActionItem[] = [
-  { label: 'Tasks', query: 'List today\'s tasks' },
-  { label: 'Schedule', query: 'Show today\'s schedule' },
-  { label: 'Calendar', query: 'Open calendar' },
-  { label: 'Expenses', query: 'How much did I spend this week?' },
-  { label: 'Focus Session', query: 'Start focus session' },
-  { label: 'Notes', query: 'Open notepad' },
+  { key: 'tasks', label: 'Tasks', icon: 'check-square' },
+  { key: 'schedule', label: 'Schedule', icon: 'calendar' },
+  { key: 'wallet', label: 'Wallet', icon: 'credit-card' },
+  { key: 'focus', label: 'Focus Session', icon: 'target' },
+  { key: 'notes', label: 'Notes', icon: 'file-text' },
 ];

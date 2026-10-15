@@ -1,23 +1,14 @@
 import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from '@/components/AppAlert';
 import { useRouter } from "expo-router";
 
 import api from "@/app/services/api";
 import { useAuth } from "@/app/context/AuthContext";
 import { validateLoginForm } from "../utils";
-import { configureGoogleSignIn } from "@/app/services/googleAuth";
+import { configureGoogleSignIn, getGoogleSignin } from "@/app/services/googleAuth";
 
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { firebaseAuth } from "@/app/services/firebase";
-
-function getGoogleSigninClient() {
-  try {
-    const googleSignInModule = require("@react-native-google-signin/google-signin");
-    return googleSignInModule?.GoogleSignin ?? googleSignInModule?.default?.GoogleSignin ?? null;
-  } catch {
-    return null;
-  }
-}
 
 function decodeJwtPayload(token: string) {
   try {
@@ -132,6 +123,29 @@ export function useLogin() {
     } catch (error: any) {
       setIsLoading(false);
 
+      // Account exists but the email is not verified yet.
+      if (error?.response?.data?.errors?.code === "EMAIL_NOT_VERIFIED") {
+        const unverifiedEmail =
+          error.response.data.errors.email ?? email.trim().toLowerCase();
+
+        AppAlert.alert(
+          "Verify your email",
+          error.response.data.message ??
+            "Please verify your email before logging in.",
+          [
+            {
+              text: "Enter code",
+              onPress: () =>
+                router.push({
+                  pathname: "/(auth)/verify-email/verify-email",
+                  params: { email: unverifiedEmail },
+                }),
+            },
+          ],
+        );
+        return;
+      }
+
       let errorMessage = "An error occurred during login. Please try again.";
 
       if (error?.response?.data?.message) {
@@ -140,7 +154,7 @@ export function useLogin() {
         errorMessage = error.message;
       }
 
-      Alert.alert("Login Failed", errorMessage);
+      AppAlert.alert("Login Failed", errorMessage);
     }
   };
 
@@ -153,11 +167,11 @@ export function useLogin() {
       return;
     }
 
-    const GoogleSignin = getGoogleSigninClient();
+    const GoogleSignin = getGoogleSignin();
 
     if (!GoogleSignin) {
       setIsLoading(false);
-      Alert.alert(
+      AppAlert.alert(
         "Google Sign-In unavailable",
         "Google authentication is not available in this environment.",
       );
@@ -216,7 +230,8 @@ export function useLogin() {
         idToken: firebaseIdToken,
       });
 
-      console.log("GABAI GOOGLE AUTH RESPONSE:", response.data);
+      // Never log the whole response: it contains the access and refresh tokens.
+      console.log("GABAI GOOGLE AUTH RESPONSE USER:", response.data?.user);
 
       // Get GabAi JWT.
       const token =
@@ -268,7 +283,7 @@ export function useLogin() {
         errorMessage = error.message;
       }
 
-      Alert.alert("Google Login Failed", errorMessage);
+      AppAlert.alert("Google Login Failed", errorMessage);
     }
   };
 

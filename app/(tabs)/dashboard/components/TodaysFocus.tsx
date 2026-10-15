@@ -8,6 +8,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { DashboardTask } from './types';
+import { formatTime12 } from '@/utils/time';
 
 interface TodaysFocusProps {
   tasks: DashboardTask[];
@@ -123,7 +124,7 @@ export default function TodaysFocus({
                   { color: textSecondary },
                 ]}
               >
-                {task.dueTime} · {task.countdown}
+                {formatTime12(task.dueTime)} · {task.countdown}
               </Text>
             </TouchableOpacity>
 

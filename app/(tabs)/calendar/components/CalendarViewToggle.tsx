@@ -23,7 +23,7 @@ export default function CalendarViewToggle({
   textSubTheme,
 }: CalendarViewToggleProps) {
   return (
-    <View style={styles.viewToggleContainer}>
+    <View style={[styles.viewToggleContainer, { borderColor: borderTheme }]}>
       {MODES.map((mode) => (
         <TouchableOpacity
           key={mode}
@@ -32,7 +32,6 @@ export default function CalendarViewToggle({
             styles.viewToggleButton,
             {
               backgroundColor: viewMode === mode ? cardTheme : 'transparent',
-              borderColor: viewMode === mode ? borderTheme : 'transparent',
             },
           ]}
         >
@@ -41,7 +40,7 @@ export default function CalendarViewToggle({
               styles.viewToggleText,
               {
                 color: viewMode === mode ? textTheme : textSubTheme,
-                fontWeight: viewMode === mode ? 'bold' : 'normal',
+                fontWeight: viewMode === mode ? '600' : '400',
               },
             ]}
           >

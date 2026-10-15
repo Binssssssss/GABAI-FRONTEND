@@ -70,6 +70,78 @@ export interface TaskRecommendation {
   message?: string;
 }
 
+/* ---------- Recommendation helpers ---------- */
+
+const CAUGHT_UP: TaskRecommendation = {
+  hasRecommendation: false,
+  task: null,
+  message: "You're all caught up!",
+};
+
+/** Whole days from today to a "YYYY-MM-DD" date (negative = overdue). */
+const daysUntil = (dueDate: string): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const due = new Date(`${dueDate}T00:00:00`);
+
+  return Math.round((due.getTime() - today.getTime()) / 86400000);
+};
+
+/*
+ * The backend (GET /tasks/recommendation) sends back the next task
+ * itself, or null when nothing is pending:
+ *   { success: true, data: Task | null }
+ * The card expects a TaskRecommendation, so turn the task into one here.
+ * Without this, `hasRecommendation` was always missing and the card
+ * kept saying "You're all caught up!" even with unfinished tasks.
+ */
+const toTaskRecommendation = (data: any): TaskRecommendation => {
+  if (!data) {
+    return CAUGHT_UP;
+  }
+
+  // Already in recommendation shape (older backend): use it as is.
+  if (typeof data.hasRecommendation === 'boolean') {
+    return data;
+  }
+
+  // A plain task.
+  if (!data.id || data.completed) {
+    return CAUGHT_UP;
+  }
+
+  let urgency: TaskRecommendationUrgency = 'LOW';
+  let reason = 'This is your next deadline.';
+
+  if (data.dueDate) {
+    const days = daysUntil(data.dueDate);
+
+    if (days < 0) {
+      urgency = 'CRITICAL';
+      reason = 'This task is overdue. Finish it first.';
+    } else if (days === 0) {
+      urgency = 'HIGH';
+      reason = 'Due today. It has your earliest deadline.';
+    } else if (days <= 2) {
+      urgency = 'MEDIUM';
+      reason = 'Due soon. Starting now keeps you ahead.';
+    }
+  }
+
+  return {
+    hasRecommendation: true,
+    taskId: data.id,
+    title: data.title,
+    subject: data.subject,
+    priority: data.priority,
+    dueDate: data.dueDate,
+    dueTime: data.dueTime ?? null,
+    urgency,
+    reason,
+  };
+};
+
 /* ---------- API ---------- */
 
 class TaskService {
@@ -121,15 +193,7 @@ class TaskService {
     //   }
     // }
 
-    if (result?.data) {
-      return result.data;
-    }
-
-    return {
-      hasRecommendation: false,
-      task: null,
-      message: "You're all caught up!",
-    };
+    return toTaskRecommendation(result?.data);
   }
   async updateSubTask(
   taskId: string,

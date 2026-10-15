@@ -1,7 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
 import NotesHeader from './NotesHeader';
-import NotesSearchBar from './NotesSearchBar';
 import NotesFilterTabs from './NotesFilterTabs';
 import { NotesTheme } from '../../types';
 import type { useNotesData } from '../../hooks/useNotesData';
@@ -17,11 +16,6 @@ export default function NotesHeaderSection({
   notesData,
   theme,
 }: NotesHeaderSectionProps) {
-  const activeCustomFiltersCount =
-    Number(notesData.selectedCategory !== 'All') +
-    Number(notesData.selectedTag !== 'All') +
-    Number(notesData.sortOption !== 'recent_edit');
-
   return (
     <View>
       {/* 1. Top Header */}
@@ -41,30 +35,16 @@ export default function NotesHeaderSection({
         primaryBrown={theme.primaryBrown}
       />
 
-      {/* 2. Search Bar */}
-      <NotesSearchBar
-        searchQuery={notesData.searchQuery}
-        onSearchChange={notesData.setSearchQuery}
-        cardBg={theme.cardBg}
-        borderCol={theme.borderCol}
-        textPrimary={theme.textPrimary}
-        textSecondary={theme.textSecondary}
-      />
-
-      {/* 3. Filter Tabs & Category Scroll */}
+      {/* 2. Filter Tabs & Category Scroll */}
       <NotesFilterTabs
-        activeTabFilter={notesData.activeFilter}
-        onSelectTabFilter={notesData.setActiveFilter}
+        activeTabFilter={notesData.activeTabFilter}
+        onSelectTabFilter={notesData.setActiveTabFilter}
         selectedCategory={notesData.selectedCategory}
         onSelectCategory={notesData.setSelectedCategory}
-        selectedTag={
-          notesData.selectedTag === 'All'
-            ? null
-            : notesData.selectedTag
-        }
-        onClearTag={() => notesData.setSelectedTag('All')}
-        activeCustomFiltersCount={activeCustomFiltersCount}
-        onOpenFilterSheet={() => notesData.setIsFilterSortSheetOpen(true)}
+        selectedTag={notesData.selectedTag}
+        onClearTag={() => notesData.setSelectedTag(null)}
+        activeCustomFiltersCount={notesData.activeCustomFiltersCount}
+        onOpenFilterSheet={() => notesData.setIsFilterSheetOpen(true)}
         cardBg={theme.cardBg}
         borderCol={theme.borderCol}
         textPrimary={theme.textPrimary}

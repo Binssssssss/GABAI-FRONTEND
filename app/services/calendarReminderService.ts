@@ -27,6 +27,7 @@ export async function scheduleCalendarReminder(
   dueTime: string,
   minutesBefore?: number,
   eventId?: string,
+  details?: { category?: string; priority?: string },
 ): Promise<string | null> {
   const prefs = await loadNotificationPrefs();
 
@@ -70,14 +71,44 @@ export async function scheduleCalendarReminder(
     });
   }
 
+  // "📅 Midterm Exam in 1 hour" / "Today at 4:15 PM · Exam · High priority"
+  const leadLabel =
+    leadMinutes % 1440 === 0
+      ? `${leadMinutes / 1440} day${leadMinutes === 1440 ? '' : 's'}`
+      : leadMinutes % 60 === 0
+        ? `${leadMinutes / 60} hour${leadMinutes === 60 ? '' : 's'}`
+        : `${leadMinutes} min`;
+
+  const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const tomorrow = new Date(reminderDate);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dayLabel =
+    dayKey(date) === dayKey(reminderDate)
+      ? 'Today'
+      : dayKey(date) === dayKey(tomorrow)
+        ? 'Tomorrow'
+        : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+  const timeLabel = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+  const body = [
+    `${dayLabel} at ${timeLabel}`,
+    details?.category,
+    details?.priority === 'High' ? 'High priority' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: 'GabAi Reminder',
-      body: `${title} is coming up.`,
+      title: `📅 ${title} in ${leadLabel}`,
+      body,
       data: {
         eventId: eventId ?? null,
         dueDate,
         dueTime,
+        screen: '/(tabs)/calendar/calendar',
+        type: 'calendar_reminder',
       },
     },
     trigger: {

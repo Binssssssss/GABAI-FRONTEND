@@ -10,6 +10,7 @@ import {
   getPriorityColors,
   getWeekDateKeys,
 } from '../utils/calendarHelpers';
+import { formatTime12 } from '@/utils/time';
 
 interface WeekViewProps {
   events: CalendarEvent[];
@@ -228,7 +229,7 @@ export default function WeekView({
                       >
                         {event.isAllDay
                           ? 'All Day'
-                          : event.time}
+                          : formatTime12(event.time)}
                       </Text>
 
                       <Text

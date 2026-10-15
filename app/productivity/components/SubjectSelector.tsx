@@ -1,99 +1,126 @@
 import React from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { ACADEMIC_SUBJECTS } from '../constants/focusConfig';
+
+import { FocusPalette } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
+
+/** A subject from the user's own tasks and how many tasks use it. */
+export interface SubjectOption {
+  name: string;
+  count: number;
+}
 
 interface SubjectSelectorProps {
   selectedSubject: string;
   onSelectSubject: (subject: string) => void;
-  cardBg: string;
-  borderCol: string;
-  textPrimary: string;
-  textSecondary: string;
-  primaryAccent: string;
+  /** Subjects taken from the user's tasks (most used first). */
+  subjects: SubjectOption[];
+  isLoading: boolean;
+  /** True when the subject was filled in from the selected task. */
+  isFromTask?: boolean;
+  colors: FocusPalette;
 }
 
 export default function SubjectSelector({
   selectedSubject,
   onSelectSubject,
-  cardBg,
-  borderCol,
-  textPrimary,
-  textSecondary,
-  primaryAccent,
+  subjects,
+  isLoading,
+  colors,
 }: SubjectSelectorProps) {
-  return (
-    <View style={{ marginBottom: 20 }}>
-      <Text style={[styles.sectionTitle, { color: textSecondary }]}>Study Target / Subject</Text>
+  const current = selectedSubject.trim().toLowerCase();
 
-      {/* Editable Subject Input Box */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: cardBg,
-          borderColor: borderCol,
-          borderWidth: 1,
-          borderRadius: 14,
-          paddingHorizontal: 14,
-          height: 48,
-          marginBottom: 12,
-        }}
+  const chip = (label: string, count?: number, dashed?: boolean) => {
+    const isSelected = current === label.toLowerCase();
+
+    return (
+      <Pressable
+        key={label}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: isSelected }}
+        onPress={() => onSelectSubject(label)}
+        style={({ pressed }) => [
+          styles.subjectPill,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: isSelected ? colors.primary : colors.card,
+            borderColor: isSelected ? colors.primary : colors.border,
+            borderStyle: dashed && !isSelected ? 'dashed' : 'solid',
+          },
+          pressed && styles.pressed,
+        ]}
       >
-        <Feather name="book-open" size={16} color={primaryAccent} style={{ marginRight: 10 }} />
+        <Text
+          style={[
+            styles.subjectPillText,
+            { color: isSelected ? colors.onPrimary : colors.text },
+          ]}
+        >
+          {label}
+        </Text>
+        {count !== undefined && (
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '600',
+              color: isSelected ? colors.onPrimary : colors.subtext,
+              opacity: 0.8,
+            }}
+          >
+            {count}
+          </Text>
+        )}
+      </Pressable>
+    );
+  };
+
+  return (
+    <View>
+      {/* Type any subject */}
+      <View
+        style={[
+          styles.subjectInput,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <Feather name="book-open" size={16} color={colors.primary} style={{ marginRight: 10 }} />
         <TextInput
           value={selectedSubject}
           onChangeText={onSelectSubject}
-          placeholder="Type any subject, exam, or topic..."
-          placeholderTextColor={textSecondary}
+          placeholder="Type a subject, e.g. Math"
+          placeholderTextColor={colors.subtext}
+          returnKeyType="done"
+          maxLength={60}
           style={{
             flex: 1,
-            color: textPrimary,
+            color: colors.text,
             fontSize: 14,
             fontWeight: '600',
             height: '100%',
           }}
         />
         {selectedSubject.length > 0 && (
-          <TouchableOpacity onPress={() => onSelectSubject('')} style={{ padding: 4 }}>
-            <Feather name="x-circle" size={16} color={textSecondary} />
-          </TouchableOpacity>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear subject"
+            onPress={() => onSelectSubject('')}
+            hitSlop={10}
+            style={{ padding: 4 }}
+          >
+            <Feather name="x-circle" size={16} color={colors.subtext} />
+          </Pressable>
         )}
       </View>
 
-      {/* Quick-pick Preset Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.subjectsScroll}
-      >
-        {ACADEMIC_SUBJECTS.map((subject) => {
-          const isSelected = selectedSubject.trim().toLowerCase() === subject.toLowerCase();
-          return (
-            <TouchableOpacity
-              key={subject}
-              onPress={() => onSelectSubject(subject)}
-              style={[
-                styles.subjectPill,
-                {
-                  backgroundColor: isSelected ? primaryAccent : cardBg,
-                  borderColor: isSelected ? primaryAccent : borderCol,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.subjectPillText,
-                  { color: isSelected ? '#FFFFFF' : textPrimary },
-                ]}
-              >
-                {subject}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* Subjects from the user's tasks (only when there are some) */}
+      {!isLoading && subjects.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+          {subjects.map((subject) => chip(subject.name))}
+        </View>
+      )}
     </View>
   );
 }

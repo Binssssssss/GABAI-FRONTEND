@@ -1,9 +1,20 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   View,
   Text,
+  TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+
+import { useAppTheme } from '@/app/context/ThemeContext';
+import { useActivityLog } from '@/app/services/activityLog';
+import {
+  ACTIVITY_ICON,
+  activityText,
+  formatActivityWhen,
+  getActivityColor,
+} from '@/utils/activityFormat';
 
 interface RecentActivityTask {
   id: string;
@@ -15,6 +26,7 @@ interface RecentActivityTask {
 }
 
 interface RecentActivityProps {
+  /** No longer used: activity now comes from the on-phone history. */
   tasks?: RecentActivityTask[];
   primaryBrown?: string;
   textColor?: string;
@@ -24,51 +36,22 @@ interface RecentActivityProps {
   backgroundColor?: string;
 }
 
+// How many activities the dashboard shows before "See activity history".
+const DASHBOARD_COUNT = 5;
+
 export default function RecentActivity({
-  tasks = [],
   primaryBrown = '#A97C50',
   textColor = '#ECEDEE',
   secondaryText = '#9BA1A6',
   cardColor = '#1E1E1E',
   borderColor = '#2E2E2E',
-  backgroundColor = '#121212',
+  backgroundColor,
 }: RecentActivityProps) {
-  const activities = useMemo(() => {
-    return [...tasks]
-      .sort((a, b) => {
-        const dateA = new Date(
-          a.updatedAt ||
-            a.createdAt ||
-            0
-        ).getTime();
-
-        const dateB = new Date(
-          b.updatedAt ||
-            b.createdAt ||
-            0
-        ).getTime();
-
-        return dateB - dateA;
-      })
-      .slice(0, 5)
-      .map((task) => ({
-        id: task.id,
-
-        icon: task.completed
-          ? 'check-circle'
-          : 'clipboard',
-
-        text: task.completed
-          ? `Completed "${task.title}".`
-          : `Created "${task.title}".`,
-
-        subject:
-          task.subject || 'General',
-
-        completed:
-          task.completed,
-      }));
-  }, [tasks]);
+  const router = useRouter();
+  const { colors } = useAppTheme();
+  const iconBg = backgroundColor ?? colors.background;
+  const allActivity = useActivityLog();
+  const activities = allActivity.slice(0, DASHBOARD_COUNT);
 
   return (
     <View
@@ -88,7 +71,7 @@ export default function RecentActivity({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 14,
+          marginBottom: 6,
         }}
       >
         <View
@@ -115,16 +98,14 @@ export default function RecentActivity({
           </Text>
         </View>
 
-        {activities.length > 0 && (
-          <Text
-            style={{
-              fontSize: 12,
-              color: secondaryText,
-            }}
-          >
-            {activities.length} recent
-          </Text>
-        )}
+        <Text
+          style={{
+            fontSize: 12,
+            color: secondaryText,
+          }}
+        >
+          Last 30 days
+        </Text>
       </View>
 
       {/* Empty state */}
@@ -160,77 +141,121 @@ export default function RecentActivity({
               color: secondaryText,
             }}
           >
-            Your recent task activity
+            Tasks you create, complete or delete
             will appear here.
           </Text>
         </View>
       ) : (
-        /* Activities */
-        activities.map(
-          (activity) => (
-            <View
-              key={activity.id}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 10,
-              }}
-            >
-              {/* Icon */}
-              <View
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 17,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor:
-                    backgroundColor,
-                }}
-              >
-                <Feather
-                  name={
-                    activity.icon as any
-                  }
-                  size={16}
-                  color={
-                    activity.completed
-                      ? '#22C55E'
-                      : primaryBrown
-                  }
-                />
-              </View>
+        <>
+          {activities.map((activity) => {
+            const color = getActivityColor(
+              activity.type,
+              primaryBrown,
+              '#EF4444',
+            );
 
-              {/* Activity text */}
+            return (
               <View
+                key={activity.id}
                 style={{
-                  flex: 1,
-                  marginLeft: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 10,
                 }}
               >
-                <Text
+                {/* Icon */}
+                <View
                   style={{
-                    fontSize: 13,
-                    lineHeight: 19,
-                    color: textColor,
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: iconBg,
                   }}
                 >
-                  {activity.text}
-                </Text>
+                  <Feather
+                    name={ACTIVITY_ICON[activity.type]}
+                    size={16}
+                    color={color}
+                  />
+                </View>
 
+                {/* Activity text */}
+                <View
+                  style={{
+                    flex: 1,
+                    marginLeft: 12,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 19,
+                      color: textColor,
+                    }}
+                  >
+                    {activityText(activity)}
+                  </Text>
+
+                  <Text
+                    style={{
+                      marginTop: 2,
+                      fontSize: 11,
+                      color: secondaryText,
+                    }}
+                  >
+                    {activity.subject || 'General'}
+                  </Text>
+                </View>
+
+                {/* When */}
                 <Text
                   style={{
-                    marginTop: 2,
                     fontSize: 11,
                     color: secondaryText,
                   }}
                 >
-                  {activity.subject}
+                  {formatActivityWhen(activity.at)}
                 </Text>
               </View>
-            </View>
-          )
-        )
+            );
+          })}
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/activity-history')}
+            accessibilityRole="button"
+            style={{
+              height: 44,
+              borderRadius: 12,
+              borderWidth: 1.5,
+              borderColor: primaryBrown,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              marginTop: 8,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '700',
+                color: primaryBrown,
+              }}
+            >
+              See activity history
+            </Text>
+            <Feather
+              name="arrow-right"
+              size={16}
+              color={primaryBrown}
+            />
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );

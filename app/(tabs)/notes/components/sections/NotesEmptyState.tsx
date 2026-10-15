@@ -4,7 +4,6 @@ import { Feather } from '@expo/vector-icons';
 import { noteStyles as styles } from '../../styles/notes.styles';
 
 interface NotesEmptyStateProps {
-  searchQuery: string;
   selectedCategory: string;
   selectedTag: string | null;
   onOpenNewNote: () => void;
@@ -15,7 +14,6 @@ interface NotesEmptyStateProps {
 }
 
 export default function NotesEmptyState({
-  searchQuery,
   selectedCategory,
   selectedTag,
   onOpenNewNote,
@@ -24,7 +22,7 @@ export default function NotesEmptyState({
   textSecondary,
   primaryBrown,
 }: NotesEmptyStateProps) {
-  const isFiltered = Boolean(searchQuery || selectedCategory !== 'All' || selectedTag);
+  const isFiltered = Boolean(selectedCategory !== 'All' || selectedTag);
 
   return (
     <View style={styles.emptyContainer}>
@@ -36,7 +34,7 @@ export default function NotesEmptyState({
       </Text>
       <Text style={[styles.emptySubtitle, { color: textSecondary }]}>
         {isFiltered
-          ? 'Try another keyword or clear the active filters to explore your notes again.'
+          ? 'No notes in this filter yet. Tap All to see every note.'
           : 'Capture lecture ideas, review points, and study plans in one calm workspace.'}
       </Text>
       <TouchableOpacity

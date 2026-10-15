@@ -107,6 +107,19 @@ export default function SmartCalendarScreen() {
     openQuickAdd,
   } = useCalendarData();
 
+  // Unfinished assignments and exams due in the next 7 days.
+  const todayKey = getLocalDateKey();
+  const weekEnd = new Date(`${todayKey}T00:00:00`);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const weekEndKey = getLocalDateKey(weekEnd);
+  const dueThisWeek = events.filter(
+    (event) =>
+      !event.completed &&
+      (event.category === 'Assignment' || event.category === 'Exam') &&
+      event.date >= todayKey &&
+      event.date <= weekEndKey,
+  ).length;
+
   return (
     <SafeAreaView
       style={[
@@ -168,6 +181,7 @@ export default function SmartCalendarScreen() {
       >
         <AcademicPressureIndicator
           pressure={academicPressure}
+          dueThisWeek={dueThisWeek}
           cardTheme={cardTheme}
           borderTheme={borderTheme}
           textTheme={textTheme}

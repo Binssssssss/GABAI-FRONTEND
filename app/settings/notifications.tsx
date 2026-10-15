@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { Stack, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -86,7 +87,7 @@ export default function NotificationSettingsScreen() {
       if (!result.permissionGranted) {
         await update({ pushEnabled: false });
 
-        Alert.alert(
+        AppAlert.alert(
           'Notifications are blocked',
           'Allow notifications for GabAi in your phone settings, then try again.',
           [

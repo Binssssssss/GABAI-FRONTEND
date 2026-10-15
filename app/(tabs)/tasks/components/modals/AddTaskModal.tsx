@@ -3,7 +3,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -11,7 +10,6 @@ import {
   View,
 } from 'react-native';
 
-import { SUBJECTS } from '../../constants/taskConfig';
 import type { useTaskData } from '../../hooks/useTaskData';
 import { TaskTheme } from '../../types';
 
@@ -53,16 +51,6 @@ export default function AddTaskModal({
     newDueTime,
     setNewDueTime,
 
-    newHasReminder,
-    setNewHasReminder,
-
-    newSubTaskInput,
-    setNewSubTaskInput,
-
-    newSubTasksList,
-    handleAddSubTaskToList,
-    handleRemoveSubTaskFromList,
-
     handleCreateTask,
     handleUpdateTask,
 
@@ -90,6 +78,18 @@ export default function AddTaskModal({
   const [period, setPeriod] = useState<Period>('PM');
 
   const priorities = ['High', 'Medium', 'Low'];
+
+
+  /* One-tap times shown in the time picker. */
+  const QUICK_TIMES: { label: string; h: number; m: number; p: Period }[] = [
+    { label: '8:00 AM', h: 8, m: 0, p: 'AM' },
+    { label: '10:00 AM', h: 10, m: 0, p: 'AM' },
+    { label: '1:00 PM', h: 1, m: 0, p: 'PM' },
+    { label: '3:00 PM', h: 3, m: 0, p: 'PM' },
+    { label: '5:00 PM', h: 5, m: 0, p: 'PM' },
+    { label: '8:00 PM', h: 8, m: 0, p: 'PM' },
+    { label: '11:59 PM', h: 11, m: 59, p: 'PM' },
+  ];
 
   /**
   
@@ -266,12 +266,13 @@ export default function AddTaskModal({
 
   };
 
+  // Minutes move in steps of 5 (00, 05, 10 ... 55).
   const changeMinute = (amount: number) => {
-    let next = minute + amount;
+    const snapped = Math.round(minute / 5) * 5;
+    let next = snapped + amount;
 
-
-    if (next > 59) next = 0;
-    if (next < 0) next = 59;
+    if (next > 55) next = 0;
+    if (next < 0) next = 55;
 
     setMinute(next);
     updateTime(
@@ -281,6 +282,13 @@ export default function AddTaskModal({
     );
 
 
+  };
+
+  const setQuickTime = (h: number, m: number, p: Period) => {
+    setHour(h);
+    setMinute(m);
+    setPeriod(p);
+    updateTime(h, m, p);
   };
 
   const changePeriod = (
@@ -352,13 +360,7 @@ export default function AddTaskModal({
           : 'rgba(44, 34, 26, 0.32)',
       }}
     >
-      <KeyboardAvoidingView
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : undefined
-        }
-      >
+      <KeyboardAvoidingView behavior="padding">
         <View
           style={{
             backgroundColor: cardBg,
@@ -437,7 +439,7 @@ export default function AddTaskModal({
               }}
             />
 
-            {/* SUBJECT */}
+            {/* SUBJECT (typed by the user) */}
 
             <Text
               style={{
@@ -450,59 +452,26 @@ export default function AddTaskModal({
               SUBJECT
             </Text>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
+            <TextInput
+              value={newSubject}
+              onChangeText={setNewSubject}
+              placeholder="e.g. Math 101"
+              placeholderTextColor={textSecondary}
+              autoCapitalize="words"
+              maxLength={40}
               style={{
+                backgroundColor: inputBg,
+                color: textPrimary,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: borderCol,
+                paddingHorizontal: 13,
+                height: 46,
+                fontSize: 14,
                 marginBottom: 16,
               }}
-            >
-              {SUBJECTS.map(
-                (subject) => {
-                  const active =
-                    newSubject ===
-                    subject;
+            />
 
-                  return (
-                    <TouchableOpacity
-                      key={subject}
-                      onPress={() =>
-                        setNewSubject(
-                          subject
-                        )
-                      }
-                      style={{
-                        paddingHorizontal: 13,
-                        paddingVertical: 8,
-                        borderRadius: 12,
-                        backgroundColor:
-                          active
-                            ? primaryBrown
-                            : inputBg,
-                        borderWidth: 1,
-                        borderColor:
-                          active
-                            ? primaryBrown
-                            : borderCol,
-                        marginRight: 7,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: active
-                            ? '#FFF'
-                            : textPrimary,
-                          fontSize: 12,
-                          fontWeight: '600',
-                        }}
-                      >
-                        {subject}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-              )}
-            </ScrollView>
 
             {/* PRIORITY */}
 
@@ -755,206 +724,6 @@ export default function AddTaskModal({
                 marginBottom: 16,
               }}
             />
-
-            {/* CHECKLIST */}
-
-            <TouchableOpacity
-              onPress={() =>
-                setNewSubTaskInput('')
-              }
-              style={{
-                flexDirection: 'row',
-                justifyContent:
-                  'space-between',
-                alignItems: 'center',
-                paddingVertical: 5,
-                marginBottom: 8,
-              }}
-            >
-              <Text
-                style={{
-                  color: textSecondary,
-                  fontSize: 11,
-                  fontWeight: '700',
-                }}
-              >
-                CHECKLIST
-              </Text>
-
-              <Feather
-                name="plus"
-                size={18}
-                color={primaryBrown}
-              />
-            </TouchableOpacity>
-
-            <View
-              style={{
-                backgroundColor: inputBg,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: borderCol,
-                paddingHorizontal: 12,
-                marginBottom: 16,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <TextInput
-                  value={
-                    newSubTaskInput
-                  }
-                  onChangeText={
-                    setNewSubTaskInput
-                  }
-                  placeholder="Add checklist item"
-                  placeholderTextColor={
-                    textSecondary
-                  }
-                  onSubmitEditing={
-                    handleAddSubTaskToList
-                  }
-                  style={{
-                    flex: 1,
-                    height: 44,
-                    color: textPrimary,
-                    fontSize: 13,
-                  }}
-                />
-
-                <TouchableOpacity
-                  onPress={
-                    handleAddSubTaskToList
-                  }
-                >
-                  <Feather
-                    name="plus-circle"
-                    size={19}
-                    color={primaryBrown}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {newSubTasksList.map(
-                (item, index) => (
-                  <View
-                    key={`${item}-${index}`}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingVertical: 9,
-                      borderTopWidth: 1,
-                      borderColor: borderCol,
-                    }}
-                  >
-                    <Feather
-                      name="circle"
-                      size={14}
-                      color={primaryBrown}
-                    />
-
-                    <Text
-                      style={{
-                        flex: 1,
-                        marginLeft: 8,
-                        color: textPrimary,
-                        fontSize: 13,
-                      }}
-                    >
-                      {item}
-                    </Text>
-
-                    <TouchableOpacity
-                      onPress={() =>
-                        handleRemoveSubTaskFromList(
-                          index
-                        )
-                      }
-                    >
-                      <Feather
-                        name="trash-2"
-                        size={15}
-                        color="#EF4444"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                )
-              )}
-            </View>
-
-            {/* REMINDER */}
-
-            <TouchableOpacity
-              onPress={() =>
-                setNewHasReminder(
-                  !newHasReminder
-                )
-              }
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent:
-                  'space-between',
-                paddingVertical: 5,
-                marginBottom: 18,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <Feather
-                  name="bell"
-                  size={17}
-                  color={primaryBrown}
-                />
-
-                <Text
-                  style={{
-                    color: textPrimary,
-                    marginLeft: 9,
-                    fontSize: 14,
-                  }}
-                >
-                  Reminder
-                </Text>
-              </View>
-
-              <View
-                style={{
-                  width: 38,
-                  height: 22,
-                  borderRadius: 20,
-                  backgroundColor:
-                    newHasReminder
-                      ? primaryBrown
-                      : borderCol,
-                  padding: 2,
-                  justifyContent:
-                    'center',
-                }}
-              >
-                <View
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    backgroundColor:
-                      '#FFF',
-                    alignSelf:
-                      newHasReminder
-                        ? 'flex-end'
-                        : 'flex-start',
-                  }}
-                />
-              </View>
-            </TouchableOpacity>
 
             {/* SAVE */}
 
@@ -1272,78 +1041,109 @@ export default function AddTaskModal({
                 </Text>
               </View>
 
+              {/* Hour and minute, each with its own up/down buttons */}
               <View
                 style={{
                   flexDirection: 'row',
-                  justifyContent:
-                    'center',
+                  justifyContent: 'center',
                   alignItems: 'center',
-                  marginBottom: 18,
+                  marginBottom: 14,
                 }}
               >
-                <TouchableOpacity
-                  onPress={() =>
-                    changeHour(-1)
-                  }
-                >
-                  <Feather
-                    name="chevron-left"
-                    size={20}
-                    color={
-                      textSecondary
-                    }
-                  />
-                </TouchableOpacity>
+                {[
+                  {
+                    key: 'hour',
+                    label: 'Hour',
+                    value: hour,
+                    up: () => changeHour(1),
+                    down: () => changeHour(-1),
+                  },
+                  {
+                    key: 'minute',
+                    label: 'Min',
+                    value: minute,
+                    up: () => changeMinute(5),
+                    down: () => changeMinute(-5),
+                  },
+                ].map((part, index) => (
+                  <View
+                    key={part.key}
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    {index === 1 && (
+                      <Text
+                        style={{
+                          color: primaryBrown,
+                          fontSize: 30,
+                          fontWeight: '700',
+                          marginHorizontal: 10,
+                          marginBottom: 18,
+                        }}
+                      >
+                        :
+                      </Text>
+                    )}
 
-                <Text
-                  style={{
-                    color: textPrimary,
-                    fontSize: 30,
-                    fontWeight: '700',
-                    marginHorizontal: 12,
-                  }}
-                >
-                  {String(
-                    hour
-                  ).padStart(2, '0')}
-                </Text>
+                    <View style={{ alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={part.up}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Increase ${part.label}`}
+                        style={{
+                          width: 44,
+                          height: 32,
+                          borderRadius: 10,
+                          backgroundColor: inputBg,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Feather name="chevron-up" size={20} color={textPrimary} />
+                      </TouchableOpacity>
 
-                <Text
-                  style={{
-                    color: primaryBrown,
-                    fontSize: 28,
-                    fontWeight: '700',
-                  }}
-                >
-                  :
-                </Text>
+                      <Text
+                        style={{
+                          color: textPrimary,
+                          fontSize: 34,
+                          fontWeight: '700',
+                          marginVertical: 4,
+                          minWidth: 56,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {String(part.value).padStart(2, '0')}
+                      </Text>
 
-                <Text
-                  style={{
-                    color: textPrimary,
-                    fontSize: 30,
-                    fontWeight: '700',
-                    marginHorizontal: 12,
-                  }}
-                >
-                  {String(
-                    minute
-                  ).padStart(2, '0')}
-                </Text>
+                      <TouchableOpacity
+                        onPress={part.down}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Decrease ${part.label}`}
+                        style={{
+                          width: 44,
+                          height: 32,
+                          borderRadius: 10,
+                          backgroundColor: inputBg,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Feather name="chevron-down" size={20} color={textPrimary} />
+                      </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() =>
-                    changeMinute(1)
-                  }
-                >
-                  <Feather
-                    name="chevron-right"
-                    size={20}
-                    color={
-                      textSecondary
-                    }
-                  />
-                </TouchableOpacity>
+                      <Text
+                        style={{
+                          color: textSecondary,
+                          fontSize: 10,
+                          marginTop: 4,
+                        }}
+                      >
+                        {part.label}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
               </View>
 
               <View
@@ -1399,6 +1199,62 @@ export default function AddTaskModal({
                     );
                   }
                 )}
+              </View>
+
+
+              {/* Quick picks */}
+              <Text
+                style={{
+                  color: textSecondary,
+                  fontSize: 10,
+                  fontWeight: '700',
+                  marginTop: 14,
+                  marginBottom: 8,
+                }}
+              >
+                QUICK PICK
+              </Text>
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                }}
+              >
+                {QUICK_TIMES.map((option) => {
+                  const active =
+                    hour === option.h &&
+                    minute === option.m &&
+                    period === option.p;
+
+                  return (
+                    <TouchableOpacity
+                      key={option.label}
+                      onPress={() =>
+                        setQuickTime(option.h, option.m, option.p)
+                      }
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: active ? primaryBrown : borderCol,
+                        backgroundColor: active ? primaryBrown : 'transparent',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: active ? '#FFF' : textPrimary,
+                          fontSize: 12,
+                          fontWeight: '600',
+                        }}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <TouchableOpacity

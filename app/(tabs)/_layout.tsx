@@ -4,10 +4,10 @@ import { useFocusLock } from '@/app/context/FocusLockContext';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   StyleSheet,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 
 import { localDb } from '@/app/services/localDb';
 import FloatingAssistant from '@/components/FloatingAssistant';
@@ -72,7 +72,7 @@ export default function TabLayout() {
 
   // Shared navigation lock warning
   const showFocusLockAlert = () => {
-    Alert.alert(
+    AppAlert.alert(
       'Strict Focus Active',
       'Navigation is locked while your Strict Focus session is active. Finish your session before leaving.',
       [{ text: 'Continue Focusing', style: 'cancel' }]
@@ -114,7 +114,7 @@ export default function TabLayout() {
 
     closeDrawer();
 
-    Alert.alert(
+    AppAlert.alert(
       'Log Out',
       'Are you sure you want to log out of GabAi?',
       [
@@ -131,7 +131,7 @@ export default function TabLayout() {
               router.replace('/(auth)/login/login');
             } catch (error) {
               console.error('Logout failed:', error);
-              Alert.alert(
+              AppAlert.alert(
                 'Logout Failed',
                 'Unable to log out. Please try again.'
               );
@@ -185,7 +185,7 @@ export default function TabLayout() {
       active: pathname.includes('productivity'),
     },
     {
-      label: 'Virtual Assistant',
+      label: 'GabAi',
       icon: 'message-square' as const,
       route: '/assistant',
       active: pathname.includes('assistant'),

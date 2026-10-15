@@ -6,7 +6,9 @@ export interface Transaction {
   amount: number;
   category: string;
   date: string;
-  type: TransactionType
+  type: TransactionType;
+  /** Shown right away while the server is still saving it. */
+  isPending?: boolean;
 }
 
 export type ExpenseCategory = 'Food' | 'Transport' | 'Academics' | 'Others' | string;

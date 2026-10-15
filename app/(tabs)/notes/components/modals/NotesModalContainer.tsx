@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 
 import NoteEditorModal from './NoteEditorModal';
 import NoteTemplateModal from './NoteTemplateModal';
@@ -6,7 +6,7 @@ import ConvertToTaskModal from './ConvertToTaskModal';
 import LinkToScheduleModal from './LinkToScheduleModal';
 import FilterSortSheet from './FilterSortSheet';
 
-import type { Note, NotesTheme } from '../../types';
+import type { NotesTheme } from '../../types';
 import type { Note as LocalNote } from '@/app/services/localDb';
 import type { useNotesData } from '../../hooks/useNotesData';
 
@@ -21,32 +21,44 @@ export default function NotesModalContainer({
 }: NotesModalContainerProps) {
   const activeNoteId = notesData.editingNoteId;
 
+  // Snapshot of the note currently open in the editor.
+  const createEditorNote = (
+    content: string = notesData.editorContent,
+  ): LocalNote => ({
+    id: activeNoteId || 'temp',
+    title: notesData.editorTitle || 'Untitled Note',
+    content,
+    category: notesData.editorCategory,
+    tags: notesData.editorTags || [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    isFavorite: notesData.editorIsFavorite,
+    isPinned: notesData.editorIsPinned,
+    isArchived: notesData.editorIsArchived,
+  });
+
   return (
     <>
       {/* =====================================================
           NOTE EDITOR
       ===================================================== */}
       <NoteEditorModal
-        visible={notesData.isEditorModalOpen}
-        onClose={closeEditor}
+        visible={notesData.isEditorOpen}
+        onClose={notesData.handleCloseEditor}
         title={notesData.editorTitle}
-        onTitleChange={notesData.setEditorTitle}
+        onTitleChange={notesData.handleTitleChange}
         content={notesData.editorContent}
-        onContentChange={handleContentChange}
+        onContentChange={notesData.handleContentChange}
         category={notesData.editorCategory}
         onCategoryChange={notesData.setEditorCategory}
         tags={notesData.editorTags}
-        tagInput={tagInput}
-        onTagInputChange={setTagInput}
-        onAddTag={handleAddTag}
-        onRemoveTag={(tag) =>
-          notesData.setEditorTags((current) =>
-            current.filter((currentTag) => currentTag !== tag),
-          )
-        }
-        saveStatus={notesData.isSaving ? 'saving' : 'saved'}
-        isPreviewMode={isPreviewMode}
-        onTogglePreview={() => setIsPreviewMode((current) => !current)}
+        tagInput={notesData.editorTagInput}
+        onTagInputChange={notesData.setEditorTagInput}
+        onAddTag={notesData.handleAddTag}
+        onRemoveTag={notesData.handleRemoveTag}
+        saveStatus={notesData.saveStatus}
+        isPreviewMode={notesData.isPreviewMode}
+        onTogglePreview={() => notesData.setIsPreviewMode((current) => !current)}
         isFavorite={notesData.editorIsFavorite}
         onToggleFavorite={() => {
           if (activeNoteId) {
@@ -76,37 +88,21 @@ export default function NotesModalContainer({
             notesData.handleDeleteNote(activeNoteId);
             return;
           }
-          notesData.handleCloseEditor();
+          // Unsaved new note: just close, nothing to delete.
+          notesData.handleCloseEditor({ save: false });
         }}
-        onShare={() => notesData.handleShareNote(createEditorNote())}
-        onOpenConvertTask={() => {
-          notesData.setConvertTargetNote({
-            id: activeNoteId || 'temp',
-            title: notesData.editorTitle || 'Untitled Note',
-            content: notesData.editorContent,
-            category: notesData.editorCategory,
-            tags: notesData.editorTags || [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            isFavorite: notesData.editorIsFavorite,
-            isPinned: notesData.editorIsPinned,
-            isArchived: notesData.editorIsArchived,
-          });
+        onShare={(content) =>
+          notesData.handleShareNote(
+            notesData.editorTitle || 'Untitled Note',
+            content,
+          )
+        }
+        onOpenConvertTask={(content) => {
+          notesData.setConvertTargetNote(createEditorNote(content));
           notesData.setConvertTaskModalOpen(true);
         }}
-        onOpenSchedule={() => {
-          notesData.setScheduleTargetNote({
-            id: activeNoteId || 'temp',
-            title: notesData.editorTitle || 'Untitled Note',
-            content: notesData.editorContent,
-            category: notesData.editorCategory,
-            tags: notesData.editorTags || [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            isFavorite: notesData.editorIsFavorite,
-            isPinned: notesData.editorIsPinned,
-            isArchived: notesData.editorIsArchived,
-          });
+        onOpenSchedule={(content) => {
+          notesData.setScheduleTargetNote(createEditorNote(content));
           notesData.setScheduleModalOpen(true);
         }}
         onOpenTemplateModal={() => notesData.setIsTemplateModalOpen(true)}
@@ -132,15 +128,7 @@ export default function NotesModalContainer({
         onClose={() =>
           notesData.setIsTemplateModalOpen(false)
         }
-        onSelectTemplate={(template) => {
-          setUndoStack([]);
-          setRedoStack([]);
-          notesData.handleOpenTemplate(
-            template.title,
-            template.content,
-            template.category,
-          );
-        }}
+        onSelectTemplate={notesData.handleApplyTemplate}
         cardBg={theme.cardBg}
         borderCol={theme.borderCol}
         textPrimary={theme.textPrimary}
@@ -152,14 +140,14 @@ export default function NotesModalContainer({
           CONVERT NOTE TO TASK
       ===================================================== */}
       <ConvertToTaskModal
-        visible={notesData.isConvertTaskModalOpen}
+        visible={notesData.convertTaskModalOpen}
         onClose={() => {
-          notesData.setIsConvertTaskModalOpen(false);
-          setConvertTargetNote(null);
+          notesData.setConvertTaskModalOpen(false);
+          notesData.setConvertTargetNote(null);
         }}
-        note={convertTargetNote}
-        subjectInput={notesData.editorCategory}
-        onSubjectChange={notesData.setEditorCategory}
+        note={notesData.convertTargetNote}
+        subjectInput={notesData.taskSubjectInput}
+        onSubjectChange={notesData.setTaskSubjectInput}
         priorityInput={
           notesData.taskPriorityInput
         }
@@ -184,16 +172,16 @@ export default function NotesModalContainer({
           LINK NOTE TO SCHEDULE
       ===================================================== */}
       <LinkToScheduleModal
-        visible={notesData.isScheduleModalOpen}
+        visible={notesData.scheduleModalOpen}
         onClose={() => {
-          notesData.setIsScheduleModalOpen(false);
-          setScheduleTargetNote(null);
+          notesData.setScheduleModalOpen(false);
+          notesData.setScheduleTargetNote(null);
         }}
-        note={scheduleTargetNote}
-        dateInput={notesData.dueDate}
-        onDateChange={notesData.setDueDate}
-        timeInput={scheduleTimeInput}
-        onTimeChange={setScheduleTimeInput}
+        note={notesData.scheduleTargetNote}
+        dateInput={notesData.scheduleDateInput}
+        onDateChange={notesData.setScheduleDateInput}
+        timeInput={notesData.scheduleTimeInput}
+        onTimeChange={notesData.setScheduleTimeInput}
         cardBg={theme.cardBg}
         borderCol={theme.borderCol}
         inputBg={theme.inputBg}
@@ -206,9 +194,9 @@ export default function NotesModalContainer({
           FILTER + SORT
       ===================================================== */}
       <FilterSortSheet
-        visible={notesData.isFilterSortSheetOpen}
+        visible={notesData.isFilterSheetOpen}
         onClose={() =>
-          notesData.setIsFilterSortSheetOpen(false)
+          notesData.setIsFilterSheetOpen(false)
         }
         selectedCategory={
           notesData.selectedCategory
@@ -216,24 +204,18 @@ export default function NotesModalContainer({
         onSelectCategory={
           notesData.setSelectedCategory
         }
-        selectedTag={
-          notesData.selectedTag === 'All'
-            ? null
-            : notesData.selectedTag
-        }
-        onSelectTag={(tag) =>
-          notesData.setSelectedTag(tag ?? 'All')
-        }
-        allUniqueTags={allUniqueTags}
-        sortBy={notesData.sortOption}
-        onSelectSort={notesData.setSortOption}
+        selectedTag={notesData.selectedTag}
+        onSelectTag={notesData.setSelectedTag}
+        allUniqueTags={notesData.allUniqueTags}
+        sortBy={notesData.sortBy}
+        onSelectSort={notesData.setSortBy}
         viewMode={notesData.viewMode}
         onSelectViewMode={notesData.setViewMode}
         onResetFilters={() => {
           notesData.setSelectedCategory('All');
-          notesData.setSelectedTag('All');
-          notesData.setActiveFilter('all');
-          notesData.setSortOption('recent_edit');
+          notesData.setSelectedTag(null);
+          notesData.setActiveTabFilter('all');
+          notesData.setSortBy('recent_edit');
         }}
         cardBg={theme.cardBg}
         borderCol={theme.borderCol}

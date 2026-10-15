@@ -52,6 +52,8 @@ export const drawerStyles = StyleSheet.create({
 
   drawerContent: {
     flexGrow: 1,
+    // Room for the status bar (the brand header used to provide this).
+    paddingTop: 40,
     paddingBottom: 20,
   },
 

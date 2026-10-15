@@ -33,8 +33,7 @@ export default function CalendarHeader({
         style={styles.headerAddButton}
         activeOpacity={0.8}
       >
-        <Feather name="plus" size={18} color="#FFFFFF" />
-        <Text style={styles.headerAddButtonText}>Add</Text>
+        <Feather name="plus" size={22} color="#FFFFFF" />
       </TouchableOpacity>
 
       {/* Reschedule Banner Indicator */}

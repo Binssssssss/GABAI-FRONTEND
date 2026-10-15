@@ -1,6 +1,8 @@
-﻿
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { InternalAxiosRequestConfig, isCancel } from 'axios';
+
+import { recordTaskActivity } from '@/app/services/activityLog';
 
 const DEFAULT_API_URL =
   'https://gabai-backend-bk7i.onrender.com';
@@ -16,11 +18,10 @@ const API_BASE_URL = API_URL.endsWith('/api')
   : `${API_URL}/api`;
 
 const api = axios.create({
-  baseURL:
-    process.env.EXPO_PUBLIC_API_URL ||
-    'http://192.168.1.10:8000/api',
-  timeout: 10000,
+  baseURL: API_BASE_URL,
+  timeout: 30000,
   headers: {
+    'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
@@ -56,8 +57,6 @@ api.interceptors.request.use(
       if (!token) {
         token = await AsyncStorage.getItem('gabai_token');
       }
-
-      config.headers = config.headers ?? {};
 
       if (token) {
         config.headers.set(
@@ -118,6 +117,22 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // An expired token on logout is expected; the caller clears the session.
+    const isExpiredLogout =
+      error.response?.status === 401 &&
+      error.config?.url === '/auth/logout';
+
+    // Unregistering a token the backend no longer has is expected;
+    // unregisterPushToken treats it as success.
+    const isMissingPushToken =
+      error.response?.status === 404 &&
+      error.config?.method?.toLowerCase() === 'delete' &&
+      error.config?.url === '/notifications/push-token';
+
+    if (isExpiredLogout || isMissingPushToken) {
+      return Promise.reject(error);
+    }
+
     const config = error.config as RetryableConfig | undefined;
     const endpoint = `${config?.method?.toUpperCase() ?? ''} ${config?.url ?? ''}`;
 
@@ -162,5 +177,11 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+// Keep the on-phone Activity history up to date with task changes.
+api.interceptors.response.use((response) => {
+  recordTaskActivity(response);
+  return response;
+});
 
 export default api;

@@ -1,17 +1,17 @@
 import { Feather } from '@expo/vector-icons';
+import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   ScrollView,
+  StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { CATEGORY_COLORS, REMINDER_OPTIONS } from '../constants/calendarConfig';
-import { calendarStyles as styles } from '../styles/calendar.styles';
 import { EventCategory, EventPriority } from '../types';
-import { getPriorityColors } from '../utils/calendarHelpers';
 
 interface QuickAddEventModalProps {
   mode?: 'add' | 'edit';
@@ -28,8 +28,6 @@ interface QuickAddEventModalProps {
   onDateChange: (val: string) => void;
   time: string;
   onTimeChange: (val: string) => void;
-  duration: string;
-  onDurationChange: (val: string) => void;
   isAllDay: boolean;
   onIsAllDayChange: (val: boolean) => void;
   hasReminder: boolean;
@@ -42,11 +40,6 @@ interface QuickAddEventModalProps {
   onRecurrenceRuleChange: (rule: 'Daily' | 'Weekly') => void;
   description: string;
   onDescriptionChange: (val: string) => void;
-  checklistText: string;
-  onChecklistTextChange: (val: string) => void;
-  checklistItems: string[];
-  onAddChecklistItem: () => void;
-  onRemoveChecklistItem: (idx: number) => void;
   onSave: () => void;
   modalSurface: string;
   borderTheme: string;
@@ -54,17 +47,137 @@ interface QuickAddEventModalProps {
   textSubTheme: string;
   bgTheme: string;
   primaryAccent: string;
+
+  // No longer shown in the form. Kept optional so calendar.tsx
+  // still compiles without changes.
+  duration?: string;
+  onDurationChange?: (val: string) => void;
+  checklistText?: string;
+  onChecklistTextChange?: (val: string) => void;
+  checklistItems?: string[];
+  onAddChecklistItem?: () => void;
+  onRemoveChecklistItem?: (idx: number) => void;
 }
 
+type Period = 'AM' | 'PM';
+type Picker = 'date' | 'time' | null;
+
 const CATEGORIES_LIST: EventCategory[] = [
-  'Assignment',
-  'Exam',
   'Class',
+  'Exam',
+  'Assignment',
   'Focus Session',
   'Meeting',
   'Personal',
 ];
+
 const PRIORITIES_LIST: EventPriority[] = ['Low', 'Medium', 'High'];
+
+/* Short labels for the "Remind me" selector, mapped to the saved values. */
+const REMINDER_CHOICES: { label: string; value: string | null }[] = [
+  { label: 'None', value: null },
+  { label: '15 min', value: '15 minutes before' },
+  { label: '1 hour', value: '1 hour before' },
+  { label: '1 day', value: '1 day before' },
+];
+
+const REPEAT_CHOICES = ['Never', 'Daily', 'Weekly'] as const;
+
+const QUICK_TIMES: { label: string; h: number; m: number; p: Period }[] = [
+  { label: '7:30 AM', h: 7, m: 30, p: 'AM' },
+  { label: '8:00 AM', h: 8, m: 0, p: 'AM' },
+  { label: '10:00 AM', h: 10, m: 0, p: 'AM' },
+  { label: '1:00 PM', h: 1, m: 0, p: 'PM' },
+  { label: '3:00 PM', h: 3, m: 0, p: 'PM' },
+  { label: '5:00 PM', h: 5, m: 0, p: 'PM' },
+  { label: '7:00 PM', h: 7, m: 0, p: 'PM' },
+];
+
+const WEEK_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/* ---------- helpers ---------- */
+
+const toDateKey = (d: Date) =>
+  [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
+
+const parseDate = (value: string) => {
+  const d = value ? new Date(`${value}T12:00:00`) : new Date();
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+};
+
+/* "15:30" -> { hour: 3, minute: 30, period: 'PM' } */
+const parseTime = (value: string) => {
+  const [rawH, rawM] = (value || '09:00').split(':').map(Number);
+  const h24 = Number.isFinite(rawH) ? Math.max(0, Math.min(23, rawH)) : 9;
+  const minute = Number.isFinite(rawM) ? Math.max(0, Math.min(59, rawM)) : 0;
+  return {
+    hour: h24 % 12 === 0 ? 12 : h24 % 12,
+    minute,
+    period: (h24 >= 12 ? 'PM' : 'AM') as Period,
+  };
+};
+
+/* { 3, 30, 'PM' } -> "15:30" */
+const buildTime = (hour: number, minute: number, period: Period) => {
+  let h24 = hour % 12;
+  if (period === 'PM') h24 += 12;
+  return `${String(h24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+/* ---------- small render helpers ---------- */
+// Defined outside the modal so React keeps the same component type
+// between renders (inner components would remount on every render).
+
+function Label({ children, color }: { children: string; color: string }) {
+  return <Text style={[s.label, { color }]}>{children}</Text>;
+}
+
+function Segmented<T extends string>({
+  options,
+  active,
+  onSelect,
+  backgroundColor,
+  borderColor,
+  accentColor,
+  textColor,
+}: {
+  options: { label: string; value: T }[];
+  active: T;
+  onSelect: (value: T) => void;
+  backgroundColor: string;
+  borderColor: string;
+  accentColor: string;
+  textColor: string;
+}) {
+  return (
+    <View style={[s.seg, { backgroundColor, borderColor }]}>
+      {options.map((option) => {
+        const isActive = option.value === active;
+        return (
+          <TouchableOpacity
+            key={option.label}
+            onPress={() => onSelect(option.value)}
+            activeOpacity={0.8}
+            style={[s.segItem, isActive && { backgroundColor: accentColor }]}
+          >
+            <Text
+              style={[
+                s.segText,
+                { color: isActive ? '#FFFFFF' : textColor },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
 
 export default function QuickAddEventModal({
   mode = 'add',
@@ -81,8 +194,6 @@ export default function QuickAddEventModal({
   onDateChange,
   time,
   onTimeChange,
-  duration,
-  onDurationChange,
   isAllDay,
   onIsAllDayChange,
   hasReminder,
@@ -95,11 +206,6 @@ export default function QuickAddEventModal({
   onRecurrenceRuleChange,
   description,
   onDescriptionChange,
-  checklistText,
-  onChecklistTextChange,
-  checklistItems,
-  onAddChecklistItem,
-  onRemoveChecklistItem,
   onSave,
   modalSurface,
   borderTheme,
@@ -108,57 +214,179 @@ export default function QuickAddEventModal({
   bgTheme,
   primaryAccent,
 }: QuickAddEventModalProps) {
+  const [picker, setPicker] = useState<Picker>(null);
+  const [month, setMonth] = useState(new Date().getMonth());
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  const inputBg = bgTheme;
+  const selectedDate = parseDate(date);
+  const { hour, minute, period } = parseTime(time);
+
+  /* ---------- labels ---------- */
+
+  const dateLabel = selectedDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const timeLabel = `${hour}:${String(minute).padStart(2, '0')} ${period}`;
+
+  /* ---------- date picker ---------- */
+
+  const openDatePicker = () => {
+    setMonth(selectedDate.getMonth());
+    setYear(selectedDate.getFullYear());
+    setPicker('date');
+  };
+
+  const shiftMonth = (amount: number) => {
+    const d = new Date(year, month + amount, 1);
+    setMonth(d.getMonth());
+    setYear(d.getFullYear());
+  };
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = Array.from({ length: firstDay + daysInMonth }, (_, i) =>
+    i < firstDay ? null : i - firstDay + 1,
+  );
+  const monthName = new Date(year, month).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+  const todayKey = toDateKey(new Date());
+
+  const selectDay = (day: number) => {
+    onDateChange(toDateKey(new Date(year, month, day)));
+    setPicker(null);
+  };
+
+  /* ---------- time picker ---------- */
+
+  const changeHour = (amount: number) => {
+    let next = hour + amount;
+    if (next > 12) next = 1;
+    if (next < 1) next = 12;
+    onTimeChange(buildTime(next, minute, period));
+  };
+
+  // Minutes move in steps of 5 (00, 05, 10 ... 55).
+  const changeMinute = (amount: number) => {
+    let next = Math.round(minute / 5) * 5 + amount;
+    if (next > 55) next = 0;
+    if (next < 0) next = 55;
+    onTimeChange(buildTime(hour, next, period));
+  };
+
+  const changePeriod = (value: Period) => {
+    onTimeChange(buildTime(hour, minute, value));
+  };
+
+  /* ---------- selectors ---------- */
+
+  const activeReminder = hasReminder ? reminderTime : null;
+  const activeRepeat = isRecurring ? recurrenceRule : 'Never';
+
+  const selectReminder = (value: string | null) => {
+    if (value === null) {
+      onHasReminderChange(false);
+      return;
+    }
+    onHasReminderChange(true);
+    onReminderTimeChange(value);
+  };
+
+  const selectRepeat = (value: (typeof REPEAT_CHOICES)[number]) => {
+    if (value === 'Never') {
+      onIsRecurringChange(false);
+      return;
+    }
+    onIsRecurringChange(true);
+    onRecurrenceRuleChange(value);
+  };
+
+  const handleClose = () => {
+    setPicker(null);
+    onClose();
+  };
+
+  const handleSave = () => {
+    setPicker(null);
+    onSave();
+  };
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
+      transparent
+      onRequestClose={handleClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.addModalContainer, { backgroundColor: modalSurface }]}>
-          <View style={[styles.addModalHeader, { borderBottomColor: borderTheme }]}>
-            <Text style={[styles.modalHeaderTitle, { color: textTheme }]}>
-              {mode === 'edit' ? 'Edit Academic Event' : 'Quick Add Academic Event'}
-            </Text>            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={24} color={textTheme} />
+      <View style={s.overlay}>
+        <KeyboardAvoidingView
+          behavior="padding"
+          style={[s.sheet, { backgroundColor: modalSurface }]}
+        >
+          <View style={[s.grab, { backgroundColor: borderTheme }]} />
+
+          {/* Header */}
+          <View style={[s.header, { borderBottomColor: borderTheme }]}>
+            <Text style={[s.headerTitle, { color: textTheme }]}>
+              {mode === 'edit' ? 'Edit Event' : 'New Event'}
+            </Text>
+            <TouchableOpacity
+              onPress={handleClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              style={[s.closeBtn, { backgroundColor: inputBg }]}
+            >
+              <Feather name="x" size={18} color={textSubTheme} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.addFormScroll} showsVerticalScrollIndicator={false}>
-            {/* Event Title */}
-            <Text style={[styles.formLabel, { color: textSubTheme }]}>Event Title</Text>
+          <ScrollView
+            contentContainerStyle={s.body}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Title */}
+            <Label color={textSubTheme}>TITLE</Label>
             <TextInput
-              placeholder="e.g. Study Chemistry Chapters 3-4"
+              placeholder="e.g. Math Quiz, Chemistry Lecture"
               placeholderTextColor={textSubTheme}
-              style={[styles.formInput, { color: textTheme, borderColor: borderTheme }]}
+              style={[
+                s.input,
+                { color: textTheme, borderColor: borderTheme, backgroundColor: inputBg },
+              ]}
               value={title}
               onChangeText={onTitleChange}
+              returnKeyType="done"
             />
 
-            {/* Category selector */}
-            <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>Category</Text>
-            <View style={styles.rowSelector}>
+            {/* Type */}
+            <Label color={textSubTheme}>TYPE</Label>
+            <View style={s.chips}>
               {CATEGORIES_LIST.map((cat) => {
-                const isSelected = category === cat;
+                const isActive = category === cat;
                 return (
                   <TouchableOpacity
                     key={cat}
                     onPress={() => onCategoryChange(cat)}
+                    activeOpacity={0.8}
                     style={[
-                      styles.selectorPill,
+                      s.chip,
                       {
-                        backgroundColor: isSelected ? CATEGORY_COLORS[cat] : bgTheme,
-                        borderColor: borderTheme,
+                        borderColor: isActive ? primaryAccent : borderTheme,
+                        backgroundColor: isActive ? primaryAccent : 'transparent',
                       },
                     ]}
                   >
                     <Text
-                      style={{
-                        color: isSelected ? '#000000' : textTheme,
-                        fontWeight: isSelected ? 'bold' : 'normal',
-                        fontSize: 12,
-                      }}
+                      style={[
+                        s.chipText,
+                        { color: isActive ? '#FFFFFF' : textTheme },
+                      ]}
                     >
                       {cat}
                     </Text>
@@ -167,309 +395,641 @@ export default function QuickAddEventModal({
               })}
             </View>
 
-            {/* Priority Selector */}
-            <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>Priority Level</Text>
-            <View style={styles.rowSelector}>
-              {PRIORITIES_LIST.map((prio) => {
-                const isSelected = priority === prio;
-                const colors = getPriorityColors(prio);
-                return (
-                  <TouchableOpacity
-                    key={prio}
-                    onPress={() => onPriorityChange(prio)}
-                    style={[
-                      styles.selectorPill,
-                      {
-                        backgroundColor: isSelected ? colors.bg : bgTheme,
-                        borderColor: borderTheme,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: isSelected ? colors.text : textTheme,
-                        fontWeight: isSelected ? 'bold' : 'normal',
-                      }}
-                    >
-                      {prio}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Date & Time fields */}
-            <View style={styles.formRowFields}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>Date (YYYY-MM-DD)</Text>
-                <TextInput
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={textSubTheme}
-                  style={[styles.formInput, { color: textTheme, borderColor: borderTheme }]}
-                  value={date}
-                  onChangeText={onDateChange}
-                />
-              </View>
-              <View style={{ flex: 1, marginLeft: 8 }}>
-                <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>Time (HH:MM)</Text>
-                <TextInput
-                  placeholder="09:00"
-                  placeholderTextColor={textSubTheme}
-                  style={[styles.formInput, { color: textTheme, borderColor: borderTheme }]}
-                  value={time}
-                  onChangeText={onTimeChange}
-                />
-              </View>
-            </View>
-
-            {/* Duration and toggle fields */}
-            <View style={styles.formRowFields}>
-              {mode === 'add' && (
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text
-                    style={[
-                      styles.formLabel,
-                      { color: textSubTheme, marginTop: 16 },
-                    ]}
-                  >
-                    Duration (Minutes)
-                  </Text>
-
-                  <TextInput
-                    placeholder="60"
-                    placeholderTextColor={textSubTheme}
-                    style={[
-                      styles.formInput,
-                      { color: textTheme, borderColor: borderTheme },
-                    ]}
-                    value={duration}
-                    keyboardType="numeric"
-                    onChangeText={onDurationChange}
-                  />
-                </View>
-              )}
-
-              <View
-                style={{
-                  flex: 1,
-                  marginLeft: mode === 'add' ? 8 : 0,
-                  justifyContent: 'center',
-                  paddingTop: 16,
-                }}
+            {/* Date & Time */}
+            <Label color={textSubTheme}>DATE & TIME</Label>
+            <View style={s.row}>
+              <TouchableOpacity
+                onPress={openDatePicker}
+                activeOpacity={0.8}
+                style={[
+                  s.pickBox,
+                  { borderColor: borderTheme, backgroundColor: inputBg },
+                ]}
               >
-                <View style={styles.switchRowItem}>
-                  <Text style={{ color: textTheme, marginRight: 8 }}>
-                    All Day
+                <Feather name="calendar" size={18} color={primaryAccent} />
+                <View style={s.pickTextWrap}>
+                  <Text style={[s.pickCaption, { color: textSubTheme }]}>Date</Text>
+                  <Text style={[s.pickValue, { color: textTheme }]}>{dateLabel}</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => !isAllDay && setPicker('time')}
+                activeOpacity={isAllDay ? 1 : 0.8}
+                style={[
+                  s.pickBox,
+                  {
+                    borderColor: borderTheme,
+                    backgroundColor: inputBg,
+                    opacity: isAllDay ? 0.45 : 1,
+                  },
+                ]}
+              >
+                <Feather name="clock" size={18} color={primaryAccent} />
+                <View style={s.pickTextWrap}>
+                  <Text style={[s.pickCaption, { color: textSubTheme }]}>Time</Text>
+                  <Text style={[s.pickValue, { color: textTheme }]}>
+                    {isAllDay ? 'All day' : timeLabel}
                   </Text>
-
-                  <Switch
-                    value={isAllDay}
-                    onValueChange={onIsAllDayChange}
-                    trackColor={{
-                      false: '#767577',
-                      true: primaryAccent,
-                    }}
-                  />
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
 
-            {/* Reminders Toggle */}
-            <View style={[styles.switchRowItem, { marginTop: 16, justifyContent: 'space-between' }]}>
-              <View>
-                <Text style={{ color: textTheme }}>Set Reminder Alert</Text>
-                <Text style={{ color: textSubTheme, fontSize: 12 }}>Receive notification check</Text>
-              </View>
+            <View style={s.toggleRow}>
+              <Text style={[s.toggleText, { color: textTheme }]}>All day</Text>
               <Switch
-                value={hasReminder}
-                onValueChange={onHasReminderChange}
+                value={isAllDay}
+                onValueChange={(value) => {
+                  onIsAllDayChange(value);
+                  if (value) setPicker(null);
+                }}
                 trackColor={{ false: '#767577', true: primaryAccent }}
+                thumbColor="#FFFFFF"
               />
             </View>
 
-            {hasReminder && (
-              <View style={{ marginTop: 8 }}>
-                <Text style={[styles.formLabel, { color: textSubTheme }]}>Reminder Timing</Text>
-                <View style={styles.rowSelector}>
-                  {REMINDER_OPTIONS.map((rem) => {
-                    const isSelected = reminderTime === rem;
-                    return (
-                      <TouchableOpacity
-                        key={rem}
-                        onPress={() => onReminderTimeChange(rem)}
-                        style={[
-                          styles.selectorPill,
-                          {
-                            backgroundColor: isSelected ? primaryAccent : bgTheme,
-                            borderColor: borderTheme,
-                            paddingVertical: 6,
-                            paddingHorizontal: 10,
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: isSelected ? '#FFFFFF' : textTheme, fontSize: 11 }}>{rem}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
+            <View style={[s.divider, { backgroundColor: borderTheme }]} />
 
-            {/* Recurrence Toggle */}
-            <View style={[styles.switchRowItem, { marginTop: 16, justifyContent: 'space-between' }]}>
-              <View>
-                <Text style={{ color: textTheme }}>Recurring Event</Text>
-                <Text style={{ color: textSubTheme, fontSize: 12 }}>Schedule recurring routines</Text>
-              </View>
-              <Switch
-                value={isRecurring}
-                onValueChange={onIsRecurringChange}
-                trackColor={{ false: '#767577', true: primaryAccent }}
-              />
-            </View>
+            {/* Priority */}
+            <Label color={textSubTheme}>PRIORITY</Label>
+            <Segmented
+              backgroundColor={inputBg}
+              borderColor={borderTheme}
+              accentColor={primaryAccent}
+              textColor={textSubTheme}
+              options={PRIORITIES_LIST.map((p) => ({ label: p, value: p }))}
+              active={priority}
+              onSelect={onPriorityChange}
+            />
 
-            {isRecurring && (
-              <View style={{ marginTop: 8 }}>
-                <Text style={[styles.formLabel, { color: textSubTheme }]}>Recurrence Interval</Text>
-                <View style={styles.rowSelector}>
-                  {(['Daily', 'Weekly'] as const).map((rule) => {
-                    const isSelected = recurrenceRule === rule;
-                    return (
-                      <TouchableOpacity
-                        key={rule}
-                        onPress={() => onRecurrenceRuleChange(rule)}
-                        style={[
-                          styles.selectorPill,
-                          {
-                            backgroundColor: isSelected ? primaryAccent : bgTheme,
-                            borderColor: borderTheme,
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: isSelected ? '#FFFFFF' : textTheme }}>{rule}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
+            {/* Reminder */}
+            <Label color={textSubTheme}>REMIND ME</Label>
+            <Segmented
+              backgroundColor={inputBg}
+              borderColor={borderTheme}
+              accentColor={primaryAccent}
+              textColor={textSubTheme}
+              options={REMINDER_CHOICES.map((r) => ({
+                label: r.label,
+                value: r.value ?? 'none',
+              }))}
+              active={activeReminder ?? 'none'}
+              onSelect={(value) => selectReminder(value === 'none' ? null : value)}
+            />
 
-            {/* Description */}
-            <Text style={[styles.formLabel, { color: textSubTheme, marginTop: 16 }]}>Description / Notes</Text>
+            {/* Repeat */}
+            <Label color={textSubTheme}>REPEAT</Label>
+            <Segmented
+              backgroundColor={inputBg}
+              borderColor={borderTheme}
+              accentColor={primaryAccent}
+              textColor={textSubTheme}
+              options={REPEAT_CHOICES.map((r) => ({ label: r, value: r }))}
+              active={activeRepeat}
+              onSelect={selectRepeat}
+            />
+
+            {/* Notes */}
+            <Label color={textSubTheme}>NOTES (OPTIONAL)</Label>
             <TextInput
-              placeholder="Write any class codes, exam format notes, or details..."
+              placeholder="Add room, topics, or reminders..."
               placeholderTextColor={textSubTheme}
               multiline
-              numberOfLines={3}
               style={[
-                styles.formInput,
-                { color: textTheme, borderColor: borderTheme, height: 80, textAlignVertical: 'top' },
+                s.input,
+                s.textArea,
+                { color: textTheme, borderColor: borderTheme, backgroundColor: inputBg },
               ]}
               value={description}
               onChangeText={onDescriptionChange}
             />
 
-
-            {/* Checklist Adding Section */}
-            <Text
-              style={[
-                styles.formLabel,
-                {
-                  color: textSubTheme,
-                  marginTop: 16,
-                  marginBottom: 10,
-                },
-              ]}
+            {/* Save */}
+            <TouchableOpacity
+              onPress={handleSave}
+              activeOpacity={0.85}
+              style={[s.saveBtn, { backgroundColor: primaryAccent }]}
             >
-              Task Checklist Items ({checklistItems.length} items)
-            </Text>
+              <Feather name="check" size={18} color="#FFFFFF" />
+              <Text style={s.saveText}>
+                {saveButtonLabel === 'Save Event & Schedule'
+                  ? 'Save Event'
+                  : saveButtonLabel ?? (mode === 'edit' ? 'Save Changes' : 'Save Event')}
+              </Text>
+            </TouchableOpacity>
 
+            <TouchableOpacity onPress={handleClose} style={s.cancelBtn}>
+              <Text style={[s.cancelText, { color: textSubTheme }]}>Cancel</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* Dim behind open picker */}
+          {picker !== null && (
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => setPicker(null)}
+              style={s.pickerDim}
+            />
+          )}
+
+          {/* ================= DATE PICKER ================= */}
+          {picker === 'date' && (
             <View
               style={[
-                styles.checklistBuilderRow,
-                {
-                  alignItems: 'center',
-                },
+                s.panel,
+                { backgroundColor: modalSurface, borderColor: borderTheme },
               ]}
             >
-              <TextInput
-                placeholder="Add a milestone to this event..."
-                placeholderTextColor={textSubTheme}
-                style={[
-                  styles.formInput,
-                  {
-                    color: textTheme,
-                    borderColor: borderTheme,
-                    flex: 1,
-                    marginBottom: 0,
-                    minHeight: 48,
-                    borderRadius: 12,
-                    paddingHorizontal: 12,
-                  },
-                ]}
-                value={checklistText}
-                onChangeText={onChecklistTextChange}
-                returnKeyType="done"
-                onSubmitEditing={() => {
-                  if (checklistText.trim().length > 0) {
-                    onAddChecklistItem();
+              <View style={s.panelHeader}>
+                <Text style={[s.panelTitle, { color: textTheme }]}>{monthName}</Text>
+                <View style={s.panelHeaderBtns}>
+                  <TouchableOpacity onPress={() => shiftMonth(-1)} style={s.iconBtn}>
+                    <Feather name="chevron-left" size={18} color={textSubTheme} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => shiftMonth(1)} style={s.iconBtn}>
+                    <Feather name="chevron-right" size={18} color={textSubTheme} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setPicker(null)}
+                    accessibilityLabel="Close date picker"
+                    style={[s.iconBtn, { marginLeft: 4 }]}
+                  >
+                    <Feather name="x" size={20} color={textSubTheme} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={s.weekRow}>
+                {WEEK_LETTERS.map((letter, index) => (
+                  <Text key={index} style={[s.weekLetter, { color: textSubTheme }]}>
+                    {letter}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={s.daysGrid}>
+                {days.map((day, index) => {
+                  if (day === null) {
+                    return <View key={`empty-${index}`} style={s.dayCell} />;
                   }
-                }}
-              />
 
-              <TouchableOpacity
-                style={[
-                  styles.addChecklistBtn,
-                  {
-                    backgroundColor: primaryAccent,
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginLeft: 8,
-                  },
-                ]}
-                onPress={onAddChecklistItem}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Add checklist item"
-              >
-                <Feather
-                  name="plus"
-                  size={20}
-                  color="#FFFFFF"
-                />
-              </TouchableOpacity>
-            </View>
+                  const key = toDateKey(new Date(year, month, day));
+                  const isSelected = key === date;
+                  const isToday = key === todayKey;
 
-            {checklistItems.length > 0 && (
-              <View style={[styles.builderItemsContainer, { backgroundColor: bgTheme, borderColor: borderTheme }]}>
-                {checklistItems.map((item, idx) => (
-                  <View key={idx} style={[styles.builderItemRow, { borderBottomColor: borderTheme }]}>
-                    <Text style={{ color: textTheme, flex: 1 }}>{item}</Text>
-                    <TouchableOpacity onPress={() => onRemoveChecklistItem(idx)}>
-                      <Feather name="trash-2" size={16} color="#EF4444" />
+                  return (
+                    <TouchableOpacity
+                      key={`day-${day}`}
+                      onPress={() => selectDay(day)}
+                      style={s.dayCell}
+                    >
+                      <View
+                        style={[
+                          s.dayInner,
+                          isSelected && { backgroundColor: primaryAccent },
+                          !isSelected &&
+                            isToday && { borderWidth: 1, borderColor: primaryAccent },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color: isSelected ? '#FFFFFF' : textTheme,
+                            fontSize: 13,
+                            fontWeight: isSelected ? '700' : '500',
+                          }}
+                        >
+                          {day}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* ================= TIME PICKER ================= */}
+          {picker === 'time' && (
+            <View
+              style={[
+                s.panel,
+                { backgroundColor: modalSurface, borderColor: borderTheme },
+              ]}
+            >
+              <Text style={[s.panelCaption, { color: textSubTheme }]}>TIME</Text>
+
+              <View style={s.clockRow}>
+                {[
+                  {
+                    key: 'hour',
+                    label: 'Hour',
+                    value: hour,
+                    up: () => changeHour(1),
+                    down: () => changeHour(-1),
+                  },
+                  {
+                    key: 'minute',
+                    label: 'Min',
+                    value: minute,
+                    up: () => changeMinute(5),
+                    down: () => changeMinute(-5),
+                  },
+                ].map((part, index) => (
+                  <View key={part.key} style={s.clockPartRow}>
+                    {index === 1 && (
+                      <Text style={[s.colon, { color: primaryAccent }]}>:</Text>
+                    )}
+                    <View style={s.clockPart}>
+                      <TouchableOpacity
+                        onPress={part.up}
+                        hitSlop={8}
+                        accessibilityLabel={`Increase ${part.label}`}
+                        style={[s.arrowBtn, { backgroundColor: inputBg }]}
+                      >
+                        <Feather name="chevron-up" size={20} color={textTheme} />
+                      </TouchableOpacity>
+                      <Text style={[s.clockNum, { color: textTheme }]}>
+                        {String(part.value).padStart(2, '0')}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={part.down}
+                        hitSlop={8}
+                        accessibilityLabel={`Decrease ${part.label}`}
+                        style={[s.arrowBtn, { backgroundColor: inputBg }]}
+                      >
+                        <Feather name="chevron-down" size={20} color={textTheme} />
+                      </TouchableOpacity>
+                      <Text style={[s.clockCaption, { color: textSubTheme }]}>
+                        {part.label}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </View>
-            )}
 
-            {/* Form Save Button */}
-            <TouchableOpacity
-              style={[styles.saveFormBtn, { backgroundColor: primaryAccent }]}
-              onPress={onSave}
-            >
-              <Text style={styles.saveFormBtnText}>
-                {saveButtonLabel ??
-                  (mode === 'edit' ? 'Save Changes' : 'Save Event & Schedule')}
+              <View style={[s.periodRow, { backgroundColor: inputBg }]}>
+                {(['AM', 'PM'] as Period[]).map((value) => {
+                  const isActive = period === value;
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      onPress={() => changePeriod(value)}
+                      style={[s.periodItem, isActive && { backgroundColor: primaryAccent }]}
+                    >
+                      <Text
+                        style={[
+                          s.periodText,
+                          { color: isActive ? '#FFFFFF' : textSubTheme },
+                        ]}
+                      >
+                        {value}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={[s.panelCaption, { color: textSubTheme, marginTop: 14 }]}>
+                QUICK PICK
               </Text>
-            </TouchableOpacity>
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        </View>
+              <View style={s.quickRow}>
+                {QUICK_TIMES.map((option) => {
+                  const isActive =
+                    hour === option.h && minute === option.m && period === option.p;
+                  return (
+                    <TouchableOpacity
+                      key={option.label}
+                      onPress={() =>
+                        onTimeChange(buildTime(option.h, option.m, option.p))
+                      }
+                      style={[
+                        s.quickChip,
+                        {
+                          borderColor: isActive ? primaryAccent : borderTheme,
+                          backgroundColor: isActive ? primaryAccent : 'transparent',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          s.quickText,
+                          { color: isActive ? '#FFFFFF' : textTheme },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity onPress={() => setPicker(null)} style={s.doneBtn}>
+                <Text style={[s.doneText, { color: primaryAccent }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
 }
+
+const s = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    maxHeight: '92%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: 'hidden',
+  },
+  grab: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginTop: 18,
+    marginBottom: 8,
+  },
+  input: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    fontSize: 15,
+  },
+  textArea: {
+    height: 88,
+    paddingTop: 14,
+    textAlignVertical: 'top',
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pickBox: {
+    flex: 1,
+    height: 56,
+    borderWidth: 1,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  pickTextWrap: {
+    flex: 1,
+  },
+  pickCaption: {
+    fontSize: 11,
+  },
+  pickValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  toggleText: {
+    fontSize: 14,
+  },
+  divider: {
+    height: 1,
+    marginTop: 16,
+  },
+  seg: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 3,
+  },
+  segItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: 9,
+  },
+  segText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  saveBtn: {
+    marginTop: 26,
+    height: 54,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  saveText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  cancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  /* pickers */
+  pickerDim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  panel: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    top: 80,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 18,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  panelHeaderBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  panelTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  panelCaption: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  iconBtn: {
+    padding: 5,
+  },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  weekLetter: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: '14.285%',
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayInner: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clockRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  clockPartRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clockPart: {
+    alignItems: 'center',
+  },
+  colon: {
+    fontSize: 30,
+    fontWeight: '700',
+    marginHorizontal: 10,
+    marginBottom: 18,
+  },
+  arrowBtn: {
+    width: 44,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clockNum: {
+    fontSize: 34,
+    fontWeight: '700',
+    marginVertical: 4,
+    minWidth: 56,
+    textAlign: 'center',
+  },
+  clockCaption: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+  periodRow: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 3,
+  },
+  periodItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  periodText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  quickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  quickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  quickText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  doneBtn: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  doneText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+});

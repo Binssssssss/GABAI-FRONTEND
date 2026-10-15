@@ -45,8 +45,12 @@ export default function CalendarRangeNavigation({
         <Feather name="chevron-right" size={18} color={textTheme} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onToday} style={styles.todayButton}>
-        <Text style={[styles.todayButtonText, { color: textSubTheme }]}>Today</Text>
+      <TouchableOpacity
+        accessibilityRole="button"
+        onPress={onToday}
+        style={[styles.todayButton, { borderColor: borderTheme }]}
+      >
+        <Text style={[styles.todayButtonText, { color: textTheme }]}>Today</Text>
       </TouchableOpacity>
     </View>
   );

@@ -1,16 +1,21 @@
 import { Colors } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
+  ScrollView,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { dashboardHeaderStyles as styles } from '../styles/dashboardHeaderStyles';
 
 import {
+  clearNotifications,
+  deleteNotification,
   getNotifications,
   markNotificationAsRead,
   subscribeToNotifications,
@@ -33,6 +38,8 @@ export default function DashboardHeader({
   textPrimary,
   textSecondary,
 }: DashboardHeaderProps) {
+  const router = useRouter();
+
   const [notificationsVisible, setNotificationsVisible] =
     useState(false);
 
@@ -75,6 +82,29 @@ export default function DashboardHeader({
       // Example:
       // router.push(`/(tabs)/tasks/${notification.taskId}`);
     }
+  };
+
+  // Delete one notification (no confirmation; it's a small action).
+  const handleDeleteNotification = (notificationId: string) => {
+    void deleteNotification(notificationId);
+  };
+
+  // Delete all notifications, after confirming.
+  const handleClearAll = () => {
+    AppAlert.alert(
+      'Clear all notifications?',
+      'This removes all your notifications. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear all',
+          style: 'destructive',
+          onPress: () => {
+            void clearNotifications();
+          },
+        },
+      ],
+    );
   };
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -124,68 +154,73 @@ export default function DashboardHeader({
         <View style={styles.leftSection}>
           {/* MENU */}
           <TouchableOpacity
-            style={[
-              styles.menuButton,
-              {
-                backgroundColor: accentBrown,
-              },
-            ]}
+            style={{ padding: 4 }}
             onPress={onOpenDrawer}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
             activeOpacity={0.8}
           >
             <Feather
               name="menu"
-              size={21}
-              color="#FFFFFF"
+              size={24}
+              color={textPrimary}
             />
           </TouchableOpacity>
 
-          {/* GREETING */}
-          <View style={styles.greetingContainer}>
-            <Text
-              style={[
-                styles.greetingLabel,
-                {
-                  color: textSecondary,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {greeting}
-            </Text>
-
-            <Text
-              style={[
-                styles.welcomeText,
-                {
-                  color: textPrimary,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {userName} 👋
-            </Text>
-
-            <View style={styles.dateRow}>
-              <Feather
-                name="calendar"
-                size={12}
-                color={textSecondary}
-              />
-
+          {/* GREETING + NAME (opens Profile) */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push('/(tabs)/profile/profile' as any)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open profile, ${userName}`}
+            activeOpacity={0.75}
+          >
+            <View style={styles.greetingContainer}>
               <Text
                 style={[
-                  styles.dateText,
+                  styles.greetingLabel,
                   {
                     color: textSecondary,
                   },
                 ]}
                 numberOfLines={1}
               >
-                {today}
+                {greeting}
               </Text>
+
+              <Text
+                style={[
+                  styles.welcomeText,
+                  {
+                    color: textPrimary,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {userName}
+              </Text>
+
+              <View style={styles.dateRow}>
+                <Feather
+                  name="calendar"
+                  size={12}
+                  color={textSecondary}
+                />
+
+                <Text
+                  style={[
+                    styles.dateText,
+                    {
+                      color: textSecondary,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {today}
+                </Text>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* RIGHT SIDE */}
@@ -221,9 +256,6 @@ export default function DashboardHeader({
               />
             )}
           </TouchableOpacity>
-
-          {/* PROFILE */}
-
         </View>
       </View>
 
@@ -315,7 +347,11 @@ export default function DashboardHeader({
 
             {/* NOTIFICATION LIST */}
             {notifications.length > 0 ? (
-              notifications.map((notification) => (
+              <ScrollView
+                style={{ maxHeight: 420 }}
+                showsVerticalScrollIndicator={false}
+              >
+              {notifications.map((notification) => (
                 <TouchableOpacity
                   key={notification.id}
                   activeOpacity={0.75}
@@ -411,9 +447,31 @@ export default function DashboardHeader({
                         ]}
                       />
                     )}
+
+                    {/* DELETE */}
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleDeleteNotification(notification.id)
+                      }
+                      hitSlop={10}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete notification: ${notification.title}`}
+                      style={{
+                        alignSelf: 'center',
+                        padding: 6,
+                        marginLeft: 6,
+                      }}
+                    >
+                      <Feather
+                        name="trash-2"
+                        size={16}
+                        color={textSecondary}
+                      />
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
-              ))
+              ))}
+              </ScrollView>
             ) : (
               <View style={styles.emptyNotification}>
                 <View
@@ -487,6 +545,26 @@ export default function DashboardHeader({
                     ? 's'
                     : ''}
                 </Text>
+
+                <TouchableOpacity
+                  onPress={handleClearAll}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  style={{ marginLeft: 'auto' }}
+                >
+                  <Text
+                    style={[
+                      styles.footerText,
+                      {
+                        color: Colors.light.danger,
+                        fontWeight: '600',
+                        fontSize: 12,
+                      },
+                    ]}
+                  >
+                    Clear all
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </Pressable>
@@ -495,4 +573,3 @@ export default function DashboardHeader({
     </>
   );
 }
-

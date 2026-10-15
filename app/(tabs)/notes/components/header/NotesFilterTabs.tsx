@@ -43,6 +43,39 @@ export default function NotesFilterTabs({
     { id: 'archived', label: 'Archived', icon: 'archive' },
   ];
 
+  const renderTab = (tab: { id: NoteFilterTab; label: string; icon: string }) => {
+    const isSelected = activeTabFilter === tab.id;
+    return (
+      <TouchableOpacity
+        key={tab.id}
+        onPress={() => onSelectTabFilter(tab.id)}
+        style={[
+          styles.compactTab,
+          {
+            backgroundColor: isSelected ? primaryBrown : cardBg,
+            borderColor: isSelected ? primaryBrown : borderCol,
+            borderWidth: 1,
+          },
+        ]}
+      >
+        <Feather
+          name={tab.icon as any}
+          size={12}
+          color={isSelected ? '#FFFFFF' : textSecondary}
+          style={{ marginRight: 5 }}
+        />
+        <Text
+          style={[
+            styles.compactTabText,
+            { color: isSelected ? '#FFFFFF' : textPrimary },
+          ]}
+        >
+          {tab.label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.smartFilterStrip}>
       <ScrollView
@@ -75,39 +108,8 @@ export default function NotesFilterTabs({
           )}
         </TouchableOpacity>
 
-        {/* Tab Filters */}
-        {tabs.map((tab) => {
-          const isSelected = activeTabFilter === tab.id;
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              onPress={() => onSelectTabFilter(tab.id)}
-              style={[
-                styles.compactTab,
-                {
-                  backgroundColor: isSelected ? primaryBrown : cardBg,
-                  borderColor: isSelected ? primaryBrown : borderCol,
-                  borderWidth: 1,
-                },
-              ]}
-            >
-              <Feather
-                name={tab.icon as any}
-                size={12}
-                color={isSelected ? '#FFFFFF' : textSecondary}
-                style={{ marginRight: 5 }}
-              />
-              <Text
-                style={[
-                  styles.compactTabText,
-                  { color: isSelected ? '#FFFFFF' : textPrimary },
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {/* Tab Filters (Archived is rendered last, after the categories) */}
+        {tabs.filter((tab) => tab.id !== 'archived').map(renderTab)}
 
         {/* Categories scroll */}
         {CATEGORIES.filter((c) => c.name !== 'All').map((cat) => {
@@ -142,6 +144,9 @@ export default function NotesFilterTabs({
             </TouchableOpacity>
           );
         })}
+
+        {/* Archived goes last */}
+        {tabs.filter((tab) => tab.id === 'archived').map(renderTab)}
       </ScrollView>
 
       {/* Active Selected Tag Banner */}
