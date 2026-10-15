@@ -489,88 +489,9 @@ export function useCalendarData() {
           );
         }
 
-<<<<<<< HEAD
-        setEvents((prev) =>
-          prev.map((event) =>
-            event.id === editingEventId
-              ? updatedEvent
-              : event,
-          ),
-        );
-
-        setSelectedEvent(updatedEvent);
-
-        await loadUpcomingDeadlines();
-
-        setIsAddModalOpen(false);
-        setIsDetailModalOpen(true);
-        setEditingEventId(null);
-        resetForm();
-
-        Alert.alert(
-          'Event Updated',
-          'Your event has been updated successfully.',
-        );
-      } else {
-        // CREATE NEW EVENT
-        const response = await api.post(
-          '/tasks',
-          {
-            ...eventPayload,
-            // Lets the backend send "Event Created" instead of "Task Created".
-            source: 'calendar',
-            duration: Number(newDuration),
-            completed: false,
-            subTasks: newChecklistItems.map((item) => ({
-              title: item,
-              completed: false,
-            })),
-          },
-        );
-
-        const createdEvent = mapBackendEvent(
-          response.data.data,
-        );
-
-        if (
-          newHasReminder &&
-          !newIsAllDay &&
-          newTime.trim()
-        ) {
-          try {
-            await scheduleCalendarReminder(
-              newTitle.trim(),
-              newDate,
-              newTime,
-              undefined, // use the Notification Settings lead time
-              createdEvent.id,
-            );
-          } catch (reminderError) {
-            console.error(
-              'Failed to schedule calendar reminder:',
-              reminderError,
-            );
-          }
-        }
-
-        setEvents((prev) => [
-          createdEvent,
-          ...prev,
-        ]);
-
-        await loadUpcomingDeadlines();
-
-        setIsAddModalOpen(false);
-        resetForm();
-
-        Alert.alert(
-          'Event Added',
-          'Your event has been successfully scheduled.',
-=======
         AppAlert.alert(
           'Error',
           error?.response?.data?.message || 'Failed to update the event.',
->>>>>>> 7e336d1d626479de614ab2faa9bf920f4df3e267
         );
       }
 

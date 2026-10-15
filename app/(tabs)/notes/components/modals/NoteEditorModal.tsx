@@ -456,21 +456,12 @@ export default function NoteEditorModal({
   const lastEditorHtmlRef = useRef(content);
 
   /*
-<<<<<<< HEAD
-   * Recent HTML values the editor itself produced. While typing fast, the
-   * parent can re-render with an older value than the editor already has.
-   * Those stale echoes must never be pushed back, or the caret jumps to
-   * the start of the note.
-   */
-  const editorEmittedRef = useRef<Set<string>>(new Set());
-=======
    * Latest editor HTML while typing. It stays inside the editor until the
    * user saves, so typing never re-renders the notes screen and nothing
    * pushes old text back into the editor (which made the caret jump).
    */
   const draftHtmlRef = useRef(content);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
->>>>>>> 7e336d1d626479de614ab2faa9bf920f4df3e267
 
   /* Sheet action that waits for the sheet to finish closing (iOS). */
   const pendingMenuActionRef = useRef<(() => void) | null>(null);
@@ -633,10 +624,6 @@ export default function NoteEditorModal({
       bodyFocusedRef.current = false;
     }
 
-<<<<<<< HEAD
-    // Each open starts a fresh editing session.
-    editorEmittedRef.current.clear();
-=======
     if (visible) {
       // Each open starts from the note's saved content.
       draftHtmlRef.current = content;
@@ -647,7 +634,6 @@ export default function NoteEditorModal({
     }
     // Only on open/close; outside content changes are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
->>>>>>> 7e336d1d626479de614ab2faa9bf920f4df3e267
   }, [visible]);
 
   useEffect(() => {
@@ -661,17 +647,6 @@ export default function NoteEditorModal({
    * replaced from outside (e.g. a template), push it into the editor.
    */
   useEffect(() => {
-<<<<<<< HEAD
-    // Same as what the editor already shows: nothing to do.
-    if (content === lastEditorHtmlRef.current) return;
-
-    // An older value the editor typed itself (render lagging behind
-    // fast typing). Pushing it back would reset the text and the caret.
-    if (editorEmittedRef.current.has(content)) return;
-
-    // A real outside change, such as a template: load it into the editor.
-    lastEditorHtmlRef.current = content;
-=======
     // The parent no longer echoes typing back, so any change here is a
     // real outside change (e.g. a template): load it into the editor.
     if (content === lastEditorHtmlRef.current) return;
@@ -679,25 +654,11 @@ export default function NoteEditorModal({
     lastEditorHtmlRef.current = content;
     draftHtmlRef.current = content;
     setDraftHtml(content);
->>>>>>> 7e336d1d626479de614ab2faa9bf920f4df3e267
     bodyInputRef.current?.setContentHTML(toEditorHtml(content));
   }, [content]);
 
   const handleEditorChange = (html: string) => {
     lastEditorHtmlRef.current = html;
-<<<<<<< HEAD
-
-    const emitted = editorEmittedRef.current;
-    emitted.add(html);
-
-    // Keep only the most recent values.
-    if (emitted.size > 200) {
-      const oldest = emitted.values().next().value;
-      if (oldest !== undefined) emitted.delete(oldest);
-    }
-
-    onContentChange(html);
-=======
     draftHtmlRef.current = html;
 
     // Update word count / "Unsaved" badge after a short pause, not per key.
@@ -759,7 +720,6 @@ export default function NoteEditorModal({
         { text: 'Save', onPress: saveAndClose },
       ],
     );
->>>>>>> 7e336d1d626479de614ab2faa9bf920f4df3e267
   };
 
   /* Scroll so the caret line sits above the toolbar with breathing room. */

@@ -323,16 +323,6 @@ export default function QuickAddEventModal({
       transparent
       onRequestClose={handleClose}
     >
-<<<<<<< HEAD
-      <View style={styles.modalOverlay}>
-        <View style={[styles.addModalContainer, { backgroundColor: modalSurface }]}>
-          <View style={[styles.addModalHeader, { borderBottomColor: borderTheme }]}>
-            <Text style={[styles.modalHeaderTitle, { color: textTheme }]}>
-              {mode === 'edit' ? 'Edit Academic Event' : 'Quick Add Academic Event'}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={24} color={textTheme} />
-=======
       <View style={s.overlay}>
         <KeyboardAvoidingView
           behavior="padding"
@@ -352,7 +342,6 @@ export default function QuickAddEventModal({
               style={[s.closeBtn, { backgroundColor: inputBg }]}
             >
               <Feather name="x" size={18} color={textSubTheme} />
->>>>>>> 7e336d1d626479de614ab2faa9bf920f4df3e267
             </TouchableOpacity>
           </View>
 
