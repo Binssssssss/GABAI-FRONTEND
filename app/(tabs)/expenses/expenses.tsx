@@ -1,4 +1,11 @@
-import { FlatList, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDrawer } from '@/app/(tabs)/_layout';
@@ -11,7 +18,7 @@ import {
     WalletHeader,
 } from './components';
 
-import { useExpensesData } from './hooks/useExpensesData';
+import { useExpensesData, WALLET_PAGE_SIZE } from './hooks/useExpensesData';
 import { expenseStyles as styles } from './styles/expenses.styles';
 
 export default function WalletScreen() {
@@ -33,6 +40,12 @@ export default function WalletScreen() {
 
   const {
     transactions,
+    hasMore,
+    isLoadingMore,
+    loadMoreError,
+    loadMore,
+    isRefreshing,
+    refreshWallet,
     totalIncome,
     totalExpenses,
     netBalance,
@@ -112,6 +125,57 @@ export default function WalletScreen() {
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={refreshWallet}
+            tintColor={primaryBrown}
+            colors={[primaryBrown]}
+          />
+        }
+        ListFooterComponent={
+          loadMoreError ? (
+            // Keep what is shown; let the user try again.
+            <View style={styles.loadMoreContainer}>
+              <Text style={[styles.loadMoreCount, { color: errorRed, marginBottom: 8 }]}>
+                {loadMoreError}
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={loadMore}
+                style={[styles.loadMoreButton, { borderColor: primaryBrown }]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.loadMoreText, { color: primaryBrown }]}>
+                  Try again
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : hasMore ? (
+            <View style={styles.loadMoreContainer}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={loadMore}
+                disabled={isLoadingMore}
+                style={[styles.loadMoreButton, { borderColor: primaryBrown }]}
+                accessibilityRole="button"
+                accessibilityState={{ busy: isLoadingMore }}
+              >
+                {isLoadingMore ? (
+                  <ActivityIndicator size="small" color={primaryBrown} />
+                ) : (
+                  <Text style={[styles.loadMoreText, { color: primaryBrown }]}>
+                    Load More
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : transactions.length > WALLET_PAGE_SIZE ? (
+            <Text style={[styles.loadMoreCount, { color: textSecondary }]}>
+              You've reached the end
+            </Text>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text

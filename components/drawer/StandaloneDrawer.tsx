@@ -1,6 +1,6 @@
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 
 import { useAuth } from '@/app/context/AuthContext';
 import { useFocusLock } from '@/app/context/FocusLockContext';
@@ -47,7 +47,7 @@ export default function StandaloneDrawer({
   }, []);
 
   const showFocusLockAlert = () => {
-    Alert.alert(
+    AppAlert.alert(
       'Strict Focus Active',
       'Navigation is locked while your Strict Focus session is active. Finish your session before leaving.',
       [{ text: 'Continue Focusing', style: 'cancel' }],
@@ -78,7 +78,7 @@ export default function StandaloneDrawer({
 
     onClose();
 
-    Alert.alert('Log Out', 'Are you sure you want to log out of GabAi?', [
+    AppAlert.alert('Log Out', 'Are you sure you want to log out of GabAi?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Log Out',
@@ -89,7 +89,7 @@ export default function StandaloneDrawer({
             router.replace('/(auth)/login/login');
           } catch (error) {
             console.error('Logout failed:', error);
-            Alert.alert('Logout Failed', 'Unable to log out. Please try again.');
+            AppAlert.alert('Logout Failed', 'Unable to log out. Please try again.');
           }
         },
       },

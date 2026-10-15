@@ -2,7 +2,6 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   BackHandler,
   Pressable,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -117,7 +117,7 @@ export default function FocusSessionScreen() {
   );
 
   const showLockedAlert = (message: string) =>
-    Alert.alert(LOCKED_TITLE, message, [
+    AppAlert.alert(LOCKED_TITLE, message, [
       { text: 'Continue Focusing', style: 'cancel' },
     ]);
 
@@ -130,7 +130,7 @@ export default function FocusSessionScreen() {
           return false;
         }
 
-        Alert.alert(
+        AppAlert.alert(
           LOCKED_TITLE,
           'You cannot leave while Strict Focus is active. Finish your session first.',
           [{ text: 'Continue Focusing', style: 'cancel' }]

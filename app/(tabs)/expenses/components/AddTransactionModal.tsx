@@ -3,7 +3,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -209,7 +208,7 @@ export default function AddTransactionModal({
     >
       <View style={s.overlay}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
           style={[s.sheet, { backgroundColor: cardBg, borderColor: borderCol }]}
         >
           <View style={[s.grab, { backgroundColor: borderCol }]} />

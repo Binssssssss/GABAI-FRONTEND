@@ -2,6 +2,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { InternalAxiosRequestConfig, isCancel } from 'axios';
 
+import { recordTaskActivity } from '@/app/services/activityLog';
+
 const DEFAULT_API_URL =
   'https://gabai-backend-bk7i.onrender.com';
 
@@ -120,7 +122,14 @@ api.interceptors.response.use(
       error.response?.status === 401 &&
       error.config?.url === '/auth/logout';
 
-    if (isExpiredLogout) {
+    // Unregistering a token the backend no longer has is expected;
+    // unregisterPushToken treats it as success.
+    const isMissingPushToken =
+      error.response?.status === 404 &&
+      error.config?.method?.toLowerCase() === 'delete' &&
+      error.config?.url === '/notifications/push-token';
+
+    if (isExpiredLogout || isMissingPushToken) {
       return Promise.reject(error);
     }
 
@@ -168,5 +177,11 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+// Keep the on-phone Activity history up to date with task changes.
+api.interceptors.response.use((response) => {
+  recordTaskActivity(response);
+  return response;
+});
 
 export default api;

@@ -281,6 +281,11 @@ export async function unregisterPushToken(): Promise<boolean> {
 
     return true;
   } catch (error: any) {
+    // The backend has no record of this token, so it's already unregistered.
+    if (error?.response?.status === 404) {
+      return true;
+    }
+
     console.error(
       '❌ Failed to unregister push token:',
       error?.response?.data ?? error?.message ?? error,

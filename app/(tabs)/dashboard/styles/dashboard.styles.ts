@@ -8,7 +8,7 @@ export const dashboardStyles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 36,
+    paddingBottom: 120,
   },
 
   section: {

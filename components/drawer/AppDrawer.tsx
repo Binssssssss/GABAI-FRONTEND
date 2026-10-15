@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import {
   Animated,
   Dimensions,
-  Image,
   Pressable,
   ScrollView,
   Text,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import DefaultAvatar from '@/components/DefaultAvatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
@@ -101,14 +101,6 @@ export default function AppDrawer({
       currentUser.email ||
       'User',
   );
-  const displayInitials =
-    displayName
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || 'U';
   const screenWidth = Dimensions.get('window').width;
   const drawerWidth = screenWidth * 0.78;
   const isDark = textPrimary === Colors.dark.text;
@@ -226,35 +218,8 @@ export default function AppDrawer({
               },
             ]}
           >
-            <View
-              style={[
-                styles.avatar,
-                {
-                  backgroundColor: drawerColors.hover,
-                  borderColor: drawerColors.border,
-                },
-              ]}
-            >
-              {currentUser.avatar ? (
-                <Image
-                  source={{ uri: currentUser.avatar }}
-                  style={{ width: '100%', height: '100%', borderRadius: 11 }}
-                />
-              ) : (
-                <Text style={[styles.avatarText, { color: drawerColors.highlight }]}>
-                  {displayInitials}
-                </Text>
-              )}
-
-              <View
-                style={[
-                  styles.avatarStatus,
-                  {
-                    backgroundColor: successGreen,
-                    borderColor: drawerColors.surface,
-                  },
-                ]}
-              />
+            <View style={{ marginRight: 10 }}>
+              <DefaultAvatar name={displayName} size={40} />
             </View>
 
             <View style={styles.profileInfo}>
@@ -270,39 +235,19 @@ export default function AppDrawer({
                 {displayName}
               </Text>
 
-              <Text
-                style={[
-                  styles.profileCourse,
-                  {
-                    color: drawerColors.secondaryText,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {currentUser.course || ''}
-              </Text>
-
-              <View style={styles.status}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    {
-                      backgroundColor: successGreen,
-                    },
-                  ]}
-                />
-
+              {!!currentUser.email && currentUser.email !== displayName && (
                 <Text
                   style={[
-                    styles.statusText,
+                    styles.profileCourse,
                     {
-                      color: successGreen,
+                      color: drawerColors.secondaryText,
                     },
                   ]}
+                  numberOfLines={1}
                 >
-                  Offline Sync Active
+                  {currentUser.email}
                 </Text>
-              </View>
+              )}
             </View>
 
             <Feather

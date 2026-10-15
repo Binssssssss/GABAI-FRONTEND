@@ -29,7 +29,7 @@ export const calendarStyles = StyleSheet.create({
   },
   // Month grid without a card
   monthContainer: {
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 8,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -119,19 +119,19 @@ export const calendarStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
   },
   headerAddButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: '#A97C50',
   },
   headerAddButtonText: {
@@ -143,7 +143,7 @@ export const calendarStyles = StyleSheet.create({
   rangeNavigation: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginBottom: 4,
   },
   rangeArrow: {
@@ -176,12 +176,12 @@ export const calendarStyles = StyleSheet.create({
     marginTop: 3,
   },
   workloadSummary: {
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     marginTop: 4,
     marginBottom: 18,
     padding: 14,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   workloadSummaryHeader: {
     flexDirection: 'row',
@@ -564,8 +564,8 @@ export const calendarStyles = StyleSheet.create({
     marginBottom: 4,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
   eventsCountText: {
     fontSize: 12,
@@ -576,7 +576,7 @@ export const calendarStyles = StyleSheet.create({
   },
   agendaCard: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 10,
     overflow: 'hidden',
@@ -649,7 +649,7 @@ export const calendarStyles = StyleSheet.create({
   },
   noEventsCard: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     borderStyle: 'dashed',
     padding: 24,
     alignItems: 'center',
@@ -671,7 +671,7 @@ export const calendarStyles = StyleSheet.create({
   },
   deadlineCard: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 8,
   },

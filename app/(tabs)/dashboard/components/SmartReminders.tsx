@@ -4,6 +4,7 @@ import {
   Text,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { formatTime12 } from '@/utils/time';
 
 interface ReminderTask {
   id: string;
@@ -104,7 +105,7 @@ export default function SmartReminders({
         message: `"${task.title}" is due today.`,
         detail:
           task.dueTime
-            ? `Due at ${task.dueTime}`
+            ? `Due at ${formatTime12(task.dueTime)}`
             : task.subject ||
               'Academic task',
       };
@@ -148,10 +149,9 @@ export default function SmartReminders({
   return (
     <View
       style={{
-        marginHorizontal: 16,
         marginBottom: 12,
         padding: 16,
-        borderRadius: 18,
+        borderRadius: 16,
         backgroundColor: cardColor,
         borderWidth: 1,
         borderColor,

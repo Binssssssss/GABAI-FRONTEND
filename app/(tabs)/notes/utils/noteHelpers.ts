@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { formatClock } from '@/utils/time';
 
 export const triggerHaptic = (
   style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light,
@@ -26,10 +27,7 @@ export const formatNoteDate = (timestamp: number): string => {
 
   // If today
   if (noteDate.toDateString() === now.toDateString()) {
-    return noteDate.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatClock(noteDate);
   }
 
   // If this year

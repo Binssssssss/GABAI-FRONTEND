@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Alert, Share } from 'react-native';
+import { Share } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import * as Haptics from 'expo-haptics';
 
 import { localDb, Note, Task } from '@/app/services/localDb';
@@ -16,10 +17,13 @@ import {
 
 import { NoteFilterTab, NoteSortOption, NoteViewMode } from '../types';
 import { getNotePlainText, triggerHaptic } from '../utils/noteHelpers';
+import { formatClock } from '@/utils/time';
 
 type NoteDraftSession = {
   key: string;
   noteId: string | null;
+  /** Id of the note shown in the list before the server has saved it. */
+  tempId?: string;
   queue: Promise<void>;
 };
 
@@ -29,6 +33,10 @@ function createDraftSession(noteId: string | null = null): NoteDraftSession {
     noteId,
     queue: Promise.resolve(),
   };
+}
+
+function removeLocalNote(noteId: string) {
+  localDb.setNotes(localDb.getNotes().filter((item) => item.id !== noteId));
 }
 
 function upsertLocalNote(note: Note) {
@@ -77,7 +85,7 @@ export function useNotesData() {
         console.error('Failed to load notes:', error);
 
         if (mountedRef.current) {
-          Alert.alert(
+          AppAlert.alert(
             'Unable to Load Notes',
             'GabAi could not load your notes. Check your connection and try again.',
           );
@@ -100,8 +108,7 @@ export function useNotesData() {
     };
   }, []);
 
-  // Filters and search
-  const [searchQuery, setSearchQuery] = useState('');
+  // Filters
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [activeTabFilter, setActiveTabFilter] =
     useState<NoteFilterTab>('all');
@@ -111,7 +118,6 @@ export function useNotesData() {
 
   // Bottom sheets and popups
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-  const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
   const [isEditorMoreMenuOpen, setIsEditorMoreMenuOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
@@ -152,7 +158,7 @@ export function useNotesData() {
   const [scheduleDateInput, setScheduleDateInput] = useState(
     () => new Date().toISOString().split('T')[0],
   );
-  const [scheduleTimeInput, setScheduleTimeInput] = useState('14:00');
+  const [scheduleTimeInput, setScheduleTimeInput] = useState('2:00 PM');
 
   // Collect unique tags
   const allUniqueTags = useMemo(() => {
@@ -201,27 +207,6 @@ export function useNotesData() {
           return false;
         }
 
-        if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          const matchTitle = note.title?.toLowerCase().includes(query);
-          const matchContent = getNotePlainText(note.content)
-            .toLowerCase()
-            .includes(query);
-          const matchCategory = note.category?.toLowerCase().includes(query);
-          const matchTags = note.tags?.some((tag) =>
-            tag.toLowerCase().includes(query),
-          );
-
-          if (
-            !matchTitle &&
-            !matchContent &&
-            !matchCategory &&
-            !matchTags
-          ) {
-            return false;
-          }
-        }
-
         return true;
       })
       .sort((a, b) => {
@@ -236,7 +221,6 @@ export function useNotesData() {
     activeTabFilter,
     selectedCategory,
     selectedTag,
-    searchQuery,
     sortBy,
   ]);
 
@@ -276,6 +260,29 @@ const saveCurrentNote = useCallback(
     const cleanTitle = title.trim() || 'Untitled Note';
     const session = draftSessionRef.current;
 
+    // Real-time: show the note in the list right away,
+    // then let the server catch up.
+    const shownId = session.noteId ?? session.tempId ?? `pending-${session.key}`;
+    const existing = localDb.getNotes().find((item) => item.id === shownId);
+    const now = Date.now();
+
+    if (!session.noteId) {
+      session.tempId = shownId;
+    }
+
+    upsertLocalNote({
+      ...(existing ?? { createdAt: now }),
+      id: shownId,
+      title: cleanTitle,
+      content,
+      category,
+      tags,
+      isFavorite: isFav,
+      isPinned: isPin,
+      isArchived: isArch,
+      updatedAt: now,
+    } as Note);
+
     try {
       const operation = session.queue.then(async () => {
         // Create only once per editing session.
@@ -288,6 +295,12 @@ const saveCurrentNote = useCallback(
           });
 
           session.noteId = created.id;
+
+          // Replace the instant copy with the saved note.
+          if (session.tempId) {
+            removeLocalNote(session.tempId);
+            session.tempId = undefined;
+          }
 
           if (draftSessionRef.current === session && mountedRef.current) {
             setEditingNoteId(created.id);
@@ -327,7 +340,7 @@ const saveCurrentNote = useCallback(
       if (draftSessionRef.current === session && mountedRef.current) {
         setSaveStatus('saving');
 
-        Alert.alert(
+        AppAlert.alert(
           'Save Failed',
           'Your note could not be saved. Check your connection and try again.',
         );
@@ -360,7 +373,6 @@ const saveCurrentNote = useCallback(
 
       draftSessionRef.current = createDraftSession();
 
-      setIsFabMenuOpen(false);
       setEditingNoteId(null);
       setEditorTitle(templateTitle || '');
       setEditorContent(templateContent || '');
@@ -383,10 +395,7 @@ const saveCurrentNote = useCallback(
 
   // Open a quick note
   const handleOpenQuickNote = useCallback(() => {
-    const timeString = new Date().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const timeString = formatClock(new Date());
 
     const dateString = new Date().toLocaleDateString([], {
       month: 'short',
@@ -588,7 +597,7 @@ const handleContentChange = useCallback(
 
   // Delete note (permanent deletion with the current backend)
   const handleDeleteNote = useCallback((noteId: string) => {
-    Alert.alert(
+    AppAlert.alert(
       'Delete Note',
       'Are you sure you want to permanently delete this note?',
       [
@@ -597,23 +606,35 @@ const handleContentChange = useCallback(
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+
+            const session = draftSessionRef.current;
+            const removedNote = localDb
+              .getNotes()
+              .find((item) => item.id === noteId);
+
+            // Real-time: remove it from the screen right away.
+            localDb.deleteNote(noteId);
+
+            if (session.noteId === noteId || session.tempId === noteId) {
+              draftSessionRef.current = createDraftSession();
+            }
+
+            setIsEditorOpen(false);
+            setIsEditorMoreMenuOpen(false);
+
+            // Never saved to the server: nothing more to do.
+            if (noteId.startsWith('pending-')) return;
+
             try {
-              triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-
               await deleteNoteApi(noteId);
-
-              localDb.deleteNote(noteId);
-
-              if (draftSessionRef.current.noteId === noteId) {
-                draftSessionRef.current = createDraftSession();
-              }
-
-              setIsEditorOpen(false);
-              setIsEditorMoreMenuOpen(false);
             } catch (error) {
               console.error('Failed to delete note:', error);
 
-              Alert.alert(
+              // Put it back.
+              if (removedNote) upsertLocalNote(removedNote);
+
+              AppAlert.alert(
                 'Delete Failed',
                 'The note could not be deleted. Please try again.',
               );
@@ -630,16 +651,29 @@ const handleContentChange = useCallback(
       try {
         triggerHaptic();
 
-        const updated = await setNoteArchived(noteId, !currentVal);
-        upsertLocalNote(updated);
+        // Real-time: flip it on screen first.
+        const before = localDb.getNotes().find((item) => item.id === noteId);
+        if (before) upsertLocalNote({ ...before, isArchived: !currentVal });
+        if (editingNoteId === noteId) setEditorIsArchived(!currentVal);
 
-        if (editingNoteId === noteId) {
-          setEditorIsArchived(updated.isArchived);
+        if (noteId.startsWith('pending-')) return;
+
+        try {
+          const updated = await setNoteArchived(noteId, !currentVal);
+          upsertLocalNote(updated);
+
+          if (editingNoteId === noteId) {
+            setEditorIsArchived(updated.isArchived);
+          }
+        } catch (innerError) {
+          if (before) upsertLocalNote(before);
+          if (editingNoteId === noteId) setEditorIsArchived(currentVal);
+          throw innerError;
         }
       } catch (error) {
         console.error('Failed to archive note:', error);
 
-        Alert.alert(
+        AppAlert.alert(
           'Action Failed',
           'Could not update the note archive. Please try again.',
         );
@@ -655,16 +689,29 @@ const handleContentChange = useCallback(
         triggerHaptic();
 
         // The current backend endpoint toggles this value.
-        const updated = await setNoteFavorite(noteId, !currentVal);
-        upsertLocalNote(updated);
+        // Real-time: flip it on screen first.
+        const before = localDb.getNotes().find((item) => item.id === noteId);
+        if (before) upsertLocalNote({ ...before, isFavorite: !currentVal });
+        if (editingNoteId === noteId) setEditorIsFavorite(!currentVal);
 
-        if (editingNoteId === noteId) {
-          setEditorIsFavorite(updated.isFavorite);
+        if (noteId.startsWith('pending-')) return;
+
+        try {
+          const updated = await setNoteFavorite(noteId, !currentVal);
+          upsertLocalNote(updated);
+
+          if (editingNoteId === noteId) {
+            setEditorIsFavorite(updated.isFavorite);
+          }
+        } catch (innerError) {
+          if (before) upsertLocalNote(before);
+          if (editingNoteId === noteId) setEditorIsFavorite(currentVal);
+          throw innerError;
         }
       } catch (error) {
         console.error('Failed to favorite note:', error);
 
-        Alert.alert(
+        AppAlert.alert(
           'Action Failed',
           'Could not update the note favorite. Please try again.',
         );
@@ -680,16 +727,29 @@ const handleContentChange = useCallback(
         triggerHaptic();
 
         // The current backend endpoint toggles this value.
-        const updated = await setNotePinned(noteId, !currentVal);
-        upsertLocalNote(updated);
+        // Real-time: flip it on screen first.
+        const before = localDb.getNotes().find((item) => item.id === noteId);
+        if (before) upsertLocalNote({ ...before, isPinned: !currentVal });
+        if (editingNoteId === noteId) setEditorIsPinned(!currentVal);
 
-        if (editingNoteId === noteId) {
-          setEditorIsPinned(updated.isPinned);
+        if (noteId.startsWith('pending-')) return;
+
+        try {
+          const updated = await setNotePinned(noteId, !currentVal);
+          upsertLocalNote(updated);
+
+          if (editingNoteId === noteId) {
+            setEditorIsPinned(updated.isPinned);
+          }
+        } catch (innerError) {
+          if (before) upsertLocalNote(before);
+          if (editingNoteId === noteId) setEditorIsPinned(currentVal);
+          throw innerError;
         }
       } catch (error) {
         console.error('Failed to pin note:', error);
 
-        Alert.alert(
+        AppAlert.alert(
           'Action Failed',
           'Could not update the note pin. Please try again.',
         );
@@ -714,7 +774,7 @@ const handleContentChange = useCallback(
     } catch (error) {
       console.error('Failed to duplicate note:', error);
 
-      Alert.alert(
+      AppAlert.alert(
         'Duplicate Failed',
         'Could not duplicate this note. Please try again.',
       );
@@ -761,8 +821,6 @@ const handleContentChange = useCallback(
     activeCustomFiltersCount,
 
     // Filters, sort and view
-    searchQuery,
-    setSearchQuery,
     activeTabFilter,
     setActiveTabFilter,
     selectedCategory,
@@ -777,8 +835,6 @@ const handleContentChange = useCallback(
     // Sheets and menus
     isFilterSheetOpen,
     setIsFilterSheetOpen,
-    isFabMenuOpen,
-    setIsFabMenuOpen,
     isEditorMoreMenuOpen,
     setIsEditorMoreMenuOpen,
     isTemplateModalOpen,

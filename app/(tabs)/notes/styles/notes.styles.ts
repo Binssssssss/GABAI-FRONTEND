@@ -8,7 +8,7 @@ export const noteStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -19,9 +19,9 @@ export const noteStyles = StyleSheet.create({
     flex: 1,
   },
   menuButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -42,8 +42,8 @@ export const noteStyles = StyleSheet.create({
     marginBottom: 1,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     letterSpacing: -0.5,
   },
   counterBadge: {
@@ -68,9 +68,9 @@ export const noteStyles = StyleSheet.create({
   primaryHeaderBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     shadowColor: '#A97C50',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
@@ -85,7 +85,7 @@ export const noteStyles = StyleSheet.create({
 
   // Prominent Search Bar
   searchSection: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 8,
   },
@@ -114,7 +114,7 @@ export const noteStyles = StyleSheet.create({
     paddingBottom: 8,
   },
   smartFilterScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     gap: 8,
     alignItems: 'center',
   },
@@ -154,7 +154,7 @@ export const noteStyles = StyleSheet.create({
 
   // Active filters banner
   activeFiltersBanner: {
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginBottom: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -178,10 +178,10 @@ export const noteStyles = StyleSheet.create({
 
   // Scroll Content & Layout
   scrollContent: {
-    paddingBottom: 90,
+    paddingBottom: 120,
   },
   notesContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 4,
   },
   sectionBlock: {
@@ -214,7 +214,7 @@ export const noteStyles = StyleSheet.create({
 
   // Note Card
   noteCard: {
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 14,
     justifyContent: 'space-between',

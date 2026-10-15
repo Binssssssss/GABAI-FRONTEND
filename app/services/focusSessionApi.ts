@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import api from '@/app/services/api';
+import { localDb } from '@/app/services/localDb';
 
 /**
  * Focus sessions are saved to the backend so the Today stats and Focus
@@ -66,6 +67,44 @@ function sortNewestFirst(records: FocusHistoryRecord[]) {
   );
 }
 
+/* ---------- sessions the user deleted (kept on this phone only) ---------- */
+
+// The backend can't delete focus sessions, so deleted ones are
+// remembered here (per account) and left out everywhere.
+const HIDDEN_PREFIX = 'gabai.focus.hidden.';
+
+const hiddenKey = () =>
+  HIDDEN_PREFIX + (localDb.getActiveUserId() ?? 'guest');
+
+async function readHiddenIds(): Promise<Set<string>> {
+  try {
+    const stored = await AsyncStorage.getItem(hiddenKey());
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+async function withoutHidden(
+  records: FocusHistoryRecord[],
+): Promise<FocusHistoryRecord[]> {
+  const hidden = await readHiddenIds();
+  return hidden.size === 0
+    ? records
+    : records.filter((record) => !hidden.has(record.id));
+}
+
+/** Delete a session from Focus History (on this phone). */
+export async function deleteFocusSession(sessionId: string): Promise<void> {
+  const hidden = await readHiddenIds();
+  hidden.add(sessionId);
+  await AsyncStorage.setItem(hiddenKey(), JSON.stringify([...hidden]));
+
+  const cached = await readCachedHistory();
+  await writeCachedHistory(cached.filter((record) => record.id !== sessionId));
+}
+
 /* ---------- local cache ---------- */
 
 export async function readCachedHistory(): Promise<FocusHistoryRecord[]> {
@@ -74,7 +113,7 @@ export async function readCachedHistory(): Promise<FocusHistoryRecord[]> {
     const parsed: unknown = stored ? JSON.parse(stored) : [];
 
     return Array.isArray(parsed)
-      ? sortNewestFirst(parsed.filter(isRecord).map(normalize))
+      ? withoutHidden(sortNewestFirst(parsed.filter(isRecord).map(normalize)))
       : [];
   } catch {
     return [];
@@ -137,7 +176,7 @@ export async function fetchFocusHistory(): Promise<{
     const titles = await readTaskTitles();
     const data: unknown = response.data.data;
 
-    const records = sortNewestFirst(
+    const allRecords = sortNewestFirst(
       (Array.isArray(data) ? data : [])
         .filter(isRecord)
         .map((item) =>
@@ -147,6 +186,8 @@ export async function fetchFocusHistory(): Promise<{
           }),
         ),
     );
+
+    const records = await withoutHidden(allRecords);
 
     await writeCachedHistory(records);
 

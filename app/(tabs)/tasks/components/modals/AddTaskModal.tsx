@@ -1,9 +1,8 @@
 import { Feather } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -11,7 +10,6 @@ import {
   View,
 } from 'react-native';
 
-import { localDb } from '@/app/services/localDb';
 import type { useTaskData } from '../../hooks/useTaskData';
 import { TaskTheme } from '../../types';
 
@@ -53,9 +51,6 @@ export default function AddTaskModal({
     newDueTime,
     setNewDueTime,
 
-    newHasReminder,
-    setNewHasReminder,
-
     handleCreateTask,
     handleUpdateTask,
 
@@ -84,40 +79,6 @@ export default function AddTaskModal({
 
   const priorities = ['High', 'Medium', 'Low'];
 
-  /*
-   * Subjects this user already typed in other tasks, offered as
-   * one-tap suggestions. Calendar categories are not subjects.
-   */
-  const subjectSuggestions = useMemo(() => {
-    if (!isAdding) return [];
-
-    const notSubjects = new Set([
-      'general',
-      'assignment',
-      'exam',
-      'class',
-      'meeting',
-      'personal',
-      'focus session',
-    ]);
-
-    const seen = new Set<string>();
-    const result: string[] = [];
-
-    for (const task of localDb.getTasks()) {
-      const subject = String(task.subject ?? '').trim();
-      const key = subject.toLowerCase();
-
-      if (!subject || notSubjects.has(key) || seen.has(key)) continue;
-
-      seen.add(key);
-      result.push(subject);
-
-      if (result.length >= 8) break;
-    }
-
-    return result;
-  }, [isAdding]);
 
   /* One-tap times shown in the time picker. */
   const QUICK_TIMES: { label: string; h: number; m: number; p: Period }[] = [
@@ -399,13 +360,7 @@ export default function AddTaskModal({
           : 'rgba(44, 34, 26, 0.32)',
       }}
     >
-      <KeyboardAvoidingView
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : undefined
-        }
-      >
+      <KeyboardAvoidingView behavior="padding">
         <View
           style={{
             backgroundColor: cardBg,
@@ -513,50 +468,10 @@ export default function AddTaskModal({
                 paddingHorizontal: 13,
                 height: 46,
                 fontSize: 14,
-                marginBottom: subjectSuggestions.length > 0 ? 8 : 16,
+                marginBottom: 16,
               }}
             />
 
-            {subjectSuggestions.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                style={{ marginBottom: 16 }}
-              >
-                {subjectSuggestions.map((subject) => {
-                  const active =
-                    newSubject.trim().toLowerCase() ===
-                    subject.toLowerCase();
-
-                  return (
-                    <TouchableOpacity
-                      key={subject}
-                      onPress={() => setNewSubject(subject)}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 10,
-                        backgroundColor: active ? primaryBrown : 'transparent',
-                        borderWidth: 1,
-                        borderColor: active ? primaryBrown : borderCol,
-                        marginRight: 6,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: active ? '#FFF' : textSecondary,
-                          fontSize: 12,
-                          fontWeight: '600',
-                        }}
-                      >
-                        {subject}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
 
             {/* PRIORITY */}
 
@@ -809,76 +724,6 @@ export default function AddTaskModal({
                 marginBottom: 16,
               }}
             />
-
-            {/* REMINDER */}
-
-            <TouchableOpacity
-              onPress={() =>
-                setNewHasReminder(
-                  !newHasReminder
-                )
-              }
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent:
-                  'space-between',
-                paddingVertical: 5,
-                marginBottom: 18,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <Feather
-                  name="bell"
-                  size={17}
-                  color={primaryBrown}
-                />
-
-                <Text
-                  style={{
-                    color: textPrimary,
-                    marginLeft: 9,
-                    fontSize: 14,
-                  }}
-                >
-                  Reminder
-                </Text>
-              </View>
-
-              <View
-                style={{
-                  width: 38,
-                  height: 22,
-                  borderRadius: 20,
-                  backgroundColor:
-                    newHasReminder
-                      ? primaryBrown
-                      : borderCol,
-                  padding: 2,
-                  justifyContent:
-                    'center',
-                }}
-              >
-                <View
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    backgroundColor:
-                      '#FFF',
-                    alignSelf:
-                      newHasReminder
-                        ? 'flex-end'
-                        : 'flex-start',
-                  }}
-                />
-              </View>
-            </TouchableOpacity>
 
             {/* SAVE */}
 

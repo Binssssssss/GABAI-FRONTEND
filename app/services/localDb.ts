@@ -26,6 +26,10 @@ export interface Task {
   attachments: number;
   subTasks: SubTask[];
   createdAt: number;
+  /** Last change time (ms). For a completed task, about when it was finished. */
+  updatedAt?: number;
+  /** Shown right away while the server is still saving it. */
+  isPending?: boolean;
 }
 
 export interface Transaction {

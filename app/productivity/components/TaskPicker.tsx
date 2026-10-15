@@ -80,10 +80,13 @@ export default function TaskPicker({
           onSelectTask(task ? { id: task.id, title: task.title, subject: task.subject } : null)
         }
         style={({ pressed }) => [
-          styles.taskRow,
           {
-            backgroundColor: isSelected ? colors.primary + '14' : colors.card,
-            borderColor: isSelected ? colors.primary : colors.border,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            paddingVertical: 12,
+            paddingHorizontal: 14,
+            backgroundColor: isSelected ? colors.primary + '14' : 'transparent',
           },
           pressed && { opacity: 0.85 },
         ]}
@@ -97,35 +100,42 @@ export default function TaskPicker({
           <Text numberOfLines={1} style={[styles.taskTitle, { color: colors.text }]}>
             {task ? task.title : 'No specific task'}
           </Text>
-          <Text numberOfLines={1} style={[styles.taskMeta, { color: colors.subtext }]}>
-            {task ? describeTask(task) : 'Just study a subject'}
-          </Text>
+          {task && (
+            <Text numberOfLines={1} style={[styles.taskMeta, { color: colors.subtext }]}>
+              {describeTask(task)}
+            </Text>
+          )}
         </View>
       </Pressable>
     );
   };
 
-  const emptyBox = (message: string) => (
+  /* Rows grouped in one rounded box with thin dividers. */
+  const group = (rows: React.ReactNode[]) => (
     <View
       style={{
         borderWidth: 1,
-        borderStyle: 'dashed',
         borderColor: colors.border,
         borderRadius: 14,
-        padding: 14,
-        marginTop: 2,
+        overflow: 'hidden',
+        backgroundColor: colors.card,
       }}
     >
-      <Text style={[styles.taskStateText, { color: colors.subtext, textAlign: 'center' }]}>
-        {message}
-      </Text>
+      {rows.map((row, index) => (
+        <View
+          key={index}
+          style={index > 0 ? { borderTopWidth: 1, borderTopColor: colors.border } : undefined}
+        >
+          {row}
+        </View>
+      ))}
     </View>
   );
 
   if (loadState.status === 'loading') {
     return (
       <View>
-        {renderRow(null)}
+        {group([renderRow(null)])}
         <View style={styles.taskStateBox}>
           <ActivityIndicator color={colors.primary} />
           <Text style={[styles.taskStateText, { color: colors.subtext }]}>Loading your tasks…</Text>
@@ -137,8 +147,7 @@ export default function TaskPicker({
   if (loadState.status === 'error') {
     return (
       <View>
-        {selectedTask && renderRow(selectedTask)}
-        {renderRow(null)}
+        {group(selectedTask ? [renderRow(selectedTask), renderRow(null)] : [renderRow(null)])}
         <View style={styles.taskStateBox}>
           <Text style={[styles.taskStateText, { color: colors.subtext }]}>
             Couldn&apos;t load your tasks.
@@ -161,11 +170,13 @@ export default function TaskPicker({
 
   return (
     <View>
-      {renderRow(null)}
-      {visibleTasks.map(renderRow)}
+      {group([renderRow(null), ...visibleTasks.map(renderRow)])}
 
-      {tasks.length === 0 &&
-        emptyBox('No open tasks yet.\nAdd one in Task Manager to focus on it.')}
+      {tasks.length === 0 && (
+        <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 8, marginLeft: 2 }}>
+          No open tasks yet. Add one in Task Manager.
+        </Text>
+      )}
 
       {tasks.length > COLLAPSED_COUNT && (
         <Pressable

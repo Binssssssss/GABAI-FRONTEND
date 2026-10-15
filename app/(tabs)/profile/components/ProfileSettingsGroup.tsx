@@ -3,8 +3,8 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useRouter } from 'expo-router';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { PROFILE_SECTIONS } from '../constants/profileConfig';
@@ -30,7 +30,7 @@ export default function ProfileSettingsGroup({
   const { themeMode, setThemeMode } = useAppTheme();
   const router = useRouter();
   const handleThemePress = () => {
-    Alert.alert(
+    AppAlert.alert(
       'Appearance',
       'Choose your preferred theme',
       [

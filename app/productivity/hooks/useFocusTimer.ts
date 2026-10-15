@@ -1,9 +1,13 @@
 ﻿import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useFocusLock } from '@/app/context/FocusLockContext';
+import {
+  cancelFocusEndNotification,
+  scheduleFocusEndNotification,
+} from '@/app/services/focusNotificationService';
 import {
   addToCachedHistory,
   fetchFocusHistory,
@@ -428,6 +432,25 @@ export function useFocusTimer() {
     pausedRemaining,
   ]);
 
+  // Phone notification at the end of the session or break
+  // ("Time's up!" / "Break's over"), even if the app is closed.
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (isRunning && !isPaused && endsAt !== null) {
+      void scheduleFocusEndNotification({
+        endsAt,
+        isBreak,
+        minutes: Math.round(totalDuration / 60),
+        subject: selectedTask?.title ?? selectedSubject,
+      });
+    } else {
+      void cancelFocusEndNotification();
+    }
+    // Reschedule only when the end time changes (start, resume, stop).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrated, isRunning, isPaused, endsAt]);
+
   // Rotate motivational messages.
   useEffect(() => {
     const interval = setInterval(() => {
@@ -476,7 +499,7 @@ export function useFocusTimer() {
         // Keep it on this phone so the work is not lost.
         await addToCachedHistory(tempRecord);
 
-        Alert.alert(
+        AppAlert.alert(
           'Saved on This Phone',
           'We could not reach the server, so this session was saved on your phone only.'
         );
@@ -564,7 +587,7 @@ export function useFocusTimer() {
         Haptics.NotificationFeedbackType.Success
       ).catch(() => {});
 
-      Alert.alert(
+      AppAlert.alert(
         'Break Completed',
         `Your break is over. Your ${FOCUS_MODE_LABELS[lastFocusMode]} session is ready when you are.`
       );
@@ -605,7 +628,7 @@ export function useFocusTimer() {
       options?: { start?: boolean }
     ): boolean => {
       if (isRunning) {
-        Alert.alert(
+        AppAlert.alert(
           isStrictSessionActive
             ? 'Strict Focus Active'
             : 'Session in Progress',
@@ -651,7 +674,7 @@ export function useFocusTimer() {
     if (!isRunning || isPaused) return;
 
     if (isStrictSessionActive) {
-      Alert.alert(
+      AppAlert.alert(
         'Strict Focus Active',
         'Pausing is disabled during Strict Focus. Continue focusing or end the session.'
       );
@@ -685,7 +708,7 @@ export function useFocusTimer() {
   // Strict Focus cannot be reset while active, including while paused.
   const resetTimer = useCallback(() => {
     if (isStrictSessionActive) {
-      Alert.alert(
+      AppAlert.alert(
         'Strict Focus Active',
         'Resetting is disabled during Strict Focus. Finish the session, or use End to stop it.'
       );
@@ -697,7 +720,7 @@ export function useFocusTimer() {
       return;
     }
 
-    Alert.alert(
+    AppAlert.alert(
       isBreak ? 'Reset Break' : 'Reset Focus Session',
       isBreak
         ? 'Restart the break timer from the beginning?'
@@ -719,7 +742,7 @@ export function useFocusTimer() {
     if (!isRunning) return;
 
     if (isBreak) {
-      Alert.alert(
+      AppAlert.alert(
         'End Break Early?',
         'Ending a break will not add focused study time.',
         [
@@ -739,7 +762,7 @@ export function useFocusTimer() {
     );
 
     if (elapsedMinutes < MIN_LOGGABLE_MINUTES) {
-      Alert.alert(
+      AppAlert.alert(
         isStrictSessionActive ? 'End Strict Session?' : 'End Session?',
         `You have focused for ${elapsedMinutes} min. Sessions shorter than ${MIN_LOGGABLE_MINUTES} minutes are not recorded, so this session will be discarded.`,
         [
@@ -757,7 +780,7 @@ export function useFocusTimer() {
 
     const subject = selectedSubject.trim() || 'General Study';
 
-    Alert.alert(
+    AppAlert.alert(
       'Finish Session Early',
       `Record ${elapsedMinutes} minutes of focused study for ${subject}?`,
       [

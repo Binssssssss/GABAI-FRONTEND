@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { taskStyles as styles } from '../../styles/task.styles';
 import { Task } from '../../types';
+import { formatTime12 } from '@/utils/time';
 
 interface TaskItemCardProps {
 task: Task;
@@ -83,7 +84,7 @@ style={[
 styles.taskCard,
 {
 backgroundColor: cardBg,
-borderColor: isSelected ? primaryBrown : borderCol,
+borderColor: isSelected || task.isPending ? primaryBrown : borderCol,
 opacity: task.completed ? 0.72 : 1,
 },
 ]}
@@ -134,6 +135,25 @@ backgroundColor: isMultiSelectMode
       >
         {task.subject}
       </Text>
+
+      {task.isPending && (
+        <Text
+          style={{
+            fontSize: 10.5,
+            fontWeight: '700',
+            color: primaryBrown,
+            backgroundColor: primaryBrown + '26',
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+            borderRadius: 6,
+            overflow: 'hidden',
+            marginLeft: 6,
+            marginRight: 'auto',
+          }}
+        >
+          Saving…
+        </Text>
+      )}
 
       <View style={styles.taskControlsRow}>
         {/* Pin */}
@@ -274,7 +294,7 @@ backgroundColor: isMultiSelectMode
         >
           {task.dueDate}{' '}
           {task.dueTime
-            ? `• ${task.dueTime}`
+            ? `• ${formatTime12(task.dueTime)}`
             : ''}
         </Text>
       </View>

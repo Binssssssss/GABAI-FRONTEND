@@ -92,7 +92,7 @@ export default function QuickOverview({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 8,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
   },

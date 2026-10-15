@@ -32,10 +32,7 @@ export default function TaskHeader({
         >
           <Feather name="menu" size={24} color={textPrimary} />
         </TouchableOpacity>
-        <View>
-          <Text style={[styles.headerGreeting, { color: textPrimary }]}>Tasks</Text>
-          <Text style={[styles.headerDate, { color: textSecondary }]}>Academic Planner</Text>
-        </View>
+        <Text style={[styles.headerGreeting, { color: textPrimary }]}>Tasks</Text>
       </View>
 
       <View style={styles.headerActions}>

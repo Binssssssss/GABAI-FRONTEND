@@ -639,7 +639,7 @@ export default function WhatShouldIDoNow({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 18,
   },
 

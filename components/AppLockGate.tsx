@@ -47,6 +47,13 @@ export default function AppLockGate({ children }: { children: React.ReactNode })
     (async () => {
       const enabled = isLocalAuthSupported() && (await isAppLockEnabled());
 
+      if (__DEV__) {
+        console.log(
+          `[AppLock] app opened · lock on: ${await isAppLockEnabled()} · ` +
+            `phone support: ${isLocalAuthSupported()}`,
+        );
+      }
+
       if (!active) return;
 
       setChecking(false);
@@ -68,6 +75,7 @@ export default function AppLockGate({ children }: { children: React.ReactNode })
       if (next === 'background') {
         // The biometric prompt itself can briefly background the app.
         if (!authenticating.current) backgroundedAt.current = Date.now();
+        if (__DEV__) console.log('[AppLock] app went to the background');
         return;
       }
 
@@ -75,11 +83,22 @@ export default function AppLockGate({ children }: { children: React.ReactNode })
         const away = Date.now() - backgroundedAt.current;
         backgroundedAt.current = null;
 
+        const supported = isLocalAuthSupported();
+        const enabled = await isAppLockEnabled();
+
+        if (__DEV__) {
+          console.log(
+            `[AppLock] back after ${Math.round(away / 1000)}s ` +
+              `(needs > ${RELOCK_AFTER_MS / 1000}s) · signed in: ${!!session?.token} · ` +
+              `lock on: ${enabled} · phone support: ${supported}`,
+          );
+        }
+
         if (
           away > RELOCK_AFTER_MS &&
           session?.token &&
-          isLocalAuthSupported() &&
-          (await isAppLockEnabled())
+          supported &&
+          enabled
         ) {
           setLocked(true);
           unlock();

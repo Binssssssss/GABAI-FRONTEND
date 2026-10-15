@@ -45,14 +45,11 @@ export default function NotesHeader({
 
         <View style={styles.headerTitleBlock}>
           <View style={styles.titleRow}>
-            <Text style={[styles.headerTitle, { color: textPrimary }]}>My Notes</Text>
+            <Text style={[styles.headerTitle, { color: textPrimary }]}>Notes</Text>
             <View style={[styles.counterBadge, { backgroundColor: primaryBrown + '20' }]}>
               <Text style={[styles.counterText, { color: primaryBrown }]}>{totalNotesCount}</Text>
             </View>
           </View>
-          <Text style={[styles.headerSubtitle, { color: textSecondary }]}>
-            Your ideas, organized.
-          </Text>
         </View>
       </View>
 

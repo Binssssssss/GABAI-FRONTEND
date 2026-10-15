@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/app/context/ThemeContext';
@@ -73,7 +73,7 @@ export default function VerifyEmailScreen() {
     try {
       const response = await api.post('/auth/verify-email', { email, code: value });
 
-      Alert.alert(
+      AppAlert.alert(
         'Email verified',
         response.data?.message ?? 'Email verified. You can now log in.',
         [{ text: 'Go to Login', onPress: goToLogin }],
@@ -102,7 +102,7 @@ export default function VerifyEmailScreen() {
       setExpiresAt(Date.now() + CODE_TTL_SECONDS * 1000);
       setResendAt(Date.now() + cooldown * 1000);
 
-      Alert.alert('Code sent', response.data?.message ?? 'A new code has been sent to your email.');
+      AppAlert.alert('Code sent', response.data?.message ?? 'A new code has been sent to your email.');
     } catch (error: any) {
       const retryAfter = Number(error?.response?.data?.errors?.retryAfter);
       if (retryAfter > 0) setResendAt(Date.now() + retryAfter * 1000);

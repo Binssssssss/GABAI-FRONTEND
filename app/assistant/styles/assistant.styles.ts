@@ -8,7 +8,7 @@ export const assistantStyles = StyleSheet.create({
     height: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     justifyContent: 'space-between',
   },
@@ -25,8 +25,8 @@ export const assistantStyles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
   },
   offlineBadge: {
     paddingHorizontal: 8,
@@ -165,7 +165,7 @@ export const assistantStyles = StyleSheet.create({
   },
   guideCard: {
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     width: '100%',
     marginBottom: 24,
@@ -199,7 +199,7 @@ export const assistantStyles = StyleSheet.create({
     lineHeight: 18,
   },
   sectionHeading: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -246,7 +246,7 @@ export const assistantStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickActionsContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   actionChip: {
@@ -262,7 +262,7 @@ export const assistantStyles = StyleSheet.create({
   },
   inputContainer: {
     borderTopWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',

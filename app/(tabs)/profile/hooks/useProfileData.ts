@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Alert } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 import api from '@/app/services/api';
@@ -184,7 +184,7 @@ export function useProfileData() {
   // ------------------------------------------------------
 
   const handleLogout = useCallback(() => {
-    Alert.alert(
+    AppAlert.alert(
       'Log Out',
       'Are you sure you want to log out of GabAi?',
       [
@@ -198,7 +198,7 @@ export function useProfileData() {
               router.replace('/(auth)/login/login');
             } catch (error) {
               console.error('Logout failed:', error);
-              Alert.alert(
+              AppAlert.alert(
                 'Logout Error',
                 'Something went wrong while logging out. Please try again.',
               );

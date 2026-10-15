@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
-  Alert,
   Pressable,
   Animated,
   PanResponder,
@@ -23,6 +22,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -711,7 +711,7 @@ export default function NoteEditorModal({
       return;
     }
 
-    Alert.alert(
+    AppAlert.alert(
       'Save changes?',
       'This note has changes that are not saved yet.',
       [
@@ -842,7 +842,7 @@ export default function NoteEditorModal({
       statusBarTranslucent={Platform.OS === 'android'}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         keyboardVerticalOffset={0}
         style={{
           flex: 1,

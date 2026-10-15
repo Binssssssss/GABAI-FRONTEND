@@ -3,7 +3,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -326,7 +325,7 @@ export default function QuickAddEventModal({
     >
       <View style={s.overlay}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
           style={[s.sheet, { backgroundColor: modalSurface }]}
         >
           <View style={[s.grab, { backgroundColor: borderTheme }]} />

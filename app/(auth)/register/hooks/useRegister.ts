@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { useRouter } from 'expo-router';
 import api from '@/app/services/api';
 import { validateRegisterForm } from '../utils';
@@ -64,7 +64,7 @@ export function useRegister() {
       ) {
         setEmailError(errorMessage);
       } else {
-        Alert.alert('Registration Failed', errorMessage);
+        AppAlert.alert('Registration Failed', errorMessage);
       }
     }
   };

@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     minHeight: 132,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 16,
     flexDirection: "row",

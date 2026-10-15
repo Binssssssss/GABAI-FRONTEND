@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Animated } from 'react-native';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from '@/app/context/ThemeContext';
 import { Colors } from '@/constants/theme';
 import { assistantStyles as styles } from '../styles';
 
@@ -40,7 +40,8 @@ function BouncingDot({ delay }: { delay: number }) {
 }
 
 export function TypingIndicator() {
-  const colorScheme = useColorScheme();
+  // Follow the app's theme setting (not just the phone's).
+  const { colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const palette = isDark ? Colors.dark : Colors.light;
   const cardBg = palette.surface;

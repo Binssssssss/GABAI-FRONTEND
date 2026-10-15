@@ -1,21 +1,22 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
   Animated,
   PanResponder,
   Dimensions,
+  Image,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Feather } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from '@/app/context/ThemeContext';
+
+const GABAI_LOGO_WHITE = require('../assets/images/GABAI-LOGO-WHITE.png');
+const GABAI_LOGO_BLACK = require('../assets/images/GABAI-LOGO-BLACK.png');
 
 const BUTTON_SIZE = 52;
-
-const getCurrentTime = () => Date.now();
 
 interface FloatingAssistantProps {
   hasSuggestions?: boolean;
@@ -29,7 +30,8 @@ export default function FloatingAssistant({
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() ?? 'light';
+  // Follow the app's theme setting (not just the phone's), like other screens.
+  const { colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
 
   const screenDimensions = Dimensions.get('window');
@@ -90,12 +92,16 @@ export default function FloatingAssistant({
     }
   }, [router]);
 
+  // The PanResponder below is created once, so read the open handler through a ref.
+  const openAssistantChatRef = useRef(openAssistantChat);
+  useEffect(() => {
+    openAssistantChatRef.current = openAssistantChat;
+  }, [openAssistantChat]);
+
   // Pan Responder for Dragging, Edge Docking & Tap Detection
   const [panResponder] = useState(() => {
     // Drag tracking (only read inside the gesture handlers)
     let isDragging = false;
-    let dragStartPos = { x: 0, y: 0 };
-    let pressStartTime = 0;
 
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -103,10 +109,10 @@ export default function FloatingAssistant({
         // Only treat as drag if finger moves noticeably
         return Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6;
       },
-      onPanResponderGrant: (_, gestureState) => {
+      // Don't let a scroll view take over the touch mid-press.
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
         isDragging = false;
-        pressStartTime = getCurrentTime();
-        dragStartPos = { x: gestureState.x0, y: gestureState.y0 };
 
         // Save current animated value offset
         pan.setOffset({
@@ -125,10 +131,8 @@ export default function FloatingAssistant({
         }).start();
       },
       onPanResponderMove: (_, gestureState) => {
-        const dist = Math.hypot(
-          gestureState.moveX - dragStartPos.x,
-          gestureState.moveY - dragStartPos.y
-        );
+        // dx/dy are measured from where the finger went down.
+        const dist = Math.hypot(gestureState.dx, gestureState.dy);
         if (dist > 8 && !isDragging) {
           isDragging = true;
           try {
@@ -142,6 +146,18 @@ export default function FloatingAssistant({
       onPanResponderRelease: (_, gestureState) => {
         pan.flattenOffset();
 
+        // A tap = the finger barely moved. (moveX/moveY are 0 when the
+        // finger never moved, which used to turn quick taps into drags.)
+        const isTap =
+          !isDragging && Math.hypot(gestureState.dx, gestureState.dy) < 10;
+
+        if (isTap) {
+          // Open the chat right away, then settle the button.
+          openAssistantChatRef.current();
+          scaleAnim.setValue(1);
+          return;
+        }
+
         // Scale back to normal
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -149,20 +165,6 @@ export default function FloatingAssistant({
           speed: 30,
           bounciness: 6,
         }).start();
-
-        const pressDuration = getCurrentTime() - pressStartTime;
-        const dist = Math.hypot(
-          gestureState.moveX - dragStartPos.x,
-          gestureState.moveY - dragStartPos.y
-        );
-
-        // Tap detected (minimal movement or quick tap)
-        const isTap = dist < 12 || (pressDuration < 350 && dist < 20);
-
-        if (isTap) {
-          openAssistantChat();
-          return;
-        }
 
         // Clamp & Dock to closest edge (Left or Right)
         // @ts-ignore
@@ -186,6 +188,11 @@ export default function FloatingAssistant({
           friction: 6,
           tension: 40,
         }).start();
+      },
+      // If the system cancels the touch, put the button back to normal.
+      onPanResponderTerminate: () => {
+        pan.flattenOffset();
+        scaleAnim.setValue(1);
       },
     });
   });
@@ -237,12 +244,19 @@ export default function FloatingAssistant({
         style={[
           styles.bubble,
           {
-            backgroundColor: primaryBrown,
-            borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.45)',
+            // Neutral circle + brown ring so the GabAi logo stands out.
+            backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+            borderColor: primaryBrown,
           },
         ]}
+        accessibilityRole="button"
+        accessibilityLabel="Open GabAi assistant"
       >
-        <Feather name="zap" size={22} color="#FFFFFF" />
+        <Image
+          source={isDark ? GABAI_LOGO_WHITE : GABAI_LOGO_BLACK}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
         {/* AI Ready / Online indicator badge */}
         {hasNotifications && (
@@ -279,12 +293,16 @@ const styles = StyleSheet.create({
     borderRadius: BUTTON_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
     shadowColor: '#A97C50',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.45,
     shadowRadius: 10,
     elevation: 8,
+  },
+  logo: {
+    width: 34,
+    height: 34,
   },
   statusBadge: {
     position: 'absolute',

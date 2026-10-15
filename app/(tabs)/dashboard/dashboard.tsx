@@ -71,12 +71,22 @@ export default function DashboardScreen() {
       'User'
   );
 
-  const firstName = fullUserName.trim().split(/\s+/)[0] || 'User';
+  // Name in title case, first + last word only so it fits the header:
+  // "juan dela cruz" -> "Juan Cruz", "arjay reyes" -> "Arjay Reyes"
+  // (an email is shown as-is).
+  const nameWords = fullUserName
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 
-  // "gabai" -> "Gabai" (an email is shown as-is).
-  const userName = firstName.includes('@')
-    ? firstName
-    : firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+  const userName = fullUserName.includes('@')
+    ? fullUserName.trim()
+    : (nameWords.length > 2
+        ? `${nameWords[0]} ${nameWords[nameWords.length - 1]}`
+        : nameWords.join(' ')) || 'User';
+
 
   // ============================================================
   // DASHBOARD DATA

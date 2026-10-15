@@ -1,8 +1,8 @@
 import { Colors } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { AppAlert } from '@/components/AppAlert';
 import { dashboardHeaderStyles as styles } from '../styles/dashboardHeaderStyles';
 
 import {
@@ -37,6 +38,8 @@ export default function DashboardHeader({
   textPrimary,
   textSecondary,
 }: DashboardHeaderProps) {
+  const router = useRouter();
+
   const [notificationsVisible, setNotificationsVisible] =
     useState(false);
 
@@ -88,7 +91,7 @@ export default function DashboardHeader({
 
   // Delete all notifications, after confirming.
   const handleClearAll = () => {
-    Alert.alert(
+    AppAlert.alert(
       'Clear all notifications?',
       'This removes all your notifications. This cannot be undone.',
       [
@@ -164,52 +167,60 @@ export default function DashboardHeader({
             />
           </TouchableOpacity>
 
-          {/* GREETING */}
-          <View style={styles.greetingContainer}>
-            <Text
-              style={[
-                styles.greetingLabel,
-                {
-                  color: textSecondary,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {greeting}
-            </Text>
-
-            <Text
-              style={[
-                styles.welcomeText,
-                {
-                  color: textPrimary,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {userName}
-            </Text>
-
-            <View style={styles.dateRow}>
-              <Feather
-                name="calendar"
-                size={12}
-                color={textSecondary}
-              />
-
+          {/* GREETING + NAME (opens Profile) */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push('/(tabs)/profile/profile' as any)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open profile, ${userName}`}
+            activeOpacity={0.75}
+          >
+            <View style={styles.greetingContainer}>
               <Text
                 style={[
-                  styles.dateText,
+                  styles.greetingLabel,
                   {
                     color: textSecondary,
                   },
                 ]}
                 numberOfLines={1}
               >
-                {today}
+                {greeting}
               </Text>
+
+              <Text
+                style={[
+                  styles.welcomeText,
+                  {
+                    color: textPrimary,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {userName}
+              </Text>
+
+              <View style={styles.dateRow}>
+                <Feather
+                  name="calendar"
+                  size={12}
+                  color={textSecondary}
+                />
+
+                <Text
+                  style={[
+                    styles.dateText,
+                    {
+                      color: textSecondary,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {today}
+                </Text>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* RIGHT SIDE */}
@@ -245,9 +256,6 @@ export default function DashboardHeader({
               />
             )}
           </TouchableOpacity>
-
-          {/* PROFILE */}
-
         </View>
       </View>
 

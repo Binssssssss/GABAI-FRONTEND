@@ -30,7 +30,15 @@ export default function TransactionItem({
   const iconName = getTransactionIcon(item.type, item.category);
 
   return (
-    <View style={[styles.transactionItem, { backgroundColor: cardBg, borderColor: borderCol }]}>
+    <View
+      style={[
+        styles.transactionItem,
+        {
+          backgroundColor: cardBg,
+          borderColor: item.isPending ? primaryBrown : borderCol,
+        },
+      ]}
+    >
       <View
         style={[
           styles.itemIconContainer,
@@ -44,7 +52,31 @@ export default function TransactionItem({
         />
       </View>
       <View style={styles.itemDetails}>
-        <Text style={[styles.itemTitle, { color: textPrimary }]}>{item.title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text
+            numberOfLines={1}
+            style={[styles.itemTitle, { color: textPrimary, flexShrink: 1 }]}
+          >
+            {item.title}
+          </Text>
+
+          {item.isPending && (
+            <Text
+              style={{
+                fontSize: 10.5,
+                fontWeight: '700',
+                color: primaryBrown,
+                backgroundColor: primaryBrown + '26',
+                paddingHorizontal: 7,
+                paddingVertical: 2,
+                borderRadius: 6,
+                overflow: 'hidden',
+              }}
+            >
+              Saving…
+            </Text>
+          )}
+        </View>
         <Text style={[styles.itemSubtitle, { color: textSecondary }]}>
           {item.category} • {formatTransactionDate(item.date)}
         </Text>

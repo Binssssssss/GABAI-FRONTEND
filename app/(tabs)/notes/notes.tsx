@@ -6,7 +6,6 @@ import { useDrawer } from '@/app/(tabs)/_layout';
 import {
   NotesHeaderSection,
   NotesSectionList,
-  NotesFabMenu,
   NotesModalContainer,
 } from './components';
 
@@ -29,7 +28,7 @@ export default function NotesScreen() {
       ]}
       edges={['top']}
     >
-      {/* Header, Search & Filter Bar */}
+      {/* Header & Filter Bar */}
       <NotesHeaderSection
         onOpenDrawer={openDrawer}
         notesData={notesData}
@@ -46,26 +45,6 @@ export default function NotesScreen() {
           theme={theme}
         />
       </ScrollView>
-
-      {/* Floating Speed Dial Action Button */}
-      <NotesFabMenu
-        isOpen={notesData.isFabMenuOpen}
-        onToggle={() =>
-          notesData.setIsFabMenuOpen((prev) => !prev)
-        }
-        onNewBlankNote={() =>
-          notesData.handleOpenNewNote()
-        }
-        onQuickJot={notesData.handleOpenQuickNote}
-        onOpenTemplates={() => {
-          notesData.setIsFabMenuOpen(false);
-          notesData.setIsTemplateModalOpen(true);
-        }}
-        cardBg={theme.cardBg}
-        borderCol={theme.borderCol}
-        textPrimary={theme.textPrimary}
-        primaryBrown={theme.primaryBrown}
-      />
 
       {/* Editor, Templates, Convert Task, Schedule & Filters */}
       <NotesModalContainer
