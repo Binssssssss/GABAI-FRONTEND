@@ -7,6 +7,7 @@ export { default as DayView } from './DayView';
 export { default as EventDetailModal } from './EventDetailModal';
 export { default as MonthView } from './MonthView';
 export { default as QuickAddEventModal } from './QuickAddEventModal';
+export { default as RescheduleSheet } from './RescheduleSheet';
 export { default as UpcomingDeadlinesWidget } from './UpcomingDeadlinesWidget';
 export { default as WeekView } from './WeekView';
 export { default as AcademicPressureIndicator } from './AcademicPressureIndicator';

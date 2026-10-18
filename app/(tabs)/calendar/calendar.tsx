@@ -16,6 +16,7 @@ import {
   EventDetailModal,
   MonthView,
   QuickAddEventModal,
+  RescheduleSheet,
   UpcomingDeadlinesWidget,
   WeekView,
 } from './components';
@@ -64,6 +65,8 @@ export default function SmartCalendarScreen() {
     setSelectedEvent,
     rescheduleMode,
     activeReschedulingId,
+    isRescheduleSheetOpen,
+    reschedulingEvent,
     startRescheduling,
     cancelRescheduling,
     completeRescheduling,
@@ -309,6 +312,20 @@ export default function SmartCalendarScreen() {
         textSubTheme={textSubTheme}
       />
 
+
+      {/* Reschedule: new date + typed time */}
+      <RescheduleSheet
+        visible={isRescheduleSheetOpen}
+        event={reschedulingEvent}
+        events={events}
+        onClose={cancelRescheduling}
+        onConfirm={completeRescheduling}
+        modalSurface={modalSurface}
+        borderTheme={borderTheme}
+        textTheme={textTheme}
+        textSubTheme={textSubTheme}
+        primaryAccent={primaryAccent}
+      />
 
       {/* Quick Add Event Modal */}
       <QuickAddEventModal

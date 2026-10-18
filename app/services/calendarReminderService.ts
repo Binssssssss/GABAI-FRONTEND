@@ -2,6 +2,13 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { loadNotificationPrefs } from './notificationPrefs';
+import {
+  NOTIFICATION_CHANNELS,
+  ensureNotificationChannels,
+} from '@/constants/notificationChannels';
+
+// Calendar reminders beep (gabai_calendar.wav) so the user notices them.
+const CHANNEL = NOTIFICATION_CHANNELS.calendar;
 
 export async function requestReminderPermission(): Promise<boolean> {
   const settings = await Notifications.getPermissionsAsync();
@@ -64,12 +71,7 @@ export async function scheduleCalendarReminder(
     return null;
   }
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('reminders', {
-      name: 'Calendar reminders',
-      importance: Notifications.AndroidImportance.HIGH,
-    });
-  }
+  await ensureNotificationChannels();
 
   // "📅 Midterm Exam in 1 hour" / "Today at 4:15 PM · Exam · High priority"
   const leadLabel =
@@ -110,12 +112,14 @@ export async function scheduleCalendarReminder(
         screen: '/(tabs)/calendar/calendar',
         type: 'calendar_reminder',
       },
+      sound: CHANNEL.sound,
+      priority: Notifications.AndroidNotificationPriority.MAX,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: reminderDate,
       ...(Platform.OS === 'android'
-        ? { channelId: 'reminders' }
+        ? { channelId: CHANNEL.id }
         : {}),
     },
   });

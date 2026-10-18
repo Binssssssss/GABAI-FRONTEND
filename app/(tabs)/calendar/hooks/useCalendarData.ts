@@ -144,6 +144,10 @@ export function useCalendarData() {
   const [activeReschedulingId, setActiveReschedulingId] =
     useState<string | null>(null);
 
+  // The Reschedule sheet (pick a new date + type a new time).
+  const [isRescheduleSheetOpen, setIsRescheduleSheetOpen] =
+    useState(false);
+
   const [newTitle, setNewTitle] =
     useState('');
 
@@ -743,9 +747,11 @@ export function useCalendarData() {
           eventId,
         );
 
-        setRescheduleMode(true);
-
         setIsDetailModalOpen(false);
+
+        // Open the Reschedule sheet instead of "tap a date" mode,
+        // so it works from every view (Month, Week, Day, Agenda).
+        setIsRescheduleSheetOpen(true);
       },
       [],
     );
@@ -757,6 +763,7 @@ export function useCalendarData() {
     useCallback(() => {
       setRescheduleMode(false);
       setActiveReschedulingId(null);
+      setIsRescheduleSheetOpen(false);
     }, []);
 
   /*
@@ -764,9 +771,9 @@ export function useCalendarData() {
    */
   const completeRescheduling =
     useCallback(
-      async (targetDate: string) => {
+      async (targetDate: string, targetTime?: string): Promise<boolean> => {
         if (!activeReschedulingId) {
-          return;
+          return false;
         }
 
         const event =
@@ -778,18 +785,24 @@ export function useCalendarData() {
 
         if (!event) {
           cancelRescheduling();
-          return;
+          return false;
         }
 
-        const persistReschedule = async () => {
+        // From the sheet: the typed time ("" = all-day). Otherwise keep the old time.
+        const newTime =
+          targetTime !== undefined
+            ? targetTime
+            : event.isAllDay
+              ? ''
+              : event.time;
+
+        const persistReschedule = async (): Promise<boolean> => {
           try {
             const response = await api.patch(
               `/tasks/${event.id}/reschedule`,
               {
                 dueDate: targetDate,
-                dueTime: event.isAllDay
-                  ? ''
-                  : event.time,
+                dueTime: newTime,
               },
             );
 
@@ -802,12 +815,12 @@ export function useCalendarData() {
             await cancelCalendarReminder(event.id);
 
             // Schedule a new reminder if the event still needs one.
-            if (event.hasReminder && !event.isAllDay && event.time) {
+            if (event.hasReminder && !event.isAllDay && newTime) {
               try {
                 await scheduleCalendarReminder(
                   updatedEvent.title,
                   targetDate,
-                  updatedEvent.time || event.time,
+                  updatedEvent.time || newTime,
                   undefined, // use the Notification Settings lead time
                   event.id,
                   { category: event.category, priority: event.priority },
@@ -828,15 +841,34 @@ export function useCalendarData() {
               ),
             );
 
+            setSelectedEvent((current) =>
+              current?.id === event.id ? updatedEvent : current,
+            );
+
+            // Show the day the event moved to.
+            setSelectedDate(targetDate);
+
             await loadUpcomingDeadlines();
 
+            const dateLabel = new Date(`${targetDate}T12:00:00`).toLocaleDateString(
+              'en-US',
+              { weekday: 'short', month: 'short', day: 'numeric' },
+            );
+            const [hh, mm] = (newTime || '').split(':').map(Number);
+            const timeLabel =
+              newTime && Number.isFinite(hh) && Number.isFinite(mm)
+                ? ` at ${hh % 12 === 0 ? 12 : hh % 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'PM' : 'AM'}`
+                : '';
+
             AppAlert.alert(
-              'Event Rescheduled',
-              `"${event.title}" has been moved to ${targetDate}.`,
+              'Event rescheduled',
+              `"${event.title}" moved to ${dateLabel}${timeLabel}.`,
             );
 
             setRescheduleMode(false);
             setActiveReschedulingId(null);
+            setIsRescheduleSheetOpen(false);
+            return true;
           } catch (error: any) {
             console.error('Failed to reschedule event:', error);
 
@@ -844,8 +876,14 @@ export function useCalendarData() {
               'Error',
               error?.response?.data?.message || 'Failed to reschedule event.',
             );
+            return false;
           }
         };
+
+        // The sheet already shows how busy the new day is.
+        if (targetTime !== undefined) {
+          return persistReschedule();
+        }
 
         const targetEvents = events.filter(
           (item) => item.date === targetDate && item.id !== event.id,
@@ -865,10 +903,10 @@ export function useCalendarData() {
               { text: 'Move anyway', onPress: () => { void persistReschedule(); } },
             ],
           );
-          return;
+          return false;
         }
 
-        await persistReschedule();
+        return persistReschedule();
       },
       [
         activeReschedulingId,
@@ -993,6 +1031,9 @@ return {
 
   rescheduleMode,
   activeReschedulingId,
+  isRescheduleSheetOpen,
+  reschedulingEvent:
+    events.find((item) => item.id === activeReschedulingId) ?? null,
 
   startRescheduling,
   cancelRescheduling,

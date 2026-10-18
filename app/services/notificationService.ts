@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { loadNotificationPrefs } from './notificationPrefs';
 
 import api from './api';
+import { ensureNotificationChannels } from '@/constants/notificationChannels';
 
 /**
  * Configure notifications shown while the app
@@ -18,30 +19,12 @@ Notifications.setNotificationHandler({
 });
 
 
-const ANDROID_CHANNEL_ID = 'gabai-default';
-
+/**
+ * Create GabAi's Android channels (each one has its own sound).
+ * See constants/notificationChannels.ts.
+ */
 export async function setupNotificationChannel(): Promise<void> {
-  if (Platform.OS !== 'android') {
-    return;
-  }
-
-  try {
-    await Notifications.setNotificationChannelAsync(
-      ANDROID_CHANNEL_ID,
-      {
-        name: 'GabAi Notifications',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-      },
-    );
-
-    console.log('🔔 GabAi Android notification channel ready');
-  } catch (error) {
-    console.error(
-      '❌ Failed to create notification channel:',
-      error,
-    );
-  }
+  await ensureNotificationChannels();
 }
 
 
