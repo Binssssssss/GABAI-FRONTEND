@@ -108,7 +108,7 @@ function alarmPlan(prefs: NotificationPrefs) {
     ? Number(prefs.snoozeMinutes)
     : 5;
   const rings = MAX_RINGS;
-  return { snooze, minutes, rings, key: `p2-${snooze ? 1 : 0}-${minutes}` };
+  return { snooze, minutes, rings, key: `p3-${snooze ? 1 : 0}-${minutes}` };
 }
 
 /** Changes whenever anything that affects the scheduled alarms changes. */

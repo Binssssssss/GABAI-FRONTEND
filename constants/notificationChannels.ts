@@ -16,8 +16,9 @@ export const NOTIFICATION_CHANNELS = {
     sound: 'gabai_chime.wav',
   },
   calendar: {
-    id: 'gabai-calendar',
-    name: 'Calendar reminders',
+    // New id: an alarm channel (alarm volume, works in silent mode).
+    id: 'gabai-calendar-alarm',
+    name: 'Calendar alarm',
     sound: 'gabai_calendar.wav',
   },
   focus: {
@@ -35,7 +36,7 @@ export const NOTIFICATION_CHANNELS = {
 export type NotificationChannelKey = keyof typeof NOTIFICATION_CHANNELS;
 
 // Channels from older versions (they used the phone's default sound).
-const OLD_CHANNEL_IDS = ['gabai-default', 'reminders', 'focus', 'focus-session'];
+const OLD_CHANNEL_IDS = ['gabai-default', 'reminders', 'focus', 'focus-session', 'gabai-calendar'];
 
 let setupPromise: Promise<void> | null = null;
 
@@ -55,14 +56,26 @@ async function createChannels(): Promise<void> {
     vibrationPattern: [0, 250, 250, 250],
   });
 
-  // Calendar reminders must get noticed: max importance, long vibration,
-  // shown in full on the lock screen.
+  // Calendar alarm: rings like an alarm clock.
+  // - ALARM audio: uses the alarm volume, so it still rings in silent/vibrate mode
+  // - MAX importance: pops up over other apps and on the lock screen
+  // - bypassDnd: rings during Do Not Disturb if the user allows it for GabAi
   await Notifications.setNotificationChannelAsync(calendar.id, {
     name: calendar.name,
-    description: 'Beeps before your scheduled classes, exams and events.',
+    description: 'Rings at the start time of your scheduled classes, exams and events.',
     importance: Notifications.AndroidImportance.MAX,
     sound: calendar.sound,
-    vibrationPattern: [0, 400, 200, 400, 200, 400],
+    audioAttributes: {
+      usage: Notifications.AndroidAudioUsage.ALARM,
+      contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      flags: {
+        enforceAudibility: true,
+        requestHardwareAudioVideoSynchronization: false,
+      },
+    },
+    bypassDnd: true,
+    enableVibrate: true,
+    vibrationPattern: [0, 800, 400, 800, 400, 800, 400, 800],
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
 
