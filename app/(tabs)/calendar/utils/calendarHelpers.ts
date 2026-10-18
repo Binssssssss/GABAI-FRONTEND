@@ -250,3 +250,35 @@ export const getPriorityColors = (priority: EventPriority): PriorityColorConfig 
       return { text: '#FDBA74', bg: '#7C2D12', dot: '#F59E0B' };
   }
 };
+
+
+/* ---------- priority order ---------- */
+
+const PRIORITY_RANK: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+const CATEGORY_RANK = ['Exam', 'Assignment', 'Class', 'Meeting', 'Focus Session', 'Personal'];
+
+const rankOf = (list: string[], value: string) => {
+  const index = list.indexOf(value);
+  return index === -1 ? list.length : index;
+};
+
+/** All-day / no time first, then by start time ("08:00" < "13:30"). */
+const timeKey = (event: CalendarEvent) => (event.isAllDay || !event.time ? '' : event.time);
+
+/**
+ * Same day: High -> Medium -> Low, then by time.
+ * Same time and priority: Exam, Assignment, Class, Meeting, Focus Session, Personal,
+ * then by title.
+ */
+export const comparePriority = (a: CalendarEvent, b: CalendarEvent): number =>
+  (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) ||
+  timeKey(a).localeCompare(timeKey(b)) ||
+  rankOf(CATEGORY_RANK, a.category) - rankOf(CATEGORY_RANK, b.category) ||
+  a.title.localeCompare(b.title);
+
+export const sortByPriority = (events: CalendarEvent[]): CalendarEvent[] =>
+  [...events].sort(comparePriority);
+
+/** Deadlines: soonest date first; on the same date, High priority first. */
+export const sortDeadlines = (events: CalendarEvent[]): CalendarEvent[] =>
+  [...events].sort((a, b) => a.date.localeCompare(b.date) || comparePriority(a, b));

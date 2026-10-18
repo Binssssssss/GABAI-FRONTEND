@@ -1,9 +1,27 @@
 import { Feather } from '@expo/vector-icons';
+import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { CATEGORY_COLORS } from '../constants/calendarConfig';
 import { calendarStyles as styles } from '../styles/calendar.styles';
 import { CalendarEvent } from '../types';
-import { getEventConflicts, getLocalDateKey } from '../utils/calendarHelpers';
+import {
+  getEventConflicts,
+  getLocalDateKey,
+  getPriorityColors,
+  sortByPriority,
+} from '../utils/calendarHelpers';
+
+/* "HIGH PRIORITY  2" header above each priority group. */
+const priorityHeaderStyle = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: 7,
+  paddingTop: 12,
+  paddingBottom: 2,
+};
+const priorityDotStyle = { width: 7, height: 7, borderRadius: 4 };
+const priorityHeaderTextStyle = { fontSize: 11, fontWeight: '800' as const, letterSpacing: 0.6 };
+const priorityCountStyle = { marginLeft: 'auto' as const, fontSize: 11, fontWeight: '600' as const };
 
 interface AgendaSectionProps {
   events: CalendarEvent[];
@@ -47,7 +65,8 @@ export default function AgendaSection({
   textTheme,
   textSubTheme,
 }: AgendaSectionProps) {
-  const dayEvents = events.filter((e) => e.date === selectedDate);
+  // High -> Medium -> Low, then by time.
+  const dayEvents = sortByPriority(events.filter((e) => e.date === selectedDate));
   const selectedDayEvents = allEvents.filter((event) => event.date === selectedDate);
   const conflicts = getEventConflicts(allEvents);
 
@@ -92,11 +111,24 @@ export default function AgendaSection({
             const eventStatus = getEventStatus(evt);
             const hasConflict = conflicts.has(evt.id);
             const isTargetReschedule = rescheduleMode && activeReschedulingId === evt.id;
-            const isLast = index === dayEvents.length - 1;
+            const next = dayEvents[index + 1];
+            const isLast = !next || next.priority !== evt.priority;
+            const startsGroup = index === 0 || dayEvents[index - 1].priority !== evt.priority;
+            const groupColors = getPriorityColors(evt.priority);
+            const groupCount = dayEvents.filter((item) => item.priority === evt.priority).length;
 
             return (
+              <React.Fragment key={evt.id}>
+              {startsGroup && (
+                <View style={priorityHeaderStyle}>
+                  <View style={[priorityDotStyle, { backgroundColor: groupColors.dot }]} />
+                  <Text style={[priorityHeaderTextStyle, { color: groupColors.text }]}>
+                    {evt.priority.toUpperCase()} PRIORITY
+                  </Text>
+                  <Text style={[priorityCountStyle, { color: textSubTheme }]}>{groupCount}</Text>
+                </View>
+              )}
               <TouchableOpacity
-                key={evt.id}
                 accessibilityRole="button"
                 onPress={() => onSelectEvent(evt)}
                 onLongPress={() => onStartRescheduling(evt.id)}
@@ -188,6 +220,7 @@ export default function AgendaSection({
 
                 <Feather name="chevron-right" size={16} color={textSubTheme} />
               </TouchableOpacity>
+              </React.Fragment>
             );
           })
         ) : (

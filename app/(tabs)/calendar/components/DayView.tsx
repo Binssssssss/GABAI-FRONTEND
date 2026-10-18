@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { CalendarEvent } from '../types';
 import { CATEGORY_COLORS, DAY_HOURS } from '../constants/calendarConfig';
-import { getPriorityColors } from '../utils/calendarHelpers';
+import { comparePriority, getPriorityColors } from '../utils/calendarHelpers';
 import { calendarStyles as styles } from '../styles/calendar.styles';
 import { formatHourLabel } from '@/utils/time';
 
@@ -46,9 +46,9 @@ export default function DayView({
       <ScrollView scrollEnabled={false} style={styles.dailyTimelineList}>
         {DAY_HOURS.map((hour) => {
           // Check if any event starts in this hour slot
-          const hourEvts = events.filter(
-            (e) => e.date === selectedDate && e.time.startsWith(hour.substring(0, 3))
-          );
+          const hourEvts = events
+            .filter((e) => e.date === selectedDate && e.time.startsWith(hour.substring(0, 3)))
+            .sort(comparePriority); // High -> Medium -> Low
           return (
             <View key={hour} style={[styles.timelineRow, { borderColor: borderTheme }]}>
               <View style={styles.timelineTimeCol}>

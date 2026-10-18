@@ -9,6 +9,7 @@ import {
   getLocalDateKey,
   getPriorityColors,
   getWeekDateKeys,
+  comparePriority,
 } from '../utils/calendarHelpers';
 import { formatTime12 } from '@/utils/time';
 
@@ -75,9 +76,10 @@ export default function WeekView({
       <View style={styles.weekRowContainer}>
         {weekDates.map((dateKey) => {
           const dayDate = new Date(`${dateKey}T00:00:00`);
-          const dayEvents = events.filter(
-            (event) => event.date === dateKey,
-          );
+          // High -> Medium -> Low, then by time.
+          const dayEvents = events
+            .filter((event) => event.date === dateKey)
+            .sort(comparePriority);
           const workload = getDayWorkload(dayEvents);
           const isSelected = selectedDate === dateKey;
           const isToday = dateKey === getLocalDateKey();
@@ -161,9 +163,10 @@ export default function WeekView({
 
       <View style={styles.weeklyTimelineContainer}>
         {weekDates.map((dateKey) => {
-          const dayEvents = events.filter(
-            (event) => event.date === dateKey,
-          );
+          // High -> Medium -> Low, then by time.
+          const dayEvents = events
+            .filter((event) => event.date === dateKey)
+            .sort(comparePriority);
 
           if (dayEvents.length === 0) {
             return null;

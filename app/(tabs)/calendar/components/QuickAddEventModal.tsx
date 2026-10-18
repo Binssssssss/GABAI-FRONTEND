@@ -81,7 +81,6 @@ const REMINDER_CHOICES: { label: string; value: string | null }[] = [
   { label: 'On', value: ALARM_ON },
 ];
 
-const REPEAT_CHOICES = ['Never', 'Daily', 'Weekly'] as const;
 
 const QUICK_TIMES: { label: string; h: number; m: number; p: Period }[] = [
   { label: '7:30 AM', h: 7, m: 30, p: 'AM' },
@@ -200,10 +199,6 @@ export default function QuickAddEventModal({
   onHasReminderChange,
   reminderTime,
   onReminderTimeChange,
-  isRecurring,
-  onIsRecurringChange,
-  recurrenceRule,
-  onRecurrenceRuleChange,
   description,
   onDescriptionChange,
   onSave,
@@ -215,6 +210,10 @@ export default function QuickAddEventModal({
   primaryAccent,
 }: QuickAddEventModalProps) {
   const [picker, setPicker] = useState<Picker>(null);
+
+  // Text being typed in the hour / minute boxes (null = not editing).
+  const [hourDraft, setHourDraft] = useState<string | null>(null);
+  const [minuteDraft, setMinuteDraft] = useState<string | null>(null);
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
 
@@ -264,29 +263,34 @@ export default function QuickAddEventModal({
 
   /* ---------- time picker ---------- */
 
-  const changeHour = (amount: number) => {
-    let next = hour + amount;
-    if (next > 12) next = 1;
-    if (next < 1) next = 12;
-    onTimeChange(buildTime(next, minute, period));
+  // Typing updates the time right away (hour 1-12, minute 0-59).
+  const typeHour = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setHourDraft(digits);
+    const n = Number(digits);
+    if (digits && n >= 1) onTimeChange(buildTime(Math.min(12, n), minute, period));
   };
 
-  // Minutes move in steps of 5 (00, 05, 10 ... 55).
-  const changeMinute = (amount: number) => {
-    let next = Math.round(minute / 5) * 5 + amount;
-    if (next > 55) next = 0;
-    if (next < 0) next = 55;
-    onTimeChange(buildTime(hour, next, period));
+  const typeMinute = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setMinuteDraft(digits);
+    if (digits) onTimeChange(buildTime(hour, Math.min(59, Number(digits)), period));
+  };
+
+  // Leaving a box: show the saved value again (empty or "0" falls back).
+  const finishTyping = () => {
+    setHourDraft(null);
+    setMinuteDraft(null);
   };
 
   const changePeriod = (value: Period) => {
+    finishTyping();
     onTimeChange(buildTime(hour, minute, value));
   };
 
   /* ---------- selectors ---------- */
 
   const activeReminder = hasReminder ? ALARM_ON : null;
-  const activeRepeat = isRecurring ? recurrenceRule : 'Never';
 
   const selectReminder = (value: string | null) => {
     if (value === null) {
@@ -297,17 +301,9 @@ export default function QuickAddEventModal({
     onReminderTimeChange(value);
   };
 
-  const selectRepeat = (value: (typeof REPEAT_CHOICES)[number]) => {
-    if (value === 'Never') {
-      onIsRecurringChange(false);
-      return;
-    }
-    onIsRecurringChange(true);
-    onRecurrenceRuleChange(value);
-  };
-
   const handleClose = () => {
     setPicker(null);
+    finishTyping();
     onClose();
   };
 
@@ -477,18 +473,6 @@ export default function QuickAddEventModal({
               onSelect={(value) => selectReminder(value === 'none' ? null : value)}
             />
 
-            {/* Repeat */}
-            <Label color={textSubTheme}>REPEAT</Label>
-            <Segmented
-              backgroundColor={inputBg}
-              borderColor={borderTheme}
-              accentColor={primaryAccent}
-              textColor={textSubTheme}
-              options={REPEAT_CHOICES.map((r) => ({ label: r, value: r }))}
-              active={activeRepeat}
-              onSelect={selectRepeat}
-            />
-
             {/* Notes */}
             <Label color={textSubTheme}>NOTES (OPTIONAL)</Label>
             <TextInput
@@ -616,23 +600,27 @@ export default function QuickAddEventModal({
                 { backgroundColor: modalSurface, borderColor: borderTheme },
               ]}
             >
-              <Text style={[s.panelCaption, { color: textSubTheme }]}>TIME</Text>
+              <Text style={[s.panelCaption, { color: textSubTheme }]}>
+                TIME · tap the numbers to type
+              </Text>
 
               <View style={s.clockRow}>
                 {[
                   {
                     key: 'hour',
                     label: 'Hour',
-                    value: hour,
-                    up: () => changeHour(1),
-                    down: () => changeHour(-1),
+                    value: hourDraft ?? String(hour).padStart(2, '0'),
+                    onChange: typeHour,
+                    onFocus: () => setHourDraft(String(hour)),
+                    isEditing: hourDraft !== null,
                   },
                   {
                     key: 'minute',
                     label: 'Min',
-                    value: minute,
-                    up: () => changeMinute(5),
-                    down: () => changeMinute(-5),
+                    value: minuteDraft ?? String(minute).padStart(2, '0'),
+                    onChange: typeMinute,
+                    onFocus: () => setMinuteDraft(String(minute).padStart(2, '0')),
+                    isEditing: minuteDraft !== null,
                   },
                 ].map((part, index) => (
                   <View key={part.key} style={s.clockPartRow}>
@@ -640,25 +628,26 @@ export default function QuickAddEventModal({
                       <Text style={[s.colon, { color: primaryAccent }]}>:</Text>
                     )}
                     <View style={s.clockPart}>
-                      <TouchableOpacity
-                        onPress={part.up}
-                        hitSlop={8}
-                        accessibilityLabel={`Increase ${part.label}`}
-                        style={[s.arrowBtn, { backgroundColor: inputBg }]}
-                      >
-                        <Feather name="chevron-up" size={20} color={textTheme} />
-                      </TouchableOpacity>
-                      <Text style={[s.clockNum, { color: textTheme }]}>
-                        {String(part.value).padStart(2, '0')}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={part.down}
-                        hitSlop={8}
-                        accessibilityLabel={`Decrease ${part.label}`}
-                        style={[s.arrowBtn, { backgroundColor: inputBg }]}
-                      >
-                        <Feather name="chevron-down" size={20} color={textTheme} />
-                      </TouchableOpacity>
+                      <TextInput
+                        value={part.value}
+                        onChangeText={part.onChange}
+                        onFocus={part.onFocus}
+                        onBlur={finishTyping}
+                        onSubmitEditing={finishTyping}
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        selectTextOnFocus
+                        maxLength={2}
+                        accessibilityLabel={part.label}
+                        style={[
+                          s.timeInput,
+                          {
+                            color: textTheme,
+                            backgroundColor: inputBg,
+                            borderColor: part.isEditing ? primaryAccent : borderTheme,
+                          },
+                        ]}
+                      />
                       <Text style={[s.clockCaption, { color: textSubTheme }]}>
                         {part.label}
                       </Text>
@@ -699,9 +688,10 @@ export default function QuickAddEventModal({
                   return (
                     <TouchableOpacity
                       key={option.label}
-                      onPress={() =>
-                        onTimeChange(buildTime(option.h, option.m, option.p))
-                      }
+                      onPress={() => {
+                        finishTyping();
+                        onTimeChange(buildTime(option.h, option.m, option.p));
+                      }}
                       style={[
                         s.quickChip,
                         {
@@ -981,6 +971,16 @@ const s = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  timeInput: {
+    width: 84,
+    height: 62,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    fontSize: 32,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingVertical: 0,
   },
   clockNum: {
     fontSize: 34,

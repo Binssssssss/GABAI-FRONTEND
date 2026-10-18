@@ -13,12 +13,24 @@ import {
  *
  * - Event 1 day or more away: a reminder 1 day before (chime) + an alarm at the start time.
  * - Event less than 1 day away: only the alarm at the start time.
- * - The alarm beeps (gabai_calendar.wav). With Snooze on, it rings again every
- *   "Snooze for" minutes, up to "Ring up to" times, until the user taps Stop.
+ * - The alarm is persistent: it beeps for 1 minute (gabai_calendar.wav), cannot be
+ *   swiped away, and rings again every 2 minutes until the user taps Stop,
+ *   Snooze or the alarm itself.
  */
 
 const CALENDAR_SCREEN = '/(tabs)/calendar/calendar';
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The alarm keeps ringing every RING_EVERY_MIN minutes, MAX_RINGS times at most. */
+const RING_EVERY_MIN = 2;
+const MAX_RINGS = 15; // 30 minutes
+
+/**
+ * Android allows about 500 scheduled alarms per app, so only the nearest
+ * events get their alarms ahead of time. The rest are added by the sync
+ * when GabAi is opened again.
+ */
+const MAX_EVENTS_SCHEDULED = 20;
 
 /** Calendar events are tasks whose subject is one of these. */
 const CALENDAR_CATEGORIES = ['Assignment', 'Exam', 'Class', 'Focus Session', 'Meeting', 'Personal'];
@@ -95,8 +107,8 @@ function alarmPlan(prefs: NotificationPrefs) {
   const minutes = [5, 10, 15, 30].includes(Number(prefs.snoozeMinutes))
     ? Number(prefs.snoozeMinutes)
     : 5;
-  const rings = snooze && [1, 3, 5].includes(Number(prefs.ringCount)) ? Number(prefs.ringCount) : 1;
-  return { snooze, minutes, rings, key: `${snooze ? 1 : 0}-${minutes}-${rings}` };
+  const rings = MAX_RINGS;
+  return { snooze, minutes, rings, key: `p2-${snooze ? 1 : 0}-${minutes}` };
 }
 
 /** Changes whenever anything that affects the scheduled alarms changes. */
@@ -187,20 +199,21 @@ function ringContent(
       ? `⏰ ${info.title} is starting`
       : style === 'snoozed'
         ? `⏰ ${info.title} (snoozed)`
-        : `⏰ ${info.title} (reminder)`;
+        : `⏰ ${info.title} is still ringing`;
 
   const body =
     style === 'start'
       ? [`Now · ${timeLabel(start)}`, ...details].join(' · ')
-      : [`Started at ${timeLabel(start)}`, total > 1 ? `ring ${ring} of ${total}` : null]
-          .filter(Boolean)
-          .join(' · ');
+      : `Started at ${timeLabel(start)} · Tap Stop to turn off`;
 
   return {
     title,
     body,
     sound: NOTIFICATION_CHANNELS.calendar.sound,
     priority: Notifications.AndroidNotificationPriority.MAX,
+    // Persistent: cannot be swiped away; only Stop, Snooze or a tap clears it.
+    sticky: true,
+    autoDismiss: false,
     categoryIdentifier: withSnooze ? CATEGORY_WITH_SNOOZE : CATEGORY_STOP_ONLY,
     data: {
       ...info,
@@ -288,7 +301,7 @@ export async function scheduleCalendarReminder(
     );
   }
 
-  // 2) The alarm at the start time, then repeats until Stop.
+  // 2) The alarm at the start time, then it rings again until Stop.
   let firstId: string | null = null;
 
   for (let index = 0; index < plan.rings; index += 1) {
@@ -301,7 +314,7 @@ export async function scheduleCalendarReminder(
         index === 0 ? 'start' : 'repeat',
         plan.snooze,
       ),
-      new Date(start.getTime() + index * plan.minutes * 60 * 1000),
+      new Date(start.getTime() + index * RING_EVERY_MIN * 60 * 1000),
       NOTIFICATION_CHANNELS.calendar.id,
     );
 
@@ -381,14 +394,12 @@ export async function handleCalendarAlarmResponse(
     return isButton;
   }
 
-  // Snooze: ring again after "Snooze for" minutes, then keep the
-  // remaining automatic rings.
+  // Snooze: quiet for "Snooze for" minutes, then the alarm rings again
+  // (and keeps ringing) until Stop.
   const prefs = await loadNotificationPrefs();
   const plan = alarmPlan(prefs);
   const start = toStartDate(data.dueDate ?? '', data.dueTime ?? '') ?? new Date();
-  const ring = Number(data.ring) || 1;
-  const remaining = Math.max(1, (Number(data.total) || plan.rings) - ring);
-  const total = ring + remaining;
+  const snoozeAt = Date.now() + plan.minutes * 60 * 1000;
 
   await ensureNotificationChannels();
   await ensureCalendarAlarmCategory();
@@ -403,10 +414,10 @@ export async function handleCalendarAlarmResponse(
     sig: data.sig,
   };
 
-  for (let index = 0; index < remaining; index += 1) {
+  for (let index = 0; index < plan.rings; index += 1) {
     await scheduleAt(
-      ringContent(info, start, ring + 1 + index, total, index === 0 ? 'snoozed' : 'repeat', true),
-      new Date(Date.now() + (index + 1) * plan.minutes * 60 * 1000),
+      ringContent(info, start, index + 1, plan.rings, index === 0 ? 'snoozed' : 'repeat', plan.snooze),
+      new Date(snoozeAt + index * RING_EVERY_MIN * 60 * 1000),
       NOTIFICATION_CHANNELS.calendar.id,
     );
   }
@@ -477,12 +488,27 @@ export function syncCalendarAlarms(events: AlarmSyncEvent[]): Promise<void> {
           .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
       );
 
-      for (const event of eligible) {
-        const start = toStartDate(event.date, event.time);
+      // Nearest upcoming events first (only these get alarms ahead of time).
+      const upcoming = eligible
+        .map((event) => ({ event, start: toStartDate(event.date, event.time) }))
+        .filter((item): item is { event: AlarmSyncEvent; start: Date } =>
+          Boolean(item.start && item.start.getTime() > Date.now()),
+        )
+        .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-        // Already started: leave any snoozed rings alone.
-        if (!start || start.getTime() <= Date.now()) continue;
+      const nearIds = new Set(upcoming.slice(0, MAX_EVENTS_SCHEDULED).map((item) => item.event.id));
 
+      // Far-away events: drop their alarms for now (re-added when they get closer).
+      await Promise.all(
+        scheduled
+          .filter((n) => {
+            const id = String(dataOf(n).eventId);
+            return upcoming.some((item) => item.event.id === id) && !nearIds.has(id);
+          })
+          .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+      );
+
+      for (const { event } of upcoming.slice(0, MAX_EVENTS_SCHEDULED)) {
         const sig = signature(event.title, event.date, event.time, plan.key);
         const existing = scheduled.filter((n) => dataOf(n).eventId === event.id);
 

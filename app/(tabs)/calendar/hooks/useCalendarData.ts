@@ -18,7 +18,13 @@ import {
   EventCategory,
   EventPriority,
 } from '../types';
-import { getDayWorkload, getLocalDateKey, toCalendarDateKey } from '../utils/calendarHelpers';
+import {
+  getDayWorkload,
+  getLocalDateKey,
+  sortByPriority,
+  sortDeadlines,
+  toCalendarDateKey,
+} from '../utils/calendarHelpers';
 
 interface BackendChecklistItem {
   id: string;
@@ -171,7 +177,7 @@ export function useCalendarData() {
     useState(false);
 
   const [newHasReminder, setNewHasReminder] =
-    useState(false);
+    useState(true);
 
   const [newReminderTime, setNewReminderTime] =
     useState('15 minutes before');
@@ -261,7 +267,7 @@ export function useCalendarData() {
           );
 
         setUpcomingDeadlines(
-          mappedDeadlines,
+          sortDeadlines(mappedDeadlines),
         );
       } catch (error) {
         console.error(
@@ -332,7 +338,7 @@ export function useCalendarData() {
       setNewTime('09:00');
       setNewDuration('60');
       setNewIsAllDay(false);
-      setNewHasReminder(false);
+      setNewHasReminder(true); // Alarm is On by default for new events
       setNewReminderTime(
         '15 minutes before',
       );
@@ -928,7 +934,7 @@ export function useCalendarData() {
       const search =
         searchQuery.toLowerCase();
 
-      return events.filter((event) => {
+      const matching = events.filter((event) => {
         // Completed items are hidden from the calendar lists.
         if (event.completed) return false;
 
@@ -950,6 +956,9 @@ export function useCalendarData() {
           matchesSearch
         );
       });
+
+      // High -> Medium -> Low, then by time.
+      return sortByPriority(matching);
     }, [
       events,
       selectedCategory,

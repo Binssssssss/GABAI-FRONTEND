@@ -17,7 +17,6 @@ import {
 import {
   DEFAULT_NOTIFICATION_PREFS,
   NotificationPrefs,
-  RingCount,
   SnoozeMinutes,
   loadNotificationPrefs,
   refreshNotificationPrefsFromServer,
@@ -32,14 +31,6 @@ import {
 } from '@/components/settings/SettingsUI';
 
 const SNOOZE_OPTIONS: SnoozeMinutes[] = [5, 10, 15, 30];
-const RING_OPTIONS: RingCount[] = [1, 3, 5];
-
-/** "9:00" -> ["9:00", "9:05", "9:10"] for the preview line. */
-const ringPreview = (minutes: number, rings: number) =>
-  Array.from({ length: rings }, (_, index) => {
-    const total = 9 * 60 + index * minutes;
-    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-  });
 
 type CategoryKey = 'taskDeadlines' | 'calendarReminders' | 'smartReminders' | 'focusAlerts';
 
@@ -216,16 +207,28 @@ export default function NotificationSettingsScreen() {
           <SwitchRow
             theme={theme}
             icon="bell"
-            title="Snooze"
-            subtitle="Beeps at the start time of each event"
+            title="Snooze button"
+            subtitle="Show Snooze on the alarm"
             value={prefs.snoozeEnabled}
             disabled={alarmOff}
             onValueChange={(v) => updateAlarm({ snoozeEnabled: v })}
           />
 
-          <View style={[styles.alarmBody, (alarmOff || !prefs.snoozeEnabled) && { opacity: 0.45 }]}>
-            <Text style={[styles.fieldLabel, { color: theme.textSubTheme }]}>SNOOZE FOR</Text>
-            <View style={[styles.segment, { borderColor: theme.borderTheme }]}>
+          <View style={[styles.alarmBody, alarmOff && { opacity: 0.45 }]}>
+            <Text
+              style={[
+                styles.fieldLabel,
+                { color: theme.textSubTheme, opacity: prefs.snoozeEnabled ? 1 : 0.45 },
+              ]}
+            >
+              SNOOZE FOR
+            </Text>
+            <View
+              style={[
+                styles.segment,
+                { borderColor: theme.borderTheme, opacity: prefs.snoozeEnabled ? 1 : 0.45 },
+              ]}
+            >
               {SNOOZE_OPTIONS.map((value) => {
                 const selected = prefs.snoozeMinutes === value;
                 return (
@@ -248,57 +251,20 @@ export default function NotificationSettingsScreen() {
               })}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: theme.textSubTheme }]}>RING UP TO</Text>
-            <View style={[styles.segment, { borderColor: theme.borderTheme }]}>
-              {RING_OPTIONS.map((value) => {
-                const selected = prefs.ringCount === value;
-                return (
-                  <TouchableOpacity
-                    key={value}
-                    disabled={alarmOff || !prefs.snoozeEnabled}
-                    onPress={() => updateAlarm({ ringCount: value })}
-                    style={[styles.segmentItem, selected && { backgroundColor: theme.primaryAccent }]}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        { color: selected ? '#FFFFFF' : theme.textSubTheme },
-                      ]}
-                    >
-                      {value}×
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
             <View style={styles.previewRow}>
-              <Text style={[styles.previewLabel, { color: theme.textSubTheme }]}>
-                If not stopped:
-              </Text>
-              {ringPreview(
-                prefs.snoozeMinutes,
-                prefs.snoozeEnabled ? prefs.ringCount : 1,
-              ).map((label, index) => (
-                <View key={label} style={styles.previewItem}>
-                  {index > 0 && (
-                    <Text style={{ color: theme.textSubTheme, marginRight: 6 }}>→</Text>
-                  )}
-                  <View
-                    style={[
-                      styles.previewPill,
-                      {
-                        borderColor: index === 0 ? theme.primaryAccent : theme.borderTheme,
-                        backgroundColor: index === 0 ? theme.primaryAccent + '22' : 'transparent',
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: theme.textTheme, fontWeight: '600', fontSize: 12 }}>
-                      {label}
+              <Text style={[styles.previewText, { color: theme.textSubTheme }]}>
+                The alarm beeps for 1 minute and rings again every 2 minutes until you tap{' '}
+                <Text style={{ color: theme.textTheme, fontWeight: '700' }}>Stop</Text>
+                {prefs.snoozeEnabled ? (
+                  <>
+                    {' '}or{' '}
+                    <Text style={{ color: theme.textTheme, fontWeight: '700' }}>
+                      Snooze {prefs.snoozeMinutes} min
                     </Text>
-                  </View>
-                </View>
-              ))}
+                  </>
+                ) : null}
+                . It can't be swiped away.
+              </Text>
             </View>
           </View>
         </SettingsCard>
@@ -331,7 +297,5 @@ const styles = StyleSheet.create({
   segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
   segmentText: { fontSize: 13, fontWeight: '600' },
   previewRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 14, rowGap: 6 },
-  previewLabel: { fontSize: 12, marginRight: 8 },
-  previewItem: { flexDirection: 'row', alignItems: 'center', marginRight: 6 },
-  previewPill: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4 },
+  previewText: { fontSize: 12.5, lineHeight: 19 },
 });
