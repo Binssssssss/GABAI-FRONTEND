@@ -3,6 +3,10 @@ import api from './api';
 
 export type ReminderLeadMinutes = 15 | 60 | 1440;
 
+/** Calendar alarm: minutes between rings, and how many times it rings. */
+export type SnoozeMinutes = 5 | 10 | 15 | 30;
+export type RingCount = 1 | 3 | 5;
+
 export interface NotificationPrefs {
   pushEnabled: boolean;
   taskDeadlines: boolean;
@@ -10,6 +14,9 @@ export interface NotificationPrefs {
   smartReminders: boolean;
   focusAlerts: boolean;
   leadMinutes: ReminderLeadMinutes;
+  snoozeEnabled: boolean;
+  snoozeMinutes: SnoozeMinutes;
+  ringCount: RingCount;
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -19,6 +26,9 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   smartReminders: true,
   focusAlerts: true,
   leadMinutes: 15,
+  snoozeEnabled: true,
+  snoozeMinutes: 5,
+  ringCount: 3,
 };
 
 const STORAGE_KEY = 'gabai.settings.notifications';

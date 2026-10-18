@@ -10,11 +10,15 @@ import {
   initializeNotifications,
   unregisterPushToken,
 } from '@/app/services/notificationService';
-import { cancelAllCalendarReminders } from '@/app/services/calendarReminderService';
+import {
+  cancelAllCalendarReminders,
+  resyncCalendarAlarmsFromServer,
+} from '@/app/services/calendarReminderService';
 import {
   DEFAULT_NOTIFICATION_PREFS,
   NotificationPrefs,
-  ReminderLeadMinutes,
+  RingCount,
+  SnoozeMinutes,
   loadNotificationPrefs,
   refreshNotificationPrefsFromServer,
   saveNotificationPrefs,
@@ -27,11 +31,15 @@ import {
   SwitchRow,
 } from '@/components/settings/SettingsUI';
 
-const LEAD_OPTIONS: { label: string; value: ReminderLeadMinutes }[] = [
-  { label: '15 min', value: 15 },
-  { label: '1 hour', value: 60 },
-  { label: '1 day', value: 1440 },
-];
+const SNOOZE_OPTIONS: SnoozeMinutes[] = [5, 10, 15, 30];
+const RING_OPTIONS: RingCount[] = [1, 3, 5];
+
+/** "9:00" -> ["9:00", "9:05", "9:10"] for the preview line. */
+const ringPreview = (minutes: number, rings: number) =>
+  Array.from({ length: rings }, (_, index) => {
+    const total = 9 * 60 + index * minutes;
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  });
 
 type CategoryKey = 'taskDeadlines' | 'calendarReminders' | 'smartReminders' | 'focusAlerts';
 
@@ -108,9 +116,19 @@ export default function NotificationSettingsScreen() {
   const handleCategoryToggle = async (key: CategoryKey, value: boolean) => {
     await update({ [key]: value } as Partial<NotificationPrefs>);
 
-    if (key === 'calendarReminders' && !value) {
-      await cancelAllCalendarReminders();
+    if (key === 'calendarReminders') {
+      if (value) {
+        void resyncCalendarAlarmsFromServer();
+      } else {
+        await cancelAllCalendarReminders();
+      }
     }
+  };
+
+  // Snooze settings: save, then re-schedule the upcoming alarms with them.
+  const updateAlarm = async (patch: Partial<NotificationPrefs>) => {
+    await update(patch);
+    void resyncCalendarAlarmsFromServer();
   };
 
   const permissionText =
@@ -121,6 +139,7 @@ export default function NotificationSettingsScreen() {
         : 'Not asked yet';
 
   const off = !prefs.pushEnabled;
+  const alarmOff = off || !prefs.calendarReminders;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bgTheme }]} edges={['top']}>
@@ -166,7 +185,7 @@ export default function NotificationSettingsScreen() {
             theme={theme}
             icon="calendar"
             title="Calendar reminders"
-            subtitle="Alerts before your events"
+            subtitle="Day-before reminder and alarm at the start time"
             value={prefs.calendarReminders}
             disabled={off}
             onValueChange={(v) => handleCategoryToggle('calendarReminders', v)}
@@ -192,41 +211,101 @@ export default function NotificationSettingsScreen() {
           />
         </SettingsCard>
 
-        <SectionLabel text="REMIND ME BEFORE" theme={theme} />
+        <SectionLabel text="CALENDAR ALARM" theme={theme} />
         <SettingsCard theme={theme}>
-          <View style={[styles.chipRow, off && { opacity: 0.5 }]}>
-            {LEAD_OPTIONS.map((option) => {
-              const selected = prefs.leadMinutes === option.value;
+          <SwitchRow
+            theme={theme}
+            icon="bell"
+            title="Snooze"
+            subtitle="Beeps at the start time of each event"
+            value={prefs.snoozeEnabled}
+            disabled={alarmOff}
+            onValueChange={(v) => updateAlarm({ snoozeEnabled: v })}
+          />
 
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  disabled={off}
-                  onPress={() => update({ leadMinutes: option.value })}
-                  style={[
-                    styles.chip,
-                    {
-                      borderColor: selected ? theme.primaryAccent : theme.borderTheme,
-                      backgroundColor: selected ? theme.primaryAccent + '20' : 'transparent',
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      color: selected ? theme.primaryAccent : theme.textTheme,
-                      fontWeight: '600',
-                    }}
+          <View style={[styles.alarmBody, (alarmOff || !prefs.snoozeEnabled) && { opacity: 0.45 }]}>
+            <Text style={[styles.fieldLabel, { color: theme.textSubTheme }]}>SNOOZE FOR</Text>
+            <View style={[styles.segment, { borderColor: theme.borderTheme }]}>
+              {SNOOZE_OPTIONS.map((value) => {
+                const selected = prefs.snoozeMinutes === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    disabled={alarmOff || !prefs.snoozeEnabled}
+                    onPress={() => updateAlarm({ snoozeMinutes: value })}
+                    style={[styles.segmentItem, selected && { backgroundColor: theme.primaryAccent }]}
                   >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        { color: selected ? '#FFFFFF' : theme.textSubTheme },
+                      ]}
+                    >
+                      {value} min
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: theme.textSubTheme }]}>RING UP TO</Text>
+            <View style={[styles.segment, { borderColor: theme.borderTheme }]}>
+              {RING_OPTIONS.map((value) => {
+                const selected = prefs.ringCount === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    disabled={alarmOff || !prefs.snoozeEnabled}
+                    onPress={() => updateAlarm({ ringCount: value })}
+                    style={[styles.segmentItem, selected && { backgroundColor: theme.primaryAccent }]}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        { color: selected ? '#FFFFFF' : theme.textSubTheme },
+                      ]}
+                    >
+                      {value}×
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.previewRow}>
+              <Text style={[styles.previewLabel, { color: theme.textSubTheme }]}>
+                If not stopped:
+              </Text>
+              {ringPreview(
+                prefs.snoozeMinutes,
+                prefs.snoozeEnabled ? prefs.ringCount : 1,
+              ).map((label, index) => (
+                <View key={label} style={styles.previewItem}>
+                  {index > 0 && (
+                    <Text style={{ color: theme.textSubTheme, marginRight: 6 }}>→</Text>
+                  )}
+                  <View
+                    style={[
+                      styles.previewPill,
+                      {
+                        borderColor: index === 0 ? theme.primaryAccent : theme.borderTheme,
+                        backgroundColor: index === 0 ? theme.primaryAccent + '22' : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: theme.textTheme, fontWeight: '600', fontSize: 12 }}>
+                      {label}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         </SettingsCard>
 
         <Text style={[styles.note, { color: theme.textSubTheme }]}>
-          Changing the reminder time applies to events you add or edit from now on.
+          Events 1 day or more away also get a reminder the day before. Events less than
+          1 day away only get the alarm at the start time.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -246,4 +325,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   note: { fontSize: 12, marginTop: 14, paddingHorizontal: 4, lineHeight: 18 },
+  alarmBody: { paddingHorizontal: 16, paddingBottom: 16 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginTop: 12, marginBottom: 8 },
+  segment: { flexDirection: 'row', borderWidth: 1, borderRadius: 12, padding: 3 },
+  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
+  segmentText: { fontSize: 13, fontWeight: '600' },
+  previewRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 14, rowGap: 6 },
+  previewLabel: { fontSize: 12, marginRight: 8 },
+  previewItem: { flexDirection: 'row', alignItems: 'center', marginRight: 6 },
+  previewPill: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4 },
 });

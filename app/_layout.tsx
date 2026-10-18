@@ -17,6 +17,11 @@ import { FocusLockProvider } from '@/app/context/FocusLockContext';
 import { ThemeProvider, useAppTheme } from '@/app/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 import { useNotificationTapRouting } from '@/app/services/notificationTapHandler';
+import {
+  ensureCalendarAlarmCategory,
+  resyncCalendarAlarmsFromServer,
+} from '@/app/services/calendarReminderService';
+import { ensureNotificationChannels } from '@/constants/notificationChannels';
 import { AppAlertHost } from '../components/AppAlert';
 import AppLockGate from '@/components/AppLockGate';
 
@@ -71,7 +76,21 @@ function AppNavigation() {
   const router = useRouter();
 
   // Tapping a notification opens its screen (only when logged in).
+  // Calendar alarm buttons (Snooze / Stop) are handled here too.
   useNotificationTapRouting(!!session && !isLoading);
+
+  // Alarm sounds and buttons must exist before an alarm fires.
+  useEffect(() => {
+    void ensureNotificationChannels();
+    void ensureCalendarAlarmCategory();
+  }, []);
+
+  // After login, make the phone's calendar alarms match the account's events.
+  useEffect(() => {
+    if (session && !isLoading) {
+      void resyncCalendarAlarmsFromServer();
+    }
+  }, [session, isLoading]);
 
   useEffect(() => {
     if (isLoading) {

@@ -137,22 +137,14 @@ export default function EventDetailModal({
                       : 'Time not set'}
                 </Text>
               </View>
-              {event.hasReminder && (
+              {event.hasReminder && !event.isAllDay && (
                 <View style={[styles.infoRowItem, { marginTop: 8 }]}>
                   <Feather name="bell" size={16} color={textSubTheme} />
                   <Text style={[styles.infoRowText, { color: textTheme }]}>
-                    Reminder enabled
+                    Alarm at start time
                   </Text>
                 </View>
               )}
-              {event.hasReminder && event.reminderTime ? (
-                <View style={[styles.infoRowItem, { marginTop: 8 }]}>
-                  <Feather name="bell" size={16} color={textSubTheme} />
-                  <Text style={[styles.infoRowText, { color: textTheme }]}>
-                    Reminder set: {event.reminderTime}
-                  </Text>
-                </View>
-              ) : null}
             </View>
 
             {/* Description */}

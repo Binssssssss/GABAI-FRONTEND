@@ -2,6 +2,7 @@ import api from '@/app/services/api';
 import {
   scheduleCalendarReminder,
   cancelCalendarReminder,
+  syncCalendarAlarms,
 } from '@/app/services/calendarReminderService';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -207,6 +208,9 @@ export function useCalendarData() {
       setEvents(mappedEvents);
       setEventsLoadFailed(false);
 
+      // Make sure every upcoming event has its alarm on this phone.
+      void syncCalendarAlarms(mappedEvents);
+
       /*
        * Keep selected event synchronized
        * with the latest backend data.
@@ -354,7 +358,7 @@ export function useCalendarData() {
       setNewDuration(String(event.duration || 60));
       setNewIsAllDay(event.isAllDay);
       setNewHasReminder(event.hasReminder);
-      setNewReminderTime(event.reminderTime || '15 minutes before');
+      setNewReminderTime('At start time');
       setNewDescription(event.description || '');
 
       // Checklist editing is not supported by the current

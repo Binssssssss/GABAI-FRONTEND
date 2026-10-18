@@ -73,12 +73,12 @@ const CATEGORIES_LIST: EventCategory[] = [
 
 const PRIORITIES_LIST: EventPriority[] = ['Low', 'Medium', 'High'];
 
-/* Short labels for the "Remind me" selector, mapped to the saved values. */
+/* Alarm: beeps at the start time (plus a reminder the day before
+   when the event is 1 day or more away). */
+const ALARM_ON = 'At start time';
 const REMINDER_CHOICES: { label: string; value: string | null }[] = [
-  { label: 'None', value: null },
-  { label: '15 min', value: '15 minutes before' },
-  { label: '1 hour', value: '1 hour before' },
-  { label: '1 day', value: '1 day before' },
+  { label: 'Off', value: null },
+  { label: 'On', value: ALARM_ON },
 ];
 
 const REPEAT_CHOICES = ['Never', 'Daily', 'Weekly'] as const;
@@ -285,7 +285,7 @@ export default function QuickAddEventModal({
 
   /* ---------- selectors ---------- */
 
-  const activeReminder = hasReminder ? reminderTime : null;
+  const activeReminder = hasReminder ? ALARM_ON : null;
   const activeRepeat = isRecurring ? recurrenceRule : 'Never';
 
   const selectReminder = (value: string | null) => {
@@ -463,7 +463,7 @@ export default function QuickAddEventModal({
             />
 
             {/* Reminder */}
-            <Label color={textSubTheme}>REMIND ME</Label>
+            <Label color={textSubTheme}>ALARM</Label>
             <Segmented
               backgroundColor={inputBg}
               borderColor={borderTheme}
