@@ -248,6 +248,7 @@ export async function scheduleCalendarReminder(
   }
 
   if (!prefs.pushEnabled || !prefs.calendarReminders) {
+    console.log(`⏰ [CalendarAlarm] "${title}" not scheduled: notifications or calendar reminders are off.`);
     return null;
   }
 
@@ -259,12 +260,14 @@ export async function scheduleCalendarReminder(
 
   // Nothing to ring for an event that has already started.
   if (start.getTime() <= Date.now()) {
+    console.log(`⏰ [CalendarAlarm] "${title}" not scheduled: ${start.toString()} has already passed.`);
     return null;
   }
 
   const hasPermission = await requestReminderPermission();
 
   if (!hasPermission) {
+    console.log(`⏰ [CalendarAlarm] "${title}" not scheduled: notification permission is not allowed.`);
     return null;
   }
 
@@ -320,6 +323,12 @@ export async function scheduleCalendarReminder(
 
     if (index === 0) firstId = id;
   }
+
+  console.log(
+    `⏰ [CalendarAlarm] "${title}" rings at ${start.toString()}` +
+      ` (+${plan.rings - 1} repeats every ${RING_EVERY_MIN} min` +
+      `${start.getTime() - Date.now() >= DAY_MS ? ', reminder 1 day before' : ''}).`,
+  );
 
   return firstId;
 }
