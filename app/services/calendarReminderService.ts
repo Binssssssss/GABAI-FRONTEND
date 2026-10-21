@@ -567,3 +567,50 @@ export async function resyncCalendarAlarmsFromServer(): Promise<void> {
     console.warn('Unable to refresh calendar alarms:', error);
   }
 }
+
+
+/* ---------- diagnostics (shown in the Metro terminal) ---------- */
+
+/**
+ * Logs the phone's pending calendar alarms and the alarm channel.
+ * If an alarm's time has passed but it is still listed here, Android never
+ * fired it (the phone blocked GabAi in the background).
+ */
+export async function logCalendarAlarmStatus(reason: string): Promise<void> {
+  try {
+    const scheduled = (await Notifications.getAllScheduledNotificationsAsync()).filter(
+      (n) => dataOf(n).kind === KIND_ALARM || dataOf(n).kind === KIND_DAY_BEFORE,
+    );
+
+    const times = scheduled
+      .map((n) => {
+        const trigger = n.trigger as { value?: number; date?: number | string } | null;
+        const at = Number(trigger?.value ?? trigger?.date);
+        return Number.isFinite(at) ? at : NaN;
+      })
+      .filter((at) => Number.isFinite(at))
+      .sort((a, b) => a - b);
+
+    const overdue = times.filter((at) => at < Date.now() - 60 * 1000).length;
+    const next = times.find((at) => at >= Date.now());
+
+    console.log(
+      `⏰ [CalendarAlarm] status (${reason}): ${scheduled.length} pending` +
+        `${next ? `, next at ${new Date(next).toString()}` : ''}` +
+        `${overdue ? `, ⚠️ ${overdue} past their time but NOT fired (blocked by the phone)` : ''}.`,
+    );
+
+    if (Platform.OS === 'android') {
+      const channel = await Notifications.getNotificationChannelAsync(NOTIFICATION_CHANNELS.calendar.id);
+      console.log(
+        `⏰ [CalendarAlarm] channel: ${
+          channel
+            ? `importance=${channel.importance}, sound=${channel.sound}, usage=${channel.audioAttributes?.usage}`
+            : 'MISSING'
+        }`,
+      );
+    }
+  } catch (error) {
+    console.warn('⏰ [CalendarAlarm] status check failed:', error);
+  }
+}

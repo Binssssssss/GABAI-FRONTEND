@@ -10,6 +10,7 @@ import {
   useSegments,
 } from 'expo-router';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
@@ -19,6 +20,7 @@ import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 import { useNotificationTapRouting } from '@/app/services/notificationTapHandler';
 import {
   ensureCalendarAlarmCategory,
+  logCalendarAlarmStatus,
   resyncCalendarAlarmsFromServer,
 } from '@/app/services/calendarReminderService';
 import { ensureNotificationChannels } from '@/constants/notificationChannels';
@@ -83,6 +85,16 @@ function AppNavigation() {
   useEffect(() => {
     void ensureNotificationChannels();
     void ensureCalendarAlarmCategory();
+  }, []);
+
+  // Diagnostics: each time GabAi comes back to the screen, log the pending
+  // calendar alarms (shows if the phone blocked an alarm while in the background).
+  useEffect(() => {
+    void logCalendarAlarmStatus('app opened');
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void logCalendarAlarmStatus('back to GabAi');
+    });
+    return () => subscription.remove();
   }, []);
 
   // After login, make the phone's calendar alarms match the account's events.
