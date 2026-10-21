@@ -4,9 +4,14 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { AppAlert } from '@/components/AppAlert';
 import {
   EXPENSE_CATEGORIES,
+  HistoryCategory,
+  HistoryFilter,
+  HistorySort,
   INCOME_CATEGORIES,
+  historyCategoryOf,
 } from '../constants/expenseCategories';
 import { Transaction, TransactionType } from '../types';
+import { dayKey, formatDayHeader } from '../utils/expenseHelpers';
 
 interface TransactionResponse {
   id: string;
@@ -32,11 +37,23 @@ const EMPTY_WALLET_BALANCE: WalletBalanceResponse = {
   totalExpenses: 0,
 };
 
+/** How many History rows are shown at first, and added by "Load More". */
+export const WALLET_PAGE_SIZE = 6;
+
+/** One row of the History list: a day header or a transaction. */
+export type HistoryRow =
+  | { kind: 'header'; key: string; label: string }
+  | { kind: 'item'; key: string; item: Transaction; showDate: boolean };
+
+export interface CategorySummary {
+  category: HistoryCategory;
+  total: number;
+  count: number;
+}
+
 // =========================
-// REQUESTS
+// HELPERS
 // =========================
-// These only fetch and return data; the hook sets state once
-// they settle. `null` means "keep the current value".
 
 const toTransaction = (item: TransactionResponse): Transaction => ({
   id: item.id,
@@ -47,11 +64,25 @@ const toTransaction = (item: TransactionResponse): Transaction => ({
   type: item.type,
 });
 
+const timeOf = (item: Transaction) => new Date(item.date).getTime() || 0;
+
 // Newest first, by the transaction's own date.
 const sortByDate = (list: Transaction[]): Transaction[] =>
-  [...list].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
+  [...list].sort((a, b) => timeOf(b) - timeOf(a));
+
+const sortHistory = (list: Transaction[], sort: HistorySort): Transaction[] => {
+  const sorted = [...list];
+  switch (sort) {
+    case 'oldest':
+      return sorted.sort((a, b) => timeOf(a) - timeOf(b));
+    case 'highest':
+      return sorted.sort((a, b) => b.amount - a.amount || timeOf(b) - timeOf(a));
+    case 'lowest':
+      return sorted.sort((a, b) => a.amount - b.amount || timeOf(b) - timeOf(a));
+    default:
+      return sorted.sort((a, b) => timeOf(b) - timeOf(a));
+  }
+};
 
 // Add (sign = 1) or undo (sign = -1) a transaction on the balance.
 const applyToBalance = (
@@ -75,16 +106,6 @@ const applyToBalance = (
       };
 };
 
-/** How many transactions the Wallet shows per page. */
-export const WALLET_PAGE_SIZE = 6;
-
-interface TransactionPageResult {
-  items: Transaction[];
-  hasMore: boolean;
-  /** false when the backend is older and sent every transaction at once. */
-  paged: boolean;
-}
-
 // Never show the same transaction twice.
 const withoutDuplicates = (list: Transaction[]): Transaction[] => {
   const seen = new Set<string>();
@@ -95,17 +116,18 @@ const withoutDuplicates = (list: Transaction[]): Transaction[] => {
   });
 };
 
+// =========================
+// REQUESTS
+// =========================
+
 /**
- * One page of transactions, newest first. The backend sorts and pages
- * them in the database (GET /transactions?limit=6&offset=…).
+ * Every transaction of the user. The History needs all of them so the
+ * category chips, sorting and monthly totals are correct; "Load More"
+ * only decides how many rows are shown.
  */
-const fetchTransactionPage = async (
-  offset: number,
-): Promise<TransactionPageResult> => {
+const fetchAllTransactions = async (): Promise<Transaction[]> => {
   try {
-    const response = await api.get('/transactions', {
-      params: { limit: WALLET_PAGE_SIZE, offset },
-    });
+    const response = await api.get('/transactions');
 
     if (!response.data?.success) {
       throw new Error(response.data?.message ?? 'Could not load transactions.');
@@ -114,27 +136,11 @@ const fetchTransactionPage = async (
     const data: TransactionResponse[] = Array.isArray(response.data.data)
       ? response.data.data
       : [];
-    const pagination = response.data.pagination;
 
-    if (pagination && typeof pagination.hasMore === 'boolean') {
-      return {
-        items: data.map(toTransaction),
-        hasMore: pagination.hasMore,
-        paged: true,
-      };
-    }
-
-    // Older backend without paging: it sent everything at once.
-    return {
-      items: sortByDate(data.map(toTransaction)),
-      hasMore: false,
-      paged: false,
-    };
+    return sortByDate(data.map(toTransaction));
   } catch (error: any) {
     // No transactions yet.
-    if (error?.response?.status === 404) {
-      return { items: [], hasMore: false, paged: true };
-    }
+    if (error?.response?.status === 404) return [];
     throw error;
   }
 };
@@ -155,22 +161,17 @@ const fetchWalletBalance =
   };
 
 export function useExpensesData() {
-  // Every transaction loaded so far (plus ones still saving).
+  // Every transaction (plus ones still saving).
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Paging
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  // Only used with an older backend that sends everything at once.
+  // History controls
+  const [filter, setFilterState] = useState<HistoryFilter>('All');
+  const [sort, setSortState] = useState<HistorySort>('newest');
   const [visibleCount, setVisibleCount] = useState(WALLET_PAGE_SIZE);
 
-  const isPagedRef = useRef(true);
-  // How many saved transactions are loaded = offset of the next page.
-  const serverCountRef = useRef(0);
-  const loadingMoreRef = useRef(false);
   // Bumped on every reload, so late answers from an old load are ignored.
   const generationRef = useRef(0);
 
@@ -191,37 +192,33 @@ export function useExpensesData() {
     useState<WalletBalanceResponse>(EMPTY_WALLET_BALANCE);
 
   // =========================
-  // LOAD THE NEWEST PAGE
+  // LOAD
   // =========================
-  // Also used for refresh: it starts paging over from the top.
-  const loadFirstPage = useCallback(async () => {
+  const loadWallet = useCallback(async () => {
     const generation = ++generationRef.current;
 
     try {
-      const [page, balance] = await Promise.all([
-        fetchTransactionPage(0),
+      const [list, balance] = await Promise.all([
+        fetchAllTransactions(),
         fetchWalletBalance(),
       ]);
 
       if (generation !== generationRef.current) return;
 
-      isPagedRef.current = page.paged;
-      serverCountRef.current = page.items.length;
-
       // Keep items that are still saving, so they don't flicker away.
       setTransactions((prev) =>
-        withoutDuplicates([
-          ...prev.filter((item) => item.isPending),
-          ...page.items,
-        ]),
+        withoutDuplicates(
+          sortByDate([...prev.filter((item) => item.isPending), ...list]),
+        ),
       );
-      setHasMore(page.hasMore);
-      setVisibleCount(WALLET_PAGE_SIZE);
-      setLoadMoreError(null);
+      setLoadError(null);
 
       if (balance) setWalletBalance(balance);
     } catch (error) {
       console.error('Failed to load transactions:', error);
+      if (generation === generationRef.current) {
+        setLoadError('Could not load your history.');
+      }
     } finally {
       if (generation === generationRef.current) {
         setIsLoading(false);
@@ -230,89 +227,104 @@ export function useExpensesData() {
     }
   }, []);
 
-  // =========================
-  // REFRESH (pull down)
-  // =========================
+  // Pull down to refresh.
   const refreshWallet = useCallback(async () => {
     setIsRefreshing(true);
-    await loadFirstPage();
-  }, [loadFirstPage]);
+    await loadWallet();
+  }, [loadWallet]);
 
   // Load when the Wallet opens, and again every time the user comes
   // back to it, so changes made elsewhere show up right away.
   useFocusEffect(
     useCallback(() => {
-      void loadFirstPage();
-    }, [loadFirstPage]),
+      void loadWallet();
+    }, [loadWallet]),
   );
 
   // =========================
-  // LOAD MORE (next 6)
+  // HISTORY: FILTER, SORT, LOAD MORE
   // =========================
-  const loadMore = useCallback(async () => {
-    // One request at a time, however often the button is tapped.
-    if (loadingMoreRef.current) return;
+  const setFilter = useCallback((value: HistoryFilter) => {
+    setFilterState(value);
+    setVisibleCount(WALLET_PAGE_SIZE);
+  }, []);
 
-    if (!isPagedRef.current) {
-      setVisibleCount((count) => count + WALLET_PAGE_SIZE);
-      return;
-    }
+  const setSort = useCallback((value: HistorySort) => {
+    setSortState(value);
+    setVisibleCount(WALLET_PAGE_SIZE);
+  }, []);
 
-    if (!hasMore) return;
+  const loadMore = useCallback(() => {
+    setVisibleCount((count) => count + WALLET_PAGE_SIZE);
+  }, []);
 
-    loadingMoreRef.current = true;
-    setIsLoadingMore(true);
-    setLoadMoreError(null);
-
-    const generation = generationRef.current;
-
-    try {
-      const page = await fetchTransactionPage(serverCountRef.current);
-
-      // A refresh started meanwhile; its result wins.
-      if (generation !== generationRef.current) return;
-
-      serverCountRef.current += page.items.length;
-
-      // Add to the end; never replace what is already shown.
-      setTransactions((prev) => withoutDuplicates([...prev, ...page.items]));
-      setHasMore(page.hasMore);
-    } catch (error) {
-      console.error('Failed to load more transactions:', error);
-      setLoadMoreError('Could not load more transactions.');
-    } finally {
-      loadingMoreRef.current = false;
-      setIsLoadingMore(false);
-    }
-  }, [hasMore]);
-
-  // What the list shows.
-  const visibleTransactions = useMemo(
+  const filtered = useMemo(
     () =>
-      isPagedRef.current
+      filter === 'All'
         ? transactions
-        : transactions.slice(0, visibleCount),
-    // isPagedRef only changes together with `transactions`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [transactions, visibleCount],
+        : transactions.filter((item) => historyCategoryOf(item) === filter),
+    [transactions, filter],
   );
 
-  const canLoadMore = isPagedRef.current
-    ? hasMore
-    : transactions.length > visibleCount;
+  const sorted = useMemo(() => sortHistory(filtered, sort), [filtered, sort]);
+
+  const shownCount = Math.min(visibleCount, sorted.length);
+  const hasMore = sorted.length > visibleCount;
+
+  // Rows for the list. Date sorts are grouped by day; amount sorts are
+  // one list (each row then shows its full date).
+  const historyRows = useMemo<HistoryRow[]>(() => {
+    const visible = sorted.slice(0, visibleCount);
+    const byDate = sort === 'newest' || sort === 'oldest';
+
+    if (!byDate) {
+      return visible.map((item) => ({
+        kind: 'item',
+        key: item.id,
+        item,
+        showDate: true,
+      }));
+    }
+
+    const rows: HistoryRow[] = [];
+    let lastDay = '';
+    for (const item of visible) {
+      const day = dayKey(item.date);
+      if (day !== lastDay) {
+        rows.push({ kind: 'header', key: `day-${day}`, label: formatDayHeader(item.date) });
+        lastDay = day;
+      }
+      rows.push({ kind: 'item', key: item.id, item, showDate: false });
+    }
+    return rows;
+  }, [sorted, sort, visibleCount]);
+
+  // "Food this month": total and count for the chosen category.
+  const categorySummary = useMemo<CategorySummary | null>(() => {
+    if (filter === 'All') return null;
+
+    const now = new Date();
+    let total = 0;
+    let count = 0;
+    for (const item of filtered) {
+      const date = new Date(item.date);
+      if (
+        date.getFullYear() === now.getFullYear() &&
+        date.getMonth() === now.getMonth()
+      ) {
+        total += item.amount;
+        count += 1;
+      }
+    }
+    return { category: filter, total, count };
+  }, [filter, filtered]);
 
   // =========================
   // WALLET VALUES
   // =========================
-  const totalIncome = useMemo(
-    () => walletBalance.totalIncome,
-    [walletBalance.totalIncome],
-  );
-
-  const totalExpenses = useMemo(
-    () => walletBalance.totalExpenses,
-    [walletBalance.totalExpenses],
-  );
+  // Used by the Dashboard's money card.
+  const totalIncome = walletBalance.totalIncome;
+  const totalExpenses = walletBalance.totalExpenses;
 
   // Never show a negative balance.
   const netBalance = useMemo(
@@ -337,7 +349,7 @@ export function useExpensesData() {
   );
 
   // =========================
-  // OPEN ADD MODAL
+  // ADD MODAL
   // =========================
   const openAddModal = useCallback(() => {
     setNewTitle('');
@@ -348,9 +360,6 @@ export function useExpensesData() {
     setIsAdding(true);
   }, []);
 
-  // =========================
-  // CLOSE ADD MODAL
-  // =========================
   const closeAddModal = useCallback(() => {
     setIsAdding(false);
   }, []);
@@ -427,27 +436,7 @@ export function useExpensesData() {
       setTransactions((prev) => {
         const rest = prev.filter((item) => item.id !== tempId);
         if (!saved?.id) return rest;
-
-        const savedItem = toTransaction(saved);
-        const savedRows = rest.filter((item) => !item.isPending);
-        const oldestLoaded = savedRows[savedRows.length - 1];
-
-        // An older date that belongs to a page not loaded yet:
-        // it will come with "Load more" instead.
-        if (
-          isPagedRef.current &&
-          hasMore &&
-          oldestLoaded &&
-          new Date(savedItem.date).getTime() <
-            new Date(oldestLoaded.date).getTime()
-        ) {
-          return rest;
-        }
-
-        // It now sits inside the loaded pages, so the next page starts one later.
-        if (isPagedRef.current) serverCountRef.current += 1;
-
-        return withoutDuplicates(sortByDate([savedItem, ...rest]));
+        return withoutDuplicates(sortByDate([toTransaction(saved), ...rest]));
       });
 
       // Quietly sync the exact totals from the server.
@@ -460,11 +449,6 @@ export function useExpensesData() {
         error?.response?.data ||
           error?.message ||
           error,
-      );
-
-      console.error(
-        'Status:',
-        error?.response?.status,
       );
 
       // Undo the instant update.
@@ -492,20 +476,27 @@ export function useExpensesData() {
     newCategory,
     transactionType,
     netBalance,
-    hasMore,
   ]);
 
   return {
-    transactions: visibleTransactions,
-    hasMore: canLoadMore,
-    isLoadingMore,
-    loadMoreError,
+    // History
+    historyRows,
+    filter,
+    setFilter,
+    sort,
+    setSort,
+    categorySummary,
+    shownCount,
+    totalCount: sorted.length,
+    hasMore,
     loadMore,
-    isRefreshing,
+    loadError,
 
+    isRefreshing,
+    refreshWallet,
+    netBalance,
     totalIncome,
     totalExpenses,
-    netBalance,
 
     isLoading,
     isAdding,
@@ -529,7 +520,5 @@ export function useExpensesData() {
 
     handleTypeChange,
     handleAddTransaction,
-
-    refreshWallet,
   };
 }

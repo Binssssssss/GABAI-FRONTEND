@@ -2,7 +2,12 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Transaction } from '../types';
-import { formatTransactionDate, getTransactionIcon } from '../utils/expenseHelpers';
+import {
+  formatTransactionDate,
+  formatTransactionTime,
+  getCategoryColor,
+  getTransactionIcon,
+} from '../utils/expenseHelpers';
 import { expenseStyles as styles } from '../styles/expenses.styles';
 
 interface TransactionItemProps {
@@ -14,6 +19,8 @@ interface TransactionItemProps {
   successGreen: string;
   errorRed?: string;
   primaryBrown: string;
+  /** Show the full date (when the list isn't grouped by day). */
+  showDate?: boolean;
 }
 
 export default function TransactionItem({
@@ -25,9 +32,14 @@ export default function TransactionItem({
   successGreen,
   errorRed = '#EF4444',
   primaryBrown,
+  showDate = false,
 }: TransactionItemProps) {
   const isIncome = item.type === 'income';
   const iconName = getTransactionIcon(item.type, item.category);
+  const color = getCategoryColor(item.type, item.category);
+  const when = showDate
+    ? formatTransactionDate(item.date)
+    : formatTransactionTime(item.date);
 
   return (
     <View
@@ -39,17 +51,8 @@ export default function TransactionItem({
         },
       ]}
     >
-      <View
-        style={[
-          styles.itemIconContainer,
-          { backgroundColor: isIncome ? successGreen + '15' : primaryBrown + '15' },
-        ]}
-      >
-        <Feather
-          name={iconName as any}
-          size={20}
-          color={isIncome ? successGreen : primaryBrown}
-        />
+      <View style={[styles.itemIconContainer, { backgroundColor: color + '22' }]}>
+        <Feather name={iconName as any} size={18} color={color} />
       </View>
       <View style={styles.itemDetails}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -77,8 +80,8 @@ export default function TransactionItem({
             </Text>
           )}
         </View>
-        <Text style={[styles.itemSubtitle, { color: textSecondary }]}>
-          {item.category} • {formatTransactionDate(item.date)}
+        <Text numberOfLines={1} style={[styles.itemSubtitle, { color: textSecondary }]}>
+          {item.category} · {when}
         </Text>
       </View>
       <Text
@@ -87,7 +90,7 @@ export default function TransactionItem({
           { color: isIncome ? successGreen : errorRed },
         ]}
       >
-        {isIncome ? '+' : '−'} ₱{item.amount.toFixed(2)}
+        {isIncome ? '+' : '−'}₱{item.amount.toFixed(2)}
       </Text>
     </View>
   );

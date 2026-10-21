@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   Text,
@@ -12,13 +11,14 @@ import { useDrawer } from '@/app/(tabs)/_layout';
 import { useAppTheme } from '@/app/context/ThemeContext';
 
 import {
-    AddTransactionModal,
-    TransactionItem,
-    WalletBalanceCard,
-    WalletHeader,
+  AddTransactionModal,
+  TransactionItem,
+  WalletBalanceCard,
+  WalletHeader,
+  WalletHistoryControls,
 } from './components';
 
-import { useExpensesData, WALLET_PAGE_SIZE } from './hooks/useExpensesData';
+import { HistoryRow, useExpensesData } from './hooks/useExpensesData';
 import { expenseStyles as styles } from './styles/expenses.styles';
 
 export default function WalletScreen() {
@@ -39,15 +39,20 @@ export default function WalletScreen() {
   const { openDrawer } = useDrawer();
 
   const {
-    transactions,
+    historyRows,
+    filter,
+    setFilter,
+    sort,
+    setSort,
+    categorySummary,
+    shownCount,
+    totalCount,
     hasMore,
-    isLoadingMore,
-    loadMoreError,
     loadMore,
+    loadError,
+    isLoading,
     isRefreshing,
     refreshWallet,
-    totalIncome,
-    totalExpenses,
     netBalance,
     isAdding,
     openAddModal,
@@ -64,6 +69,31 @@ export default function WalletScreen() {
     handleTypeChange,
     handleAddTransaction,
   } = useExpensesData();
+
+  const renderRow = ({ item: row }: { item: HistoryRow }) =>
+    row.kind === 'header' ? (
+      <Text style={[styles.dayHeader, { color: textSecondary }]}>{row.label}</Text>
+    ) : (
+      <TransactionItem
+        item={row.item}
+        showDate={row.showDate}
+        cardBg={cardBg}
+        borderCol={borderCol}
+        textPrimary={textPrimary}
+        textSecondary={textSecondary}
+        successGreen={successGreen}
+        errorRed={errorRed}
+        primaryBrown={primaryBrown}
+      />
+    );
+
+  const emptyText = loadError
+    ? loadError
+    : isLoading
+      ? 'Loading…'
+      : filter === 'All'
+        ? 'No activity yet. Tap + to add money in or out.'
+        : `No ${filter} transactions yet.`;
 
   return (
     <SafeAreaView
@@ -83,48 +113,13 @@ export default function WalletScreen() {
         primaryBrown={primaryBrown}
       />
 
-      {/* Dashboard Balance Card */}
-      <WalletBalanceCard
-        netBalance={netBalance}
-        textPrimary={textPrimary}
-        totalIncome={totalIncome}
-        totalExpenses={totalExpenses}
-        cardBg={cardBg}
-        borderCol={borderCol}
-        textSecondary={textSecondary}
-        successGreen={successGreen}
-        errorRed={errorRed}
-      />
-
-      {/* Transactions List */}
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: textSecondary,
-          },
-        ]}
-      >
-        Recent Activity
-      </Text>
-
       <FlatList
-        data={transactions}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TransactionItem
-            item={item}
-            cardBg={cardBg}
-            borderCol={borderCol}
-            textPrimary={textPrimary}
-            textSecondary={textSecondary}
-            successGreen={successGreen}
-            errorRed={errorRed}
-            primaryBrown={primaryBrown}
-          />
-        )}
+        data={historyRows}
+        keyExtractor={(row) => row.key}
+        renderItem={renderRow}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -133,47 +128,52 @@ export default function WalletScreen() {
             colors={[primaryBrown]}
           />
         }
+        ListHeaderComponent={
+          <View>
+            {/* Balance only */}
+            <WalletBalanceCard
+              netBalance={netBalance}
+              textPrimary={textPrimary}
+              cardBg={cardBg}
+              borderCol={borderCol}
+              textSecondary={textSecondary}
+            />
+
+            {/* History: sort, category chips, monthly total */}
+            <WalletHistoryControls
+              filter={filter}
+              onFilterChange={setFilter}
+              sort={sort}
+              onSortChange={setSort}
+              summary={categorySummary}
+              cardBg={cardBg}
+              borderCol={borderCol}
+              textPrimary={textPrimary}
+              textSecondary={textSecondary}
+              primaryBrown={primaryBrown}
+            />
+          </View>
+        }
         ListFooterComponent={
-          loadMoreError ? (
-            // Keep what is shown; let the user try again.
+          totalCount > 0 ? (
             <View style={styles.loadMoreContainer}>
-              <Text style={[styles.loadMoreCount, { color: errorRed, marginBottom: 8 }]}>
-                {loadMoreError}
-              </Text>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={loadMore}
-                style={[styles.loadMoreButton, { borderColor: primaryBrown }]}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.loadMoreText, { color: primaryBrown }]}>
-                  Try again
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : hasMore ? (
-            <View style={styles.loadMoreContainer}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={loadMore}
-                disabled={isLoadingMore}
-                style={[styles.loadMoreButton, { borderColor: primaryBrown }]}
-                accessibilityRole="button"
-                accessibilityState={{ busy: isLoadingMore }}
-              >
-                {isLoadingMore ? (
-                  <ActivityIndicator size="small" color={primaryBrown} />
-                ) : (
+              {hasMore && (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={loadMore}
+                  style={[styles.loadMoreButton, { borderColor: primaryBrown }]}
+                  accessibilityRole="button"
+                >
                   <Text style={[styles.loadMoreText, { color: primaryBrown }]}>
                     Load More
                   </Text>
-                )}
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )}
+              <Text style={[styles.loadMoreCount, { color: textSecondary }]}>
+                Showing {shownCount} of {totalCount}
+                {filter !== 'All' ? ` · ${filter}` : ''}
+              </Text>
             </View>
-          ) : transactions.length > WALLET_PAGE_SIZE ? (
-            <Text style={[styles.loadMoreCount, { color: textSecondary }]}>
-              You've reached the end
-            </Text>
           ) : null
         }
         ListEmptyComponent={
@@ -182,11 +182,11 @@ export default function WalletScreen() {
               style={[
                 styles.emptyText,
                 {
-                  color: textSecondary,
+                  color: loadError ? errorRed : textSecondary,
                 },
               ]}
             >
-              No activity yet. Tap + to add money in or out.
+              {emptyText}
             </Text>
           </View>
         }

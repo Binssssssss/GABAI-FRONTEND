@@ -28,7 +28,7 @@ export const expenseStyles = StyleSheet.create({
     elevation: 2,
   },
   dashboardCard: {
-    marginHorizontal: 20,
+    marginTop: 4,
     marginBottom: 20,
     padding: 20,
     borderRadius: 16,
@@ -89,6 +89,13 @@ export const expenseStyles = StyleSheet.create({
     letterSpacing: 1,
     marginHorizontal: 20,
     marginBottom: 12,
+  },
+  dayHeader: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginTop: 6,
+    marginBottom: 10,
   },
   listContent: {
     paddingHorizontal: 20,
