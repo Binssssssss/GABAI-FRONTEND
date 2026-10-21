@@ -1,6 +1,6 @@
 import { Transaction } from '../types';
 
-/** Categories the user can pick when adding money out / money in. */
+/** Categories the user can pick when adding an expense or allowance. */
 export const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Academics', 'Others'] as const;
 export const INCOME_CATEGORIES = ['Allowance'] as const;
 

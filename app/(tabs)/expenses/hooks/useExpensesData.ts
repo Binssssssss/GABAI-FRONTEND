@@ -12,6 +12,7 @@ import {
 } from '../constants/expenseCategories';
 import { Transaction, TransactionType } from '../types';
 import { dayKey, formatDayHeader } from '../utils/expenseHelpers';
+import { hasErrors, parseAmount, validateTransaction } from '../utils/transactionValidation';
 
 interface TransactionResponse {
   id: string;
@@ -368,24 +369,17 @@ export function useExpensesData() {
   // ADD TRANSACTION
   // =========================
   const handleAddTransaction = useCallback(async () => {
-    if (!newTitle.trim() || !newAmount) {
-      return;
-    }
+    // Same rules the form shows inline (amount, balance, title, date).
+    const errors = validateTransaction({
+      amount: newAmount,
+      title: newTitle,
+      date: newDate,
+      type: transactionType,
+      balance: netBalance,
+    });
+    if (hasErrors(errors)) return;
 
-    const amount = parseFloat(newAmount);
-
-    if (Number.isNaN(amount) || amount <= 0) {
-      return;
-    }
-
-    // Stop an expense that is bigger than the wallet balance.
-    if (transactionType === 'expense' && amount > netBalance) {
-      AppAlert.alert(
-        'Insufficient balance',
-        `You only have ₱${netBalance.toFixed(2)} left. Add income first or lower the amount.`,
-      );
-      return;
-    }
+    const amount = Math.round(parseAmount(newAmount) * 100) / 100;
 
     // Show it right away (real-time); the server confirms it after.
     const title = newTitle.trim();

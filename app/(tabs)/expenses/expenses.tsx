@@ -92,7 +92,7 @@ export default function WalletScreen() {
     : isLoading
       ? 'Loading…'
       : filter === 'All'
-        ? 'No activity yet. Tap + to add money in or out.'
+        ? 'No activity yet. Tap + to add an expense or allowance.'
         : `No ${filter} transactions yet.`;
 
   return (
@@ -207,6 +207,7 @@ export default function WalletScreen() {
         category={newCategory}
         onCategoryChange={setNewCategory}
         onSubmit={handleAddTransaction}
+        balance={netBalance}
         cardBg={cardBg}
         borderCol={borderCol}
         inputBg={inputBg}
