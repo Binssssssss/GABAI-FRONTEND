@@ -95,12 +95,13 @@ export function LoginForm({
           onChangeText={(text) => {
             setEmail(text);
             if (emailError) setEmailError('');
+            if (passwordError) setPasswordError('');
           }}
           onFocus={() => setIsEmailFocused(true)}
           onBlur={() => setIsEmailFocused(false)}
         />
       </View>
-      {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+      {emailError.trim() ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
       {/* Password */}
       <Text style={[styles.inputLabel, { color: textPrimary, marginTop: 12 }]}>Password</Text>
@@ -134,6 +135,7 @@ export function LoginForm({
           onChangeText={(text) => {
             setPassword(text);
             if (passwordError) setPasswordError('');
+            if (emailError) setEmailError('');
           }}
           onFocus={() => setIsPasswordFocused(true)}
           onBlur={() => setIsPasswordFocused(false)}

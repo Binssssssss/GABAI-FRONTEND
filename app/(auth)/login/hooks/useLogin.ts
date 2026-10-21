@@ -146,10 +146,24 @@ export function useLogin() {
         return;
       }
 
+      // Wrong email or password: show it on the form, not in a popup.
+      // Both fields turn red; the message shows under the password.
+      // (Google accounts without a password keep their own message.)
+      const status = error?.response?.status;
+      const serverMessage: string = error?.response?.data?.message ?? "";
+      const isWrongCredentials =
+        status === 401 && !/google/i.test(serverMessage);
+
+      if (isWrongCredentials) {
+        setEmailError(" ");
+        setPasswordError("Incorrect email or password.");
+        return;
+      }
+
       let errorMessage = "An error occurred during login. Please try again.";
 
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      if (serverMessage) {
+        errorMessage = serverMessage;
       } else if (error?.message) {
         errorMessage = error.message;
       }
