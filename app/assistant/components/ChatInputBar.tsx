@@ -41,6 +41,7 @@ export function ChatInputBar({
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
         returnKeyType="send"
+        maxLength={1000}
       />
       <TouchableOpacity
         style={[

@@ -547,7 +547,12 @@ const handleContentChange = useCallback(
       tag = `#${tag}`;
     }
 
-    if (!editorTags.includes(tag)) {
+    // Same tag in different letter case counts as a duplicate.
+    const isDuplicate = editorTags.some(
+      (existing) => existing.toLowerCase() === tag.toLowerCase(),
+    );
+
+    if (!isDuplicate) {
       const updatedTags = [...editorTags, tag];
 
       setEditorTags(updatedTags);

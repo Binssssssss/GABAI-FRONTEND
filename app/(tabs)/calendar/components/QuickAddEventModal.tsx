@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import FieldError from '@/components/FieldError';
+import { LIMITS, checkLength } from '@/utils/formValidation';
 import { EventCategory, EventPriority } from '../types';
 
 interface QuickAddEventModalProps {
@@ -307,8 +309,44 @@ export default function QuickAddEventModal({
     onClose();
   };
 
+  /* ---------- validation ---------- */
+
+  // Errors show after the title is left or Save is tapped.
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setTitleTouched(false);
+      setSubmitted(false);
+    }
+  }, [visible]);
+
+  const titleError = checkLength(title, {
+    min: LIMITS.eventTitleMin,
+    max: LIMITS.eventTitleMax,
+    empty: 'Add an event title',
+    short: `Use at least ${LIMITS.eventTitleMin} characters`,
+  });
+
+  // A new event today can't start at a time that already passed
+  // (its alarm would never ring).
+  const startsInPast = (() => {
+    if (mode !== 'add' || isAllDay || date !== todayKey) return false;
+    const [h, m] = (time || '').split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return false;
+    const now = new Date();
+    return h * 60 + m < now.getHours() * 60 + now.getMinutes();
+  })();
+  const timeError = startsInPast ? 'That time already passed today. Pick a later time.' : '';
+
+  const shownTitleError = submitted || titleTouched ? titleError : '';
+  const invalid = Boolean(titleError || timeError);
+
   const handleSave = () => {
     setPicker(null);
+    setSubmitted(true);
+    if (invalid) return;
     onSave();
   };
 
@@ -348,17 +386,31 @@ export default function QuickAddEventModal({
           >
             {/* Title */}
             <Label color={textSubTheme}>TITLE</Label>
-            <TextInput
-              placeholder="e.g. Math Quiz, Chemistry Lecture"
-              placeholderTextColor={textSubTheme}
+            <View
               style={[
                 s.input,
-                { color: textTheme, borderColor: borderTheme, backgroundColor: inputBg },
+                s.inputRow,
+                {
+                  borderColor: shownTitleError ? '#EF4444' : borderTheme,
+                  backgroundColor: inputBg,
+                },
               ]}
-              value={title}
-              onChangeText={onTitleChange}
-              returnKeyType="done"
-            />
+            >
+              <TextInput
+                placeholder="e.g. Math Quiz, Chemistry Lecture"
+                placeholderTextColor={textSubTheme}
+                style={[s.inputFlex, { color: textTheme }]}
+                value={title}
+                onChangeText={onTitleChange}
+                onBlur={() => setTitleTouched(true)}
+                maxLength={LIMITS.eventTitleMax}
+                returnKeyType="done"
+              />
+              <Text style={[s.counter, { color: textSubTheme }]}>
+                {title.length}/{LIMITS.eventTitleMax}
+              </Text>
+            </View>
+            <FieldError message={shownTitleError} />
 
             {/* Type */}
             <Label color={textSubTheme}>TYPE</Label>
@@ -415,7 +467,7 @@ export default function QuickAddEventModal({
                 style={[
                   s.pickBox,
                   {
-                    borderColor: borderTheme,
+                    borderColor: timeError ? '#EF4444' : borderTheme,
                     backgroundColor: inputBg,
                     opacity: isAllDay ? 0.45 : 1,
                   },
@@ -430,6 +482,7 @@ export default function QuickAddEventModal({
                 </View>
               </TouchableOpacity>
             </View>
+            <FieldError message={timeError} />
 
             <View style={s.toggleRow}>
               <Text style={[s.toggleText, { color: textTheme }]}>All day</Text>
@@ -486,13 +539,20 @@ export default function QuickAddEventModal({
               ]}
               value={description}
               onChangeText={onDescriptionChange}
+              maxLength={LIMITS.eventDetailsMax}
             />
+            <Text style={[s.counter, s.counterRight, { color: textSubTheme }]}>
+              {description.length}/{LIMITS.eventDetailsMax}
+            </Text>
 
             {/* Save */}
             <TouchableOpacity
               onPress={handleSave}
               activeOpacity={0.85}
-              style={[s.saveBtn, { backgroundColor: primaryAccent }]}
+              style={[
+                s.saveBtn,
+                { backgroundColor: primaryAccent, opacity: invalid ? 0.5 : 1 },
+              ]}
             >
               <Feather name="check" size={18} color="#FFFFFF" />
               <Text style={s.saveText}>
@@ -784,6 +844,23 @@ const s = StyleSheet.create({
     height: 88,
     paddingTop: 14,
     textAlignVertical: 'top',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputFlex: {
+    flex: 1,
+    fontSize: 15,
+    minHeight: 50,
+  },
+  counter: {
+    fontSize: 11,
+    marginLeft: 8,
+  },
+  counterRight: {
+    textAlign: 'right',
+    marginTop: 4,
   },
   chips: {
     flexDirection: 'row',

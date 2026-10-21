@@ -21,6 +21,8 @@ import api from '@/app/services/api';
 import { useAuth } from '@/app/context/AuthContext';
 import { useProfileTheme } from '@/app/(tabs)/profile/hooks';
 import { ScreenHeader } from '@/components/settings/SettingsUI';
+import FieldError from '@/components/FieldError';
+import { LIMITS, checkName, cleanSpaces } from '@/utils/formValidation';
 
 // Keep the photo small enough to store with the account (matches the backend limit).
 const MAX_AVATAR_LENGTH = 400_000;
@@ -60,9 +62,16 @@ export default function EditProfileScreen() {
   const [isPicking, setIsPicking] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const trimmedName = fullName.trim().replace(/\s+/g, ' ');
-  const hasChanges = trimmedName !== initialName.trim() || avatar !== initialAvatar;
-  const canSave = trimmedName.length > 0 && hasChanges && !isSaving;
+  const trimmedName = cleanSpaces(fullName);
+  const nameChanged = trimmedName !== cleanSpaces(initialName);
+  const hasChanges = nameChanged || avatar !== initialAvatar;
+
+  // Only check the name when it was changed, so a photo-only update still works.
+  const [nameTouched, setNameTouched] = useState(false);
+  const nameError = nameChanged ? checkName(fullName) : '';
+  const showNameError = nameTouched && Boolean(nameError);
+
+  const canSave = !nameError && trimmedName.length > 0 && hasChanges && !isSaving;
 
   const pickPhoto = async () => {
     // expo-image-picker is a native module. Older app builds don't include
@@ -115,8 +124,8 @@ export default function EditProfileScreen() {
   const removePhoto = () => setAvatar(null);
 
   const save = async () => {
-    if (!trimmedName) {
-      Alert.alert('Name required', 'Please enter your name.');
+    if (nameError || !trimmedName) {
+      setNameTouched(true);
       return;
     }
 
@@ -195,16 +204,22 @@ export default function EditProfileScreen() {
           <TextInput
             value={fullName}
             onChangeText={setFullName}
+            onBlur={() => setNameTouched(true)}
             placeholder="Your name"
             placeholderTextColor={theme.textSubTheme}
             autoCapitalize="words"
-            maxLength={80}
+            maxLength={LIMITS.nameMax}
             returnKeyType="done"
             style={[
               styles.input,
-              { color: theme.textTheme, borderColor: theme.borderTheme, backgroundColor: theme.cardTheme },
+              {
+                color: theme.textTheme,
+                borderColor: showNameError ? '#EF4444' : theme.borderTheme,
+                backgroundColor: theme.cardTheme,
+              },
             ]}
           />
+          <FieldError message={showNameError ? nameError : ''} />
 
           {/* Email (read only) */}
           <Text style={[styles.label, { color: theme.textSubTheme }]}>Email</Text>

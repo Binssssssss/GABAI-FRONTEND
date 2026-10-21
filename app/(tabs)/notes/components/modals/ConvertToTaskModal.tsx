@@ -103,6 +103,7 @@ export default function ConvertToTaskModal({
             onChangeText={onSubjectChange}
             placeholder="e.g. CS101, Algorithms"
             placeholderTextColor={textSecondary}
+            maxLength={40}
           />
 
           {/* Priority Picker */}

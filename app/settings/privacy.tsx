@@ -33,6 +33,8 @@ import {
   SettingsCard,
   SwitchRow,
 } from '@/components/settings/SettingsUI';
+import FieldError from '@/components/FieldError';
+import { LIMITS, checkNewPassword, passwordChecks } from '@/utils/formValidation';
 
 /* Password input with a label and a show/hide (eye) button. */
 function PasswordField({
@@ -41,12 +43,16 @@ function PasswordField({
   onChangeText,
   placeholder,
   theme,
+  error,
+  onBlur,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
   theme: ReturnType<typeof useProfileTheme>;
+  error?: string;
+  onBlur?: () => void;
 }) {
   const [visible, setVisible] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -58,7 +64,11 @@ function PasswordField({
         style={[
           styles.passwordRow,
           {
-            borderColor: focused ? theme.primaryAccent : theme.borderTheme,
+            borderColor: error
+              ? '#EF4444'
+              : focused
+                ? theme.primaryAccent
+                : theme.borderTheme,
             backgroundColor: theme.bgTheme,
           },
         ]}
@@ -73,7 +83,11 @@ function PasswordField({
           value={value}
           onChangeText={onChangeText}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
+          maxLength={64}
         />
         <TouchableOpacity
           accessibilityRole="button"
@@ -89,6 +103,7 @@ function PasswordField({
           />
         </TouchableOpacity>
       </View>
+      <FieldError message={error} />
     </View>
   );
 }
@@ -113,6 +128,30 @@ export default function PrivacySecurityScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Inline errors: shown after a field is left or Update is tapped.
+  const [pwTouched, setPwTouched] = useState({ current: false, next: false, confirm: false });
+  const [pwSubmitted, setPwSubmitted] = useState(false);
+  // Message from the server about the current password (e.g. wrong password).
+  const [currentServerError, setCurrentServerError] = useState('');
+
+  const pwErrors = {
+    current: !currentPassword ? 'Enter your current password' : currentServerError,
+    next: !newPassword
+      ? 'Enter a new password'
+      : checkNewPassword(newPassword) ||
+        (newPassword === currentPassword
+          ? 'New password must be different from the current one'
+          : ''),
+    confirm: !confirmPassword
+      ? 'Type the new password again'
+      : confirmPassword !== newPassword
+        ? "Passwords don't match"
+        : '',
+  };
+  const showPwError = (field: keyof typeof pwErrors) =>
+    pwSubmitted || pwTouched[field] ? pwErrors[field] : '';
+  const pwInvalid = Boolean(pwErrors.current || pwErrors.next || pwErrors.confirm);
 
   // Delete account
   const [showDelete, setShowDelete] = useState(false);
@@ -170,20 +209,8 @@ export default function PrivacySecurityScreen() {
   // ---------------- CHANGE PASSWORD ----------------
 
   const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      AppAlert.alert('Missing information', 'Please fill in all three fields.');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      AppAlert.alert('Password too short', 'Your new password must be at least 8 characters.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      AppAlert.alert('Passwords do not match', 'Please re-enter your new password.');
-      return;
-    }
+    setPwSubmitted(true);
+    if (pwInvalid) return;
 
     try {
       setIsSaving(true);
@@ -194,13 +221,22 @@ export default function PrivacySecurityScreen() {
       setNewPassword('');
       setConfirmPassword('');
       setShowPasswordForm(false);
+      setPwSubmitted(false);
+      setPwTouched({ current: false, next: false, confirm: false });
 
       AppAlert.alert('Password updated', 'Your password was changed successfully.');
     } catch (error: any) {
-      AppAlert.alert(
-        'Unable to change password',
-        error?.response?.data?.message ?? 'Please check your connection and try again.',
-      );
+      const message: string | undefined = error?.response?.data?.message;
+
+      // A wrong current password shows under that field instead of a popup.
+      if (message && /current|incorrect|wrong/i.test(message)) {
+        setCurrentServerError(message);
+      } else {
+        AppAlert.alert(
+          'Unable to change password',
+          message ?? 'Please check your connection and try again.',
+        );
+      }
     } finally {
       setIsSaving(false);
     }
@@ -330,14 +366,21 @@ export default function PrivacySecurityScreen() {
                   label="Current password"
                   placeholder="Enter your current password"
                   value={currentPassword}
-                  onChangeText={setCurrentPassword}
+                  onChangeText={(text) => {
+                    setCurrentPassword(text);
+                    if (currentServerError) setCurrentServerError('');
+                  }}
+                  onBlur={() => setPwTouched((t) => ({ ...t, current: true }))}
+                  error={showPwError('current')}
                   theme={theme}
                 />
                 <PasswordField
                   label="New password"
-                  placeholder="At least 8 characters"
+                  placeholder="8+ characters, a letter and a number"
                   value={newPassword}
                   onChangeText={setNewPassword}
+                  onBlur={() => setPwTouched((t) => ({ ...t, next: true }))}
+                  error={showPwError('next')}
                   theme={theme}
                 />
                 <PasswordField
@@ -345,6 +388,8 @@ export default function PrivacySecurityScreen() {
                   placeholder="Type the new password again"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
+                  onBlur={() => setPwTouched((t) => ({ ...t, confirm: true }))}
+                  error={showPwError('confirm')}
                   theme={theme}
                 />
 
@@ -352,7 +397,14 @@ export default function PrivacySecurityScreen() {
                 {newPassword.length > 0 && (
                   <View style={styles.rules}>
                     {[
-                      { ok: newPassword.length >= 8, text: 'At least 8 characters' },
+                      {
+                        ok: passwordChecks(newPassword).length,
+                        text: `At least ${LIMITS.passwordMin} characters`,
+                      },
+                      {
+                        ok: passwordChecks(newPassword).letter && passwordChecks(newPassword).number,
+                        text: 'Has a letter and a number',
+                      },
                       {
                         ok: confirmPassword.length > 0 && confirmPassword === newPassword,
                         text: 'Passwords match',
@@ -378,7 +430,10 @@ export default function PrivacySecurityScreen() {
                 )}
 
                 <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: theme.primaryAccent }]}
+                  style={[
+                    styles.primaryButton,
+                    { backgroundColor: theme.primaryAccent, opacity: pwInvalid ? 0.5 : 1 },
+                  ]}
                   onPress={handleChangePassword}
                   disabled={isSaving}
                 >

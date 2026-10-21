@@ -1048,6 +1048,7 @@ export default function NoteEditorModal({
               placeholderTextColor={textSecondary}
               value={title}
               onChangeText={onTitleChange}
+              maxLength={100}
               multiline
               scrollEnabled={false}
               returnKeyType="next"

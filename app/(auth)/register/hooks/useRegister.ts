@@ -3,6 +3,7 @@ import { AppAlert } from '@/components/AppAlert';
 import { useRouter } from 'expo-router';
 import api from '@/app/services/api';
 import { validateRegisterForm } from '../utils';
+import { cleanSpaces } from '@/utils/formValidation';
 
 export function useRegister() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export function useRegister() {
       const cleanEmail = email.trim().toLowerCase();
 
       await api.post('/auth/register', {
-        fullName: name.trim(),
+        fullName: cleanSpaces(name),
         email: cleanEmail,
         password: password,
       });

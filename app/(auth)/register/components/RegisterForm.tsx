@@ -9,6 +9,13 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { registerStyles as styles } from '../styles';
+import {
+  LIMITS,
+  checkEmail,
+  checkName,
+  checkNewPassword,
+  passwordChecks,
+} from '@/utils/formValidation';
 
 interface RegisterFormProps {
   name: string;
@@ -104,7 +111,12 @@ export function RegisterForm({
             if (nameError) setNameError('');
           }}
           onFocus={() => setIsNameFocused(true)}
-          onBlur={() => setIsNameFocused(false)}
+          onBlur={() => {
+            setIsNameFocused(false);
+            if (name) setNameError(checkName(name));
+          }}
+          maxLength={LIMITS.nameMax}
+          autoCapitalize="words"
         />
       </View>
       {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
@@ -143,7 +155,11 @@ export function RegisterForm({
             if (emailError) setEmailError('');
           }}
           onFocus={() => setIsEmailFocused(true)}
-          onBlur={() => setIsEmailFocused(false)}
+          onBlur={() => {
+            setIsEmailFocused(false);
+            if (email) setEmailError(checkEmail(email));
+          }}
+          maxLength={100}
         />
       </View>
       {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
@@ -182,7 +198,11 @@ export function RegisterForm({
             if (passwordError) setPasswordError('');
           }}
           onFocus={() => setIsPasswordFocused(true)}
-          onBlur={() => setIsPasswordFocused(false)}
+          onBlur={() => {
+            setIsPasswordFocused(false);
+            if (password) setPasswordError(checkNewPassword(password));
+          }}
+          maxLength={64}
         />
         <Pressable
           onPress={() => setPasswordVisible(!passwordVisible)}
@@ -196,6 +216,28 @@ export function RegisterForm({
         </Pressable>
       </View>
       {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+
+      {/* Live password checklist */}
+      {password.length > 0 && (
+        <View style={{ marginTop: 8, marginLeft: 4, gap: 4 }}>
+          {[
+            { ok: passwordChecks(password).length, text: `At least ${LIMITS.passwordMin} characters` },
+            { ok: passwordChecks(password).letter, text: 'Has a letter' },
+            { ok: passwordChecks(password).number, text: 'Has a number' },
+          ].map((rule) => (
+            <View key={rule.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Feather
+                name={rule.ok ? 'check-circle' : 'circle'}
+                size={13}
+                color={rule.ok ? '#22C55E' : textSecondary}
+              />
+              <Text style={{ fontSize: 12, color: rule.ok ? '#22C55E' : textSecondary }}>
+                {rule.text}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Register Button */}
       <TouchableOpacity

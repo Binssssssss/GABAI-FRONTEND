@@ -10,6 +10,9 @@ import {
   View,
 } from 'react-native';
 
+import FieldError from '@/components/FieldError';
+import { LIMITS, checkLength } from '@/utils/formValidation';
+
 import type { useTaskData } from '../../hooks/useTaskData';
 import { TaskTheme } from '../../types';
 
@@ -101,6 +104,10 @@ export default function AddTaskModal({
   * Done during render (not in an effect) whenever the modal opens,
   * closes or switches task, so the picker never shows stale values.
     */
+  /* Inline validation: shown after the title is left or Save is tapped. */
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
   const [syncedFor, setSyncedFor] = useState<{
     isAdding: boolean;
     editingTask: typeof editingTask;
@@ -113,6 +120,8 @@ export default function AddTaskModal({
   ) {
     setSyncedFor({ isAdding, editingTask });
     setPicker(null);
+    setTitleTouched(false);
+    setSubmitted(false);
 
     if (isAdding) {
       const parsedDate = newDueDate
@@ -345,6 +354,32 @@ export default function AddTaskModal({
 
   const isEditMode = !!editingTask;
 
+  // An old task title that is kept as-is is never blocked.
+  const originalTitle = String((editingTask as { title?: string } | null)?.title ?? '').trim();
+  const titleError =
+    isEditMode && newTitle.trim() === originalTitle && originalTitle
+      ? ''
+      : checkLength(newTitle, {
+          min: LIMITS.taskTitleMin,
+          max: LIMITS.taskTitleMax,
+          empty: 'Add a task title',
+          short: `Add a task title (at least ${LIMITS.taskTitleMin} characters)`,
+        });
+  const shownTitleError = submitted || titleTouched ? titleError : '';
+
+  const save = () => {
+    setSubmitted(true);
+    if (titleError) return;
+    if (isEditMode) handleUpdateTask();
+    else handleCreateTask();
+  };
+
+  const counter = (count: number, max: number) => (
+    <Text style={{ color: textSecondary, fontSize: 11, marginLeft: 8 }}>
+      {count}/{max}
+    </Text>
+  );
+
   return (<Modal
     visible={isAdding}
     transparent
@@ -419,25 +454,38 @@ export default function AddTaskModal({
           >
             {/* TITLE */}
 
-            <TextInput
-              value={newTitle}
-              onChangeText={setNewTitle}
-              placeholder="Task title"
-              placeholderTextColor={
-                textSecondary
-              }
+            <View
               style={{
+                flexDirection: 'row',
+                alignItems: 'center',
                 backgroundColor: inputBg,
-                color: textPrimary,
                 borderRadius: 14,
                 borderWidth: 1,
-                borderColor: borderCol,
+                borderColor: shownTitleError ? '#EF4444' : borderCol,
                 paddingHorizontal: 14,
                 height: 50,
-                fontSize: 15,
-                marginBottom: 16,
               }}
-            />
+            >
+              <TextInput
+                value={newTitle}
+                onChangeText={setNewTitle}
+                onBlur={() => setTitleTouched(true)}
+                placeholder="Task title"
+                placeholderTextColor={
+                  textSecondary
+                }
+                maxLength={LIMITS.taskTitleMax}
+                style={{
+                  flex: 1,
+                  color: textPrimary,
+                  fontSize: 15,
+                  height: '100%',
+                }}
+              />
+              {counter(newTitle.length, LIMITS.taskTitleMax)}
+            </View>
+            <FieldError message={shownTitleError} />
+            <View style={{ height: 16 }} />
 
             {/* SUBJECT (typed by the user) */}
 
@@ -458,7 +506,7 @@ export default function AddTaskModal({
               placeholder="e.g. Math 101"
               placeholderTextColor={textSecondary}
               autoCapitalize="words"
-              maxLength={40}
+              maxLength={LIMITS.subjectMax}
               style={{
                 backgroundColor: inputBg,
                 color: textPrimary,
@@ -711,6 +759,7 @@ export default function AddTaskModal({
                 textSecondary
               }
               multiline
+              maxLength={LIMITS.taskNoteMax}
               textAlignVertical="top"
               style={{
                 backgroundColor: inputBg,
@@ -721,21 +770,20 @@ export default function AddTaskModal({
                 padding: 13,
                 minHeight: 72,
                 fontSize: 14,
-                marginBottom: 16,
               }}
             />
+            <View style={{ alignItems: 'flex-end', marginTop: 4, marginBottom: 12 }}>
+              {counter(newDesc.length, LIMITS.taskNoteMax)}
+            </View>
 
             {/* SAVE */}
 
             <TouchableOpacity
-              onPress={
-                isEditMode
-                  ? handleUpdateTask
-                  : handleCreateTask
-              }
+              onPress={save}
               style={{
                 height: 48,
                 borderRadius: 13,
+                opacity: titleError ? 0.5 : 1,
                 backgroundColor:
                   primaryBrown,
                 alignItems: 'center',
@@ -1285,4 +1333,4 @@ export default function AddTaskModal({
 
 
   );
-}
+}
