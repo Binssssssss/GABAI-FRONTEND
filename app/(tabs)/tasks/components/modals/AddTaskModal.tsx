@@ -99,6 +99,7 @@ export default function AddTaskModal({
     */
   /* Inline validation: shown after the title is left or Save is tapped. */
   const [titleTouched, setTitleTouched] = useState(false);
+  const [subjectTouched, setSubjectTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const [syncedFor, setSyncedFor] = useState<{
@@ -114,6 +115,7 @@ export default function AddTaskModal({
     setSyncedFor({ isAdding, editingTask });
     setPicker(null);
     setTitleTouched(false);
+    setSubjectTouched(false);
     setSubmitted(false);
 
     if (isAdding) {
@@ -347,9 +349,29 @@ export default function AddTaskModal({
         });
   const shownTitleError = submitted || titleTouched ? titleError : '';
 
+  // Subject is required (2-40 characters). An old task saved without a
+  // subject ("General") can still be edited if the subject is not touched.
+  const originalSubject = String(
+    (editingTask as { subject?: string } | null)?.subject ?? '',
+  ).trim();
+  const keepsOldSubject =
+    isEditMode &&
+    (newSubject.trim() === originalSubject ||
+      (!newSubject.trim() && (!originalSubject || originalSubject === 'General')));
+  const subjectError = keepsOldSubject
+    ? ''
+    : checkLength(newSubject, {
+        min: 2,
+        max: LIMITS.subjectMax,
+        empty: 'Add a subject (e.g. Math 101)',
+        short: 'Use at least 2 characters',
+      });
+  const shownSubjectError = submitted || subjectTouched ? subjectError : '';
+  const formInvalid = Boolean(titleError || subjectError);
+
   const save = () => {
     setSubmitted(true);
-    if (titleError) return;
+    if (formInvalid) return;
     if (isEditMode) handleUpdateTask();
     else handleCreateTask();
   };
@@ -480,25 +502,37 @@ export default function AddTaskModal({
               SUBJECT
             </Text>
 
-            <TextInput
-              value={newSubject}
-              onChangeText={setNewSubject}
-              placeholder="e.g. Math 101"
-              placeholderTextColor={textSecondary}
-              autoCapitalize="words"
-              maxLength={LIMITS.subjectMax}
+            <View
               style={{
+                flexDirection: 'row',
+                alignItems: 'center',
                 backgroundColor: inputBg,
-                color: textPrimary,
                 borderRadius: 14,
                 borderWidth: 1,
-                borderColor: borderCol,
+                borderColor: shownSubjectError ? '#EF4444' : borderCol,
                 paddingHorizontal: 13,
                 height: 46,
-                fontSize: 14,
-                marginBottom: 16,
               }}
-            />
+            >
+              <TextInput
+                value={newSubject}
+                onChangeText={setNewSubject}
+                onBlur={() => setSubjectTouched(true)}
+                placeholder="e.g. Math 101"
+                placeholderTextColor={textSecondary}
+                autoCapitalize="words"
+                maxLength={LIMITS.subjectMax}
+                style={{
+                  flex: 1,
+                  color: textPrimary,
+                  fontSize: 14,
+                  height: '100%',
+                }}
+              />
+              {counter(newSubject.length, LIMITS.subjectMax)}
+            </View>
+            <FieldError message={shownSubjectError} />
+            <View style={{ height: 16 }} />
 
 
             {/* PRIORITY */}
@@ -728,7 +762,8 @@ export default function AddTaskModal({
                 marginBottom: 8,
               }}
             >
-              NOTES
+              NOTES{' '}
+              <Text style={{ fontWeight: '600' }}>(OPTIONAL)</Text>
             </Text>
 
             <TextInput
@@ -763,7 +798,7 @@ export default function AddTaskModal({
               style={{
                 height: 48,
                 borderRadius: 13,
-                opacity: titleError ? 0.5 : 1,
+                opacity: formInvalid ? 0.5 : 1,
                 backgroundColor:
                   primaryBrown,
                 alignItems: 'center',
@@ -1239,4 +1274,4 @@ export default function AddTaskModal({
 
 
   );
-}
+}
