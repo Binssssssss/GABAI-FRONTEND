@@ -22,6 +22,26 @@ export const SESSIONS_BEFORE_LONG_BREAK = 4;
 /** Minimum focused minutes required to log an early finish. */
 export const MIN_LOGGABLE_MINUTES = 1;
 
+/**
+ * A length in seconds as text: 42 -> "42s", 757 -> "12m 37s",
+ * 3918 -> "1h 05m 18s".
+ */
+export function formatFocusDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  if (h > 0) return `${h}h ${pad(m)}m ${pad(s)}s`;
+  if (m > 0) return `${m}m ${pad(s)}s`;
+  return `${s}s`;
+}
+
+/** Same as formatFocusDuration, for a length given in minutes. */
+export const formatFocusMinutes = (minutes: number): string =>
+  formatFocusDuration(minutes * 60);
+
 export function getModeDurationSeconds(
   mode: FocusMode,
   customMinutes: number
@@ -91,4 +111,4 @@ export const MOTIVATIONAL_AFFIRMATIONS: string[] = [
   'Your future self will thank you for this study session.',
   'Stay locked in. Master the material step by step.',
   'Small daily disciplines compound into academic mastery.',
-];
+];

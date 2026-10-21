@@ -156,6 +156,12 @@ async function rememberTaskTitle(sessionId: string, taskTitle?: string) {
 
 /* ---------- backend ---------- */
 
+/* Minutes with the seconds kept (e.g. 12m 37s -> 12.6167). */
+function exactMinutes(item: FocusHistoryRecord & { durationSeconds?: unknown }): number {
+  const seconds = Number(item.durationSeconds);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds / 60 : item.durationMinutes;
+}
+
 /**
  * Load the account's completed focus sessions. Falls back to the local
  * copy when the server cannot be reached.
@@ -182,6 +188,8 @@ export async function fetchFocusHistory(): Promise<{
         .map((item) =>
           normalize({
             ...item,
+            // Newer servers also send the exact seconds.
+            durationMinutes: exactMinutes(item),
             taskTitle: titles[item.id] ?? item.taskTitle,
           }),
         ),
@@ -203,7 +211,8 @@ export async function fetchFocusHistory(): Promise<{
 
 /**
  * Save one finished focus session to the backend
- * (start + complete with the minutes actually focused).
+ * (start + complete with the time actually focused, to the second).
+ * `durationMinutes` may have a fraction for the seconds.
  */
 export async function saveFocusSessionToServer(details: {
   subject: string;
@@ -224,8 +233,10 @@ export async function saveFocusSessionToServer(details: {
     // No active session, or the check failed; starting will tell us.
   }
 
+  const durationSeconds = Math.max(1, Math.round(details.durationMinutes * 60));
+
   const started = await api.post('/focus-sessions/start', {
-    duration: Math.max(1, Math.round(details.durationMinutes)) * 60,
+    duration: durationSeconds,
     subject: details.subject,
     focusMode: details.mode,
     isStrict: details.isStrict,
@@ -246,7 +257,7 @@ export async function saveFocusSessionToServer(details: {
     id: sessionId,
     subject: details.subject,
     taskTitle: details.taskTitle,
-    durationMinutes: Math.max(1, Math.round(details.durationMinutes)),
+    durationMinutes: durationSeconds / 60,
     mode: details.mode,
     isStrict: details.isStrict,
     completedAt: endedAt ? new Date(endedAt).toISOString() : new Date().toISOString(),
@@ -264,4 +275,4 @@ export async function addToCachedHistory(record: FocusHistoryRecord) {
   await writeCachedHistory(next);
 
   return next;
-}
+}

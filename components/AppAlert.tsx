@@ -23,7 +23,7 @@ import { useAppTheme } from '@/app/context/ThemeContext';
  * <AppAlertHost /> must be mounted once (in app/_layout.tsx).
  */
 
-type AlertVariant =
+export type AlertVariant =
   | 'info'
   | 'success'
   | 'error'
@@ -32,12 +32,24 @@ type AlertVariant =
   | 'logout'
   | 'lock';
 
+/** Extra, optional GabAi touches on top of the normal alert options. */
+export interface AppAlertOptions extends AlertOptions {
+  /** Force a look instead of guessing it from the title. */
+  variant?: AlertVariant;
+  /** Feather icon to show instead of the variant's default. */
+  icon?: keyof typeof Feather.glyphMap;
+  /** A small box under the message, e.g. the task being changed. */
+  details?: { title: string; subtitle?: string };
+  /** Color of the main (non-cancel, non-destructive) button. */
+  confirmColor?: string;
+}
+
 interface AlertRequest {
   id: number;
   title: string;
   message?: string;
   buttons: AlertButton[];
-  options?: AlertOptions;
+  options?: AppAlertOptions;
 }
 
 // ------------------------------------------------------
@@ -57,7 +69,7 @@ export const AppAlert = {
     title: string,
     message?: string,
     buttons?: AlertButton[],
-    options?: AlertOptions,
+    options?: AppAlertOptions,
   ) {
     queue = [
       ...queue,
@@ -146,7 +158,8 @@ export function AppAlertHost() {
   const red = isDark ? '#EF4444' : '#DC2626';
   const green = '#22C55E';
 
-  const variant = getVariant(current);
+  const variant = current.options?.variant ?? getVariant(current);
+  const details = current.options?.details;
 
   const iconColor =
     variant === 'delete' || variant === 'logout' || variant === 'error'
@@ -232,7 +245,11 @@ export function AppAlertHost() {
           ]}
         >
           <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
-            <Feather name={ICONS[variant]} size={24} color={iconColor} />
+            <Feather
+              name={current.options?.icon ?? ICONS[variant]}
+              size={24}
+              color={iconColor}
+            />
           </View>
 
           <Text style={[styles.title, { color: colors.text }]}>
@@ -243,6 +260,30 @@ export function AppAlertHost() {
             <Text style={[styles.message, { color: colors.secondaryText }]}>
               {current.message}
             </Text>
+          )}
+
+          {!!details?.title && (
+            <View
+              style={[
+                styles.details,
+                {
+                  backgroundColor: isDark ? '#161616' : '#F7F5F2',
+                  borderColor: isDark ? '#2E2E2E' : '#ECE7E1',
+                },
+              ]}
+            >
+              <Text numberOfLines={2} style={[styles.detailsTitle, { color: colors.text }]}>
+                {details.title}
+              </Text>
+              {!!details.subtitle && (
+                <Text
+                  numberOfLines={2}
+                  style={[styles.detailsSubtitle, { color: colors.secondaryText }]}
+                >
+                  {details.subtitle}
+                </Text>
+              )}
+            </View>
           )}
 
           <View style={stacked ? styles.buttonsStacked : styles.buttonsRow}>
@@ -266,7 +307,9 @@ export function AppAlertHost() {
                           borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
                         }
                       : {
-                          backgroundColor: isDestructive ? red : brown,
+                          backgroundColor: isDestructive
+                            ? red
+                            : current.options?.confirmColor ?? brown,
                         },
                   ]}
                 >
@@ -329,6 +372,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
     marginTop: 6,
+  },
+  details: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 14,
+  },
+  detailsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  detailsSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
   },
   buttonsRow: {
     flexDirection: 'row',

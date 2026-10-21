@@ -18,7 +18,7 @@ import {
   fetchFocusHistory,
 } from '@/app/services/focusSessionApi';
 import { AppAlert } from '@/components/AppAlert';
-import { FOCUS_MODE_LABELS } from './constants/focusConfig';
+import { FOCUS_MODE_LABELS, formatFocusMinutes } from './constants/focusConfig';
 import { FocusMode } from './types';
 
 const ACCENT = '#A97C50';
@@ -70,7 +70,7 @@ export default function FocusHistoryScreen() {
 
     AppAlert.alert(
       'Delete this session?',
-      `${name} · ${session.durationMinutes} min will be removed from your focus history and totals. This cannot be undone.`,
+      `${name} · ${formatFocusMinutes(session.durationMinutes)} will be removed from your focus history and totals. This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -162,7 +162,7 @@ export default function FocusHistoryScreen() {
         <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
         <View style={styles.summaryItem}>
           <Text style={[styles.summaryValue, { color: colors.text }]}>
-            {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
+            {totalMinutes > 0 ? formatFocusMinutes(totalMinutes) : '0m'}
           </Text>
           <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>Total Focus</Text>
         </View>
@@ -232,7 +232,7 @@ export default function FocusHistoryScreen() {
                 </View>
                 <View style={[styles.durationBadge, { backgroundColor: ACCENT + '22' }]}>
                   <Text style={[styles.durationText, { color: ACCENT }]}>
-                    {item.durationMinutes} min
+                    {formatFocusMinutes(item.durationMinutes)}
                   </Text>
                 </View>
               </View>
@@ -424,4 +424,4 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-});
+});

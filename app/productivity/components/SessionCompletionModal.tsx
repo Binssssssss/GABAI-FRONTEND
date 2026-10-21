@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { FOCUS_MODE_DURATIONS } from '../constants/focusConfig';
+import { FOCUS_MODE_DURATIONS, formatFocusMinutes } from '../constants/focusConfig';
 import { BreakMode, FocusCompletion, FocusPalette } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
 
@@ -59,13 +59,13 @@ export default function SessionCompletionModal({
           >
             <View style={styles.modalStatItem}>
               <Text style={[styles.modalStatVal, { color: colors.primary }]}>
-                {completion.durationMinutes} min
+                {formatFocusMinutes(completion.durationMinutes)}
               </Text>
               <Text style={[styles.modalStatSub, { color: colors.subtext }]}>This session</Text>
             </View>
             <View style={styles.modalStatItem}>
               <Text style={[styles.modalStatVal, { color: colors.success }]}>
-                {todayMinutes} min
+                {formatFocusMinutes(todayMinutes)}
               </Text>
               <Text style={[styles.modalStatSub, { color: colors.subtext }]}>Today</Text>
             </View>

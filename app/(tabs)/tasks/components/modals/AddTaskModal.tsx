@@ -83,16 +83,9 @@ export default function AddTaskModal({
   const priorities = ['High', 'Medium', 'Low'];
 
 
-  /* One-tap times shown in the time picker. */
-  const QUICK_TIMES: { label: string; h: number; m: number; p: Period }[] = [
-    { label: '8:00 AM', h: 8, m: 0, p: 'AM' },
-    { label: '10:00 AM', h: 10, m: 0, p: 'AM' },
-    { label: '1:00 PM', h: 1, m: 0, p: 'PM' },
-    { label: '3:00 PM', h: 3, m: 0, p: 'PM' },
-    { label: '5:00 PM', h: 5, m: 0, p: 'PM' },
-    { label: '8:00 PM', h: 8, m: 0, p: 'PM' },
-    { label: '11:59 PM', h: 11, m: 59, p: 'PM' },
-  ];
+  // Text being typed in the hour / minute boxes (null = not editing).
+  const [hourDraft, setHourDraft] = useState<string | null>(null);
+  const [minuteDraft, setMinuteDraft] = useState<string | null>(null);
 
   /**
   
@@ -258,51 +251,38 @@ export default function AddTaskModal({
 
   };
 
-  const changeHour = (amount: number) => {
-    let next = hour + amount;
-
-
-    if (next > 12) next = 1;
-    if (next < 1) next = 12;
-
-    setHour(next);
-    updateTime(
-      next,
-      minute,
-      period
-    );
-
-
+  // Typing updates the time right away (hour 1-12, minute 0-59).
+  const typeHour = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setHourDraft(digits);
+    const n = Number(digits);
+    if (digits && n >= 1) {
+      const next = Math.min(12, n);
+      setHour(next);
+      updateTime(next, minute, period);
+    }
   };
 
-  // Minutes move in steps of 5 (00, 05, 10 ... 55).
-  const changeMinute = (amount: number) => {
-    const snapped = Math.round(minute / 5) * 5;
-    let next = snapped + amount;
-
-    if (next > 55) next = 0;
-    if (next < 0) next = 55;
-
-    setMinute(next);
-    updateTime(
-      hour,
-      next,
-      period
-    );
-
-
+  const typeMinute = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setMinuteDraft(digits);
+    if (digits) {
+      const next = Math.min(59, Number(digits));
+      setMinute(next);
+      updateTime(hour, next, period);
+    }
   };
 
-  const setQuickTime = (h: number, m: number, p: Period) => {
-    setHour(h);
-    setMinute(m);
-    setPeriod(p);
-    updateTime(h, m, p);
+  // Leaving a box: show the saved value again (empty or "0" falls back).
+  const finishTyping = () => {
+    setHourDraft(null);
+    setMinuteDraft(null);
   };
 
   const changePeriod = (
     value: Period
   ) => {
+    finishTyping();
     setPeriod(value);
     updateTime(
       hour,
@@ -1089,12 +1069,12 @@ export default function AddTaskModal({
                 </Text>
               </View>
 
-              {/* Hour and minute, each with its own up/down buttons */}
+              {/* Hour and minute: tap a box and type */}
               <View
                 style={{
                   flexDirection: 'row',
                   justifyContent: 'center',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   marginBottom: 14,
                 }}
               >
@@ -1102,21 +1082,23 @@ export default function AddTaskModal({
                   {
                     key: 'hour',
                     label: 'Hour',
-                    value: hour,
-                    up: () => changeHour(1),
-                    down: () => changeHour(-1),
+                    text: hourDraft ?? String(hour).padStart(2, '0'),
+                    isEditing: hourDraft !== null,
+                    onChange: typeHour,
+                    onFocus: () => setHourDraft(''),
                   },
                   {
                     key: 'minute',
                     label: 'Min',
-                    value: minute,
-                    up: () => changeMinute(5),
-                    down: () => changeMinute(-5),
+                    text: minuteDraft ?? String(minute).padStart(2, '0'),
+                    isEditing: minuteDraft !== null,
+                    onChange: typeMinute,
+                    onFocus: () => setMinuteDraft(''),
                   },
                 ].map((part, index) => (
                   <View
                     key={part.key}
-                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                    style={{ flexDirection: 'row', alignItems: 'flex-start' }}
                   >
                     {index === 1 && (
                       <Text
@@ -1125,7 +1107,7 @@ export default function AddTaskModal({
                           fontSize: 30,
                           fontWeight: '700',
                           marginHorizontal: 10,
-                          marginBottom: 18,
+                          marginTop: 14,
                         }}
                       >
                         :
@@ -1133,58 +1115,36 @@ export default function AddTaskModal({
                     )}
 
                     <View style={{ alignItems: 'center' }}>
-                      <TouchableOpacity
-                        onPress={part.up}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Increase ${part.label}`}
+                      <TextInput
+                        value={part.text}
+                        onChangeText={part.onChange}
+                        onFocus={part.onFocus}
+                        onBlur={finishTyping}
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        maxLength={2}
+                        selectTextOnFocus
+                        accessibilityLabel={part.label}
                         style={{
-                          width: 44,
-                          height: 32,
-                          borderRadius: 10,
+                          width: 80,
+                          height: 66,
+                          borderRadius: 16,
+                          borderWidth: 1.5,
+                          borderColor: part.isEditing ? primaryBrown : borderCol,
                           backgroundColor: inputBg,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Feather name="chevron-up" size={20} color={textPrimary} />
-                      </TouchableOpacity>
-
-                      <Text
-                        style={{
                           color: textPrimary,
                           fontSize: 34,
                           fontWeight: '700',
-                          marginVertical: 4,
-                          minWidth: 56,
                           textAlign: 'center',
+                          padding: 0,
                         }}
-                      >
-                        {String(part.value).padStart(2, '0')}
-                      </Text>
-
-                      <TouchableOpacity
-                        onPress={part.down}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Decrease ${part.label}`}
-                        style={{
-                          width: 44,
-                          height: 32,
-                          borderRadius: 10,
-                          backgroundColor: inputBg,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Feather name="chevron-down" size={20} color={textPrimary} />
-                      </TouchableOpacity>
+                      />
 
                       <Text
                         style={{
                           color: textSecondary,
                           fontSize: 10,
-                          marginTop: 4,
+                          marginTop: 6,
                         }}
                       >
                         {part.label}
@@ -1250,67 +1210,13 @@ export default function AddTaskModal({
               </View>
 
 
-              {/* Quick picks */}
-              <Text
-                style={{
-                  color: textSecondary,
-                  fontSize: 10,
-                  fontWeight: '700',
-                  marginTop: 14,
-                  marginBottom: 8,
-                }}
-              >
-                QUICK PICK
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: 'row',
-                  flexWrap: 'wrap',
-                  gap: 6,
-                }}
-              >
-                {QUICK_TIMES.map((option) => {
-                  const active =
-                    hour === option.h &&
-                    minute === option.m &&
-                    period === option.p;
-
-                  return (
-                    <TouchableOpacity
-                      key={option.label}
-                      onPress={() =>
-                        setQuickTime(option.h, option.m, option.p)
-                      }
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: active ? primaryBrown : borderCol,
-                        backgroundColor: active ? primaryBrown : 'transparent',
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: active ? '#FFF' : textPrimary,
-                          fontSize: 12,
-                          fontWeight: '600',
-                        }}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
               <TouchableOpacity
-                onPress={() =>
-                  setPicker(null)
-                }
+                onPress={() => {
+                  finishTyping();
+                  setPicker(null);
+                }}
                 style={{
-                  marginTop: 12,
+                  marginTop: 16,
                   alignItems: 'center',
                 }}
               >
@@ -1333,4 +1239,4 @@ export default function AddTaskModal({
 
 
   );
-}
+}

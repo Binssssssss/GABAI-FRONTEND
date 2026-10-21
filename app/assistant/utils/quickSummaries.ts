@@ -592,7 +592,7 @@ async function buildFocusSummary(): Promise<SummaryCardData> {
           ]
             .filter(Boolean)
             .join(' · '),
-          right: `${s.durationMinutes} min`,
+          right: formatMinutes(s.durationMinutes),
           rightSub: formatTime(new Date(s.completedAt)),
           color: BROWN,
         })),
@@ -710,4 +710,4 @@ export async function buildQuickSummary(key: QuickActionKey): Promise<SummaryCar
 
 export function quickSummaryError(key: QuickActionKey): string {
   return `I couldn't load your ${FEATURE_NAMES[key]} right now. Please check your connection and try again.`;
-}
+}

@@ -21,6 +21,7 @@ import {
   FOCUS_MODE_LABELS,
   MIN_LOGGABLE_MINUTES,
   MOTIVATIONAL_AFFIRMATIONS,
+  formatFocusDuration,
   SESSIONS_BEFORE_LONG_BREAK,
   getModeDurationSeconds,
   isBreakMode,
@@ -596,7 +597,8 @@ export function useFocusTimer() {
     }
 
     stopSession();
-    logFocusSession(Math.round(totalDuration / 60));
+    // Exact length, seconds included.
+    logFocusSession(totalDuration / 60);
   });
 
   // Timer engine. Remaining time is derived from `endsAt`, and the
@@ -757,18 +759,18 @@ export function useFocusTimer() {
     const remaining =
       !isPaused && endsAt !== null ? secondsUntil(endsAt) : timeRemaining;
 
-    const elapsedMinutes = Math.floor(
-      (totalDuration - remaining) / 60
-    );
+    // Focused time so far, to the second.
+    const elapsedSeconds = Math.max(0, totalDuration - remaining);
+    const elapsedLabel = formatFocusDuration(elapsedSeconds);
 
-    if (elapsedMinutes < MIN_LOGGABLE_MINUTES) {
+    if (elapsedSeconds < MIN_LOGGABLE_MINUTES * 60) {
       AppAlert.alert(
-        isStrictSessionActive ? 'End Strict Session?' : 'End Session?',
-        `You have focused for ${elapsedMinutes} min. Sessions shorter than ${MIN_LOGGABLE_MINUTES} minutes are not recorded, so this session will be discarded.`,
+        'End session early?',
+        `You have focused for ${elapsedLabel}. Sessions shorter than ${MIN_LOGGABLE_MINUTES} minute are not recorded, so this session will be discarded.`,
         [
-          { text: 'Keep Focusing', style: 'cancel' },
+          { text: 'Keep going', style: 'cancel' },
           {
-            text: 'Discard Session',
+            text: 'Yes',
             style: 'destructive',
             onPress: stopSession,
           },
@@ -781,18 +783,19 @@ export function useFocusTimer() {
     const subject = selectedSubject.trim() || 'General Study';
 
     AppAlert.alert(
-      'Finish Session Early',
-      `Record ${elapsedMinutes} minutes of focused study for ${subject}?`,
+      'End session early?',
+      `Record ${elapsedLabel} of focused study for ${subject}?`,
       [
-        { text: 'Keep Focusing', style: 'cancel' },
+        { text: 'Keep going', style: 'cancel' },
         {
-          text: 'Complete & Log',
+          text: 'Yes',
           onPress: () => {
             stopSession();
-            logFocusSession(elapsedMinutes);
+            logFocusSession(elapsedSeconds / 60);
           },
         },
-      ]
+      ],
+      { variant: 'info', icon: 'clock' }
     );
   }, [
     isRunning,
@@ -861,4 +864,4 @@ export function useFocusTimer() {
     resetTimer,
     endSession,
   };
-}
+}

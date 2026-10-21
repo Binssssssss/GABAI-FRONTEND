@@ -170,6 +170,48 @@ const showErrorAlert = (
   AppAlert.alert(title, message);
 };
 
+const SHORT_MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/* "Math 101 · Due today, 6:00 PM · High" (or "· Completed" when done). */
+const describeTask = (
+  task: Pick<Task, 'subject' | 'dueDate' | 'dueTime' | 'priority' | 'completed'>,
+): string => {
+  const parts: string[] = [];
+  if (task.subject) parts.push(task.subject);
+
+  if (task.completed) {
+    parts.push('Completed');
+  } else if (task.dueDate) {
+    const [y, m, d] = task.dueDate.split('-').map(Number);
+    const due = new Date(y, (m || 1) - 1, d || 1);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+
+    const day = same(due, today)
+      ? 'today'
+      : same(due, tomorrow)
+        ? 'tomorrow'
+        : `${SHORT_MONTHS[due.getMonth()]} ${due.getDate()}`;
+
+    let time = '';
+    const [hh, mm] = (task.dueTime || '').split(':').map(Number);
+    if (Number.isFinite(hh) && Number.isFinite(mm)) {
+      time = `, ${hh % 12 || 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'PM' : 'AM'}`;
+    }
+    parts.push(`Due ${day}${time}`);
+  }
+
+  if (task.priority && !task.completed) parts.push(task.priority);
+  return parts.join(' · ');
+};
+
+const GREEN = '#22C55E';
+
 // ------------------------------------------------------
 // TASK DATA HOOK
 // ------------------------------------------------------
@@ -601,7 +643,7 @@ export function useTaskData() {
   // COMPLETE / RESTORE TASK
   // ------------------------------------------------------
 
-  const toggleTask = useCallback(
+  const applyToggleTask = useCallback(
     async (taskId: string) => {
       const currentTask = tasks.find(
         (task) => task.id === taskId,
@@ -682,6 +724,45 @@ export function useTaskData() {
       }
     },
     [tasks, setTasks, loadTasks],
+  );
+
+  /* Checkbox tap: ask first, then complete or restore the task. */
+  const toggleTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((item) => item.id === taskId);
+
+      // Missing / still saving: let the normal handler deal with it.
+      if (!task || task.isPending) {
+        void applyToggleTask(taskId);
+        return;
+      }
+
+      const details = { title: task.title, subtitle: describeTask(task) };
+
+      if (task.completed) {
+        AppAlert.alert(
+          'Restore this task?',
+          'It will go back to your active tasks.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Restore', onPress: () => void applyToggleTask(taskId) },
+          ],
+          { variant: 'info', icon: 'rotate-ccw', details },
+        );
+        return;
+      }
+
+      AppAlert.alert(
+        'Complete this task?',
+        'It will move to your Completed list.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Mark complete', onPress: () => void applyToggleTask(taskId) },
+        ],
+        { variant: 'success', icon: 'check-circle', details, confirmColor: GREEN },
+      );
+    },
+    [tasks, applyToggleTask],
   );
 
   const handleRestoreTask = useCallback(
@@ -1175,6 +1256,16 @@ export function useTaskData() {
           .filter((task) => task.id !== normalizedTask.id)
           .map((task) => (task.id === tempId ? normalizedTask : task)),
       );
+
+      AppAlert.alert(
+        'Task created',
+        'Your task was added to your list.',
+        [{ text: 'OK' }],
+        {
+          variant: 'success',
+          details: { title: draftTask.title, subtitle: describeTask(draftTask) },
+        },
+      );
     } catch (error: any) {
       console.error('Failed to create task:', error);
 
@@ -1280,6 +1371,19 @@ export function useTaskData() {
           ),
         );
       }
+
+      AppAlert.alert(
+        'Task updated',
+        'Your changes were saved.',
+        [{ text: 'OK' }],
+        {
+          variant: 'success',
+          details: {
+            title: changes.title,
+            subtitle: describeTask({ ...original, ...changes }),
+          },
+        },
+      );
     } catch (error: any) {
       console.error('Failed to update task:', error);
 
@@ -1451,4 +1555,4 @@ export function useTaskData() {
     handleRefresh,
     resetTaskForm,
   };
-}
+}

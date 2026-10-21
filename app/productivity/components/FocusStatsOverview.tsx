@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { formatFocusMinutes } from '../constants/focusConfig';
 import { FocusPalette, FocusStats } from '../types';
 import { focusStyles as styles } from '../styles/focus.styles';
 
@@ -18,7 +19,7 @@ export default function FocusStatsOverview({
   colors,
 }: FocusStatsOverviewProps) {
   const items = [
-    { icon: 'clock' as const, value: `${stats.todayMinutes}m`, label: 'Focused today', color: colors.primary },
+    { icon: 'clock' as const, value: stats.todayMinutes > 0 ? formatFocusMinutes(stats.todayMinutes) : '0m', label: 'Focused today', color: colors.primary },
     { icon: 'target' as const, value: `${stats.todaySessions}`, label: 'Sessions', color: colors.text },
     { icon: 'zap' as const, value: `${stats.streakDays}d`, label: 'Streak', color: '#F59E0B' },
   ];

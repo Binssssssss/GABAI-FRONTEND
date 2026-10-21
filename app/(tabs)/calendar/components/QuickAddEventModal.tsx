@@ -84,15 +84,6 @@ const REMINDER_CHOICES: { label: string; value: string | null }[] = [
 ];
 
 
-const QUICK_TIMES: { label: string; h: number; m: number; p: Period }[] = [
-  { label: '7:30 AM', h: 7, m: 30, p: 'AM' },
-  { label: '8:00 AM', h: 8, m: 0, p: 'AM' },
-  { label: '10:00 AM', h: 10, m: 0, p: 'AM' },
-  { label: '1:00 PM', h: 1, m: 0, p: 'PM' },
-  { label: '3:00 PM', h: 3, m: 0, p: 'PM' },
-  { label: '5:00 PM', h: 5, m: 0, p: 'PM' },
-  { label: '7:00 PM', h: 7, m: 0, p: 'PM' },
-];
 
 const WEEK_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -738,42 +729,13 @@ export default function QuickAddEventModal({
                 })}
               </View>
 
-              <Text style={[s.panelCaption, { color: textSubTheme, marginTop: 14 }]}>
-                QUICK PICK
-              </Text>
-              <View style={s.quickRow}>
-                {QUICK_TIMES.map((option) => {
-                  const isActive =
-                    hour === option.h && minute === option.m && period === option.p;
-                  return (
-                    <TouchableOpacity
-                      key={option.label}
-                      onPress={() => {
-                        finishTyping();
-                        onTimeChange(buildTime(option.h, option.m, option.p));
-                      }}
-                      style={[
-                        s.quickChip,
-                        {
-                          borderColor: isActive ? primaryAccent : borderTheme,
-                          backgroundColor: isActive ? primaryAccent : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.quickText,
-                          { color: isActive ? '#FFFFFF' : textTheme },
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <TouchableOpacity onPress={() => setPicker(null)} style={s.doneBtn}>
+              <TouchableOpacity
+                onPress={() => {
+                  finishTyping();
+                  setPicker(null);
+                }}
+                style={s.doneBtn}
+              >
                 <Text style={[s.doneText, { color: primaryAccent }]}>Done</Text>
               </TouchableOpacity>
             </View>
@@ -1084,22 +1046,6 @@ const s = StyleSheet.create({
   periodText: {
     fontSize: 11,
     fontWeight: '700',
-  },
-  quickRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  quickChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  quickText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   doneBtn: {
     alignItems: 'center',
