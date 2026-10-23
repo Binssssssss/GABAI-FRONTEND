@@ -6,3 +6,4 @@ export * from './EmptyStateView';
 export * from './QuickActionsBar';
 export * from './ChatInputBar';
 export * from './SummaryCard';
+export * from './GabAvatar';

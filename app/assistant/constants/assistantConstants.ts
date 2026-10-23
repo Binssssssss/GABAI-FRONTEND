@@ -25,3 +25,13 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { key: 'focus', label: 'Focus Session', icon: 'target' },
   { key: 'notes', label: 'Notes', icon: 'file-text' },
 ];
+
+/** Conversation starters on Gab's welcome screen (label shown, message sent). */
+export const GAB_STARTERS: { label: string; message: string }[] = [
+  { label: '📋 Plan my day', message: 'Help me plan my day based on my tasks and schedule.' },
+  { label: "😮‍💨 I'm stressed", message: "I'm feeling stressed about school." },
+  { label: '💪 Motivate me', message: 'Motivate me to study.' },
+  { label: "⏰ What's due soon?", message: "What's due soon?" },
+  { label: "💸 How's my budget?", message: "How's my budget this week?" },
+  { label: '🎯 Help me focus', message: 'Help me focus. What should I work on first?' },
+];

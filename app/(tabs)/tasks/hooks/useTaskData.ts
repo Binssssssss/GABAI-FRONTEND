@@ -11,6 +11,7 @@ import { useFocusEffect } from 'expo-router';
 import { localDb, Task } from '@/app/services/localDb';
 import api from '@/app/services/api';
 import { taskService } from '@/app/services/task.services';
+import { syncCalendarAlarms } from '@/app/services/calendarReminderService';
 
 import {
   TaskSubTab,
@@ -261,7 +262,8 @@ export function useTaskData() {
   );
 
   const [newDueTime, setNewDueTime] = useState('12:00');
-  const [newHasReminder, setNewHasReminder] = useState(false);
+  // Alarm is on by default (same as Calendar).
+  const [newHasReminder, setNewHasReminder] = useState(true);
   const [newRepeat, setNewRepeat] = useState<TaskRepeat>('None');
   const [newSubTaskInput, setNewSubTaskInput] = useState('');
   const [newSubTasksList, setNewSubTasksList] = useState<string[]>([]);
@@ -312,7 +314,7 @@ export function useTaskData() {
     setNewDuration('1.5');
     setNewDueDate(formatLocalDate(new Date()));
     setNewDueTime('12:00');
-    setNewHasReminder(false);
+    setNewHasReminder(true);
     setNewRepeat('None');
     setNewSubTaskInput('');
     setNewSubTasksList([]);
@@ -337,6 +339,40 @@ export function useTaskData() {
   // ------------------------------------------------------
   // LOAD TASKS FROM BACKEND
   // ------------------------------------------------------
+
+  // ------------------------------------------------------
+  // TASK ALARMS (same as Calendar: reminder 1 day before +
+  // 1-minute alarm at the due time, scheduled on the phone)
+  // ------------------------------------------------------
+
+  // Only sync after the real list has loaded once, so an empty
+  // list at startup never cancels the alarms.
+  const hasLoadedTasksRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasLoadedTasksRef.current) return;
+
+    // Wait a moment so quick changes (save, then server reply) sync once.
+    const timer = setTimeout(() => {
+      void syncCalendarAlarms(
+        tasks
+          .filter((task) => !task.isPending)
+          .map((task) => ({
+            id: task.id,
+            title: task.title,
+            date: task.dueDate,
+            time: task.dueTime,
+            hasReminder: task.hasReminder,
+            completed: task.completed,
+            subject: task.subject,
+            priority: task.priority,
+          })),
+        'tasks',
+      );
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [tasks]);
 
   const loadTasks = useCallback(
     async (showLoading = true) => {
@@ -369,6 +405,7 @@ export function useTaskData() {
 
         // Replace the list with the actual backend response.
         // An empty response means there are no backend tasks.
+        hasLoadedTasksRef.current = true;
         setTasks(mappedTasks);
 
         await loadAnalytics();
@@ -1555,4 +1592,4 @@ export function useTaskData() {
     handleRefresh,
     resetTaskForm,
   };
-}
+}

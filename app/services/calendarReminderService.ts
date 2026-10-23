@@ -9,7 +9,8 @@ import {
 } from '@/constants/notificationChannels';
 
 /**
- * Calendar alarms (all scheduled on the phone, so they work while GabAi is closed):
+ * Calendar and Task Manager alarms (all scheduled on the phone, so they
+ * work while GabAi is closed). Tasks use exactly the same rules:
  *
  * - Event 1 day or more away: a reminder 1 day before (chime) + an alarm at the start time.
  * - Event less than 1 day away: only the alarm at the start time.
@@ -19,6 +20,7 @@ import {
  */
 
 const CALENDAR_SCREEN = '/(tabs)/calendar/calendar';
+const TASKS_SCREEN = '/(tabs)/tasks/task';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The alarm keeps ringing every RING_EVERY_MIN minutes, MAX_RINGS times at most. */
@@ -30,10 +32,14 @@ const MAX_RINGS = 15; // 30 minutes
  * events get their alarms ahead of time. The rest are added by the sync
  * when GabAi is opened again.
  */
-const MAX_EVENTS_SCHEDULED = 20;
+const MAX_EVENTS_SCHEDULED = 12; // calendar events + 12 tasks, up to 16 alarms each
 
 /** Calendar events are tasks whose subject is one of these. */
 const CALENDAR_CATEGORIES = ['Assignment', 'Exam', 'Class', 'Focus Session', 'Meeting', 'Personal'];
+
+/** True for calendar events; false for Task Manager tasks. */
+const isCalendarCategory = (category?: string) =>
+  CALENDAR_CATEGORIES.includes(String(category ?? ''));
 
 export const ALARM_ACTION_SNOOZE = 'snooze';
 export const ALARM_ACTION_STOP = 'stop';
@@ -194,9 +200,12 @@ function ringContent(
   withSnooze: boolean,
 ): Notifications.NotificationContentInput {
   const details = detailParts(info.category, info.priority);
+  const isTask = !isCalendarCategory(info.category);
   const title =
     style === 'start'
-      ? `⏰ ${info.title} is starting`
+      ? isTask
+        ? `⏰ ${info.title} is due`
+        : `⏰ ${info.title} is starting`
       : style === 'snoozed'
         ? `⏰ ${info.title} (snoozed)`
         : `⏰ ${info.title} is still ringing`;
@@ -204,7 +213,7 @@ function ringContent(
   const body =
     style === 'start'
       ? [`Now · ${timeLabel(start)}`, ...details].join(' · ')
-      : `Started at ${timeLabel(start)} · Tap Stop to turn off`;
+      : `${isTask ? 'Due' : 'Started'} at ${timeLabel(start)} · Tap Stop to turn off`;
 
   return {
     title,
@@ -219,7 +228,7 @@ function ringContent(
       ...info,
       kind: KIND_ALARM,
       type: KIND_ALARM,
-      screen: CALENDAR_SCREEN,
+      screen: isTask ? TASKS_SCREEN : CALENDAR_SCREEN,
       ring,
       total,
     },
@@ -287,16 +296,17 @@ export async function scheduleCalendarReminder(
 
   // 1) Day-before reminder, only when the event is at least 1 day away.
   if (start.getTime() - Date.now() >= DAY_MS) {
+    const isTask = !isCalendarCategory(info.category);
     await scheduleAt(
       {
-        title: `📅 Tomorrow: ${title}`,
+        title: isTask ? `📅 Due tomorrow: ${title}` : `📅 Tomorrow: ${title}`,
         body: [`${dateLabel(start)} at ${timeLabel(start)}`, ...detailParts(info.category, info.priority)].join(' · '),
         sound: NOTIFICATION_CHANNELS.general.sound,
         data: {
           ...info,
           kind: KIND_DAY_BEFORE,
           type: KIND_DAY_BEFORE,
-          screen: CALENDAR_SCREEN,
+          screen: isTask ? TASKS_SCREEN : CALENDAR_SCREEN,
         },
       },
       new Date(start.getTime() - DAY_MS),
@@ -450,21 +460,43 @@ export interface AlarmSyncEvent {
   priority?: string;
 }
 
-let syncing: Promise<void> | null = null;
+/**
+ * Which alarms a sync manages:
+ * - 'calendar': calendar events only (Calendar screen)
+ * - 'tasks': Task Manager tasks only (Tasks screen)
+ * - 'all': both (full list from the server)
+ */
+export type AlarmSyncScope = 'all' | 'calendar' | 'tasks';
+
+const inScope = (scope: AlarmSyncScope, category?: string) =>
+  scope === 'all' || (scope === 'calendar') === isCalendarCategory(category);
+
+const syncing: Partial<Record<AlarmSyncScope, Promise<void>>> = {};
+const pendingSync: Partial<Record<AlarmSyncScope, AlarmSyncEvent[]>> = {};
 
 /**
  * Makes the phone's scheduled alarms match the events: adds missing ones,
  * re-does ones whose time or alarm settings changed, and removes alarms for
  * deleted or completed events. Safe to call often.
  */
-export function syncCalendarAlarms(events: AlarmSyncEvent[]): Promise<void> {
-  if (syncing) return syncing;
+export function syncCalendarAlarms(
+  events: AlarmSyncEvent[],
+  scope: AlarmSyncScope = 'calendar',
+): Promise<void> {
+  // A sync is already running: run once more with these newest events after it.
+  const running = syncing[scope];
+  if (running) {
+    pendingSync[scope] = events;
+    return running;
+  }
 
-  syncing = (async () => {
+  const job = (async () => {
     try {
       const prefs = await loadNotificationPrefs();
       const scheduled = (await Notifications.getAllScheduledNotificationsAsync()).filter(
-        (notification) => Boolean(dataOf(notification).eventId),
+        (notification) =>
+          Boolean(dataOf(notification).eventId) &&
+          inScope(scope, dataOf(notification).category),
       );
 
       if (!prefs.pushEnabled || !prefs.calendarReminders) {
@@ -486,7 +518,7 @@ export function syncCalendarAlarms(events: AlarmSyncEvent[]): Promise<void> {
           !event.completed &&
           !event.isAllDay &&
           normalizeTime(event.time) &&
-          CALENDAR_CATEGORIES.includes(String(event.subject ?? event.category ?? '')),
+          inScope(scope, String(event.subject ?? event.category ?? '')),
       );
       const eligibleIds = new Set(eligible.map((event) => event.id));
 
@@ -505,7 +537,12 @@ export function syncCalendarAlarms(events: AlarmSyncEvent[]): Promise<void> {
         )
         .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-      const nearIds = new Set(upcoming.slice(0, MAX_EVENTS_SCHEDULED).map((item) => item.event.id));
+      // The nearest 12 calendar events and the nearest 12 tasks.
+      const near = [
+        ...upcoming.filter((item) => isCalendarCategory(String(item.event.subject ?? item.event.category ?? ''))).slice(0, MAX_EVENTS_SCHEDULED),
+        ...upcoming.filter((item) => !isCalendarCategory(String(item.event.subject ?? item.event.category ?? ''))).slice(0, MAX_EVENTS_SCHEDULED),
+      ];
+      const nearIds = new Set(near.map((item) => item.event.id));
 
       // Far-away events: drop their alarms for now (re-added when they get closer).
       await Promise.all(
@@ -517,7 +554,7 @@ export function syncCalendarAlarms(events: AlarmSyncEvent[]): Promise<void> {
           .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
       );
 
-      for (const { event } of upcoming.slice(0, MAX_EVENTS_SCHEDULED)) {
+      for (const { event } of near) {
         const sig = signature(event.title, event.date, event.time, plan.key);
         const existing = scheduled.filter((n) => dataOf(n).eventId === event.id);
 
@@ -535,11 +572,17 @@ export function syncCalendarAlarms(events: AlarmSyncEvent[]): Promise<void> {
     } catch (error) {
       console.warn('Calendar alarm sync failed:', error);
     } finally {
-      syncing = null;
+      delete syncing[scope];
+      const next = pendingSync[scope];
+      if (next) {
+        delete pendingSync[scope];
+        void syncCalendarAlarms(next, scope);
+      }
     }
   })();
 
-  return syncing;
+  syncing[scope] = job;
+  return job;
 }
 
 /** Loads the user's events from the server, then syncs the alarms. */
@@ -562,6 +605,7 @@ export async function resyncCalendarAlarmsFromServer(): Promise<void> {
         subject: item.category ?? item.subject,
         priority: item.priority,
       })),
+      'all',
     );
   } catch (error) {
     console.warn('Unable to refresh calendar alarms:', error);

@@ -64,6 +64,15 @@ export function useAssistant() {
         return;
       }
 
+      // The last few text messages, so Gab remembers the conversation.
+      const history = messages
+        .filter((item) => item.text.trim() && !item.customWidget)
+        .slice(-10)
+        .map((item) => ({
+          role: item.sender === 'user' ? 'user' : 'assistant',
+          content: item.text,
+        }));
+
       // Add user's message immediately
       addMessage('user', message);
 
@@ -86,6 +95,7 @@ export function useAssistant() {
         // Send message to backend
         const response = await api.post('/assistant/chat', {
           message,
+          history,
         });
 
         const reply = response?.data?.data?.reply;
@@ -105,7 +115,7 @@ export function useAssistant() {
         );
 
         let errorMessage =
-          'Sorry, I could not connect to GabAi right now. Please try again.';
+          "Sorry, I can't reach Gab right now. Please check your connection and try again.";
 
         if (error?.response?.status === 401) {
           errorMessage =
@@ -135,6 +145,7 @@ export function useAssistant() {
     [
       addMessage,
       isTyping,
+      messages,
       scrollToBottom,
     ],
   );
@@ -238,4 +249,4 @@ export function useAssistant() {
     handleFocusComplete,
     resetChat,
   };
-}
+}

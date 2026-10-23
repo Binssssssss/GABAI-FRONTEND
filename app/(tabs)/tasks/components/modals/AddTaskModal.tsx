@@ -54,6 +54,9 @@ export default function AddTaskModal({
     newDueTime,
     setNewDueTime,
 
+    newHasReminder,
+    setNewHasReminder,
+
     handleCreateTask,
     handleUpdateTask,
 
@@ -335,6 +338,18 @@ export default function AddTaskModal({
     : '06:00 PM';
 
   const isEditMode = !!editingTask;
+
+  // "Rings at 6:00 PM on Oct 24, 2026 · reminder 1 day before"
+  const alarmHint = (() => {
+    const [h, m] = (newDueTime || '12:00').split(':').map(Number);
+    const due = new Date(selectedDate);
+    due.setHours(Number.isFinite(h) ? h : 12, Number.isFinite(m) ? m : 0, 0, 0);
+    const msLeft = due.getTime() - Date.now();
+    if (msLeft <= 0) return 'This time has passed, so the alarm will not ring.';
+    return `Rings at ${timeLabel} on ${dateLabel}${
+      msLeft >= 24 * 60 * 60 * 1000 ? ' · reminder 1 day before' : ''
+    }`;
+  })();
 
   // An old task title that is kept as-is is never blocked.
   const originalTitle = String((editingTask as { title?: string } | null)?.title ?? '').trim();
@@ -751,6 +766,78 @@ export default function AddTaskModal({
                 />
               </TouchableOpacity>
             </View>
+
+            {/* ALARM (same as Calendar) */}
+
+            <Text
+              style={{
+                color: textSecondary,
+                fontSize: 11,
+                fontWeight: '700',
+                marginBottom: 8,
+              }}
+            >
+              ALARM
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {[
+                { label: 'Off', value: false },
+                { label: 'On', value: true },
+              ].map((option) => {
+                const active = newHasReminder === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.label}
+                    onPress={() => setNewHasReminder(option.value)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    style={{
+                      flex: 1,
+                      height: 38,
+                      flexDirection: 'row',
+                      gap: 6,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      borderRadius: 10,
+                      backgroundColor: active ? primaryBrown : inputBg,
+                      borderWidth: 1,
+                      borderColor: active ? primaryBrown : borderCol,
+                    }}
+                  >
+                    {option.value && (
+                      <Feather
+                        name="bell"
+                        size={13}
+                        color={active ? '#FFF' : textSecondary}
+                      />
+                    )}
+                    <Text
+                      style={{
+                        color: active ? '#FFF' : textSecondary,
+                        fontSize: 12,
+                        fontWeight: '600',
+                      }}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text
+              style={{
+                color: textSecondary,
+                fontSize: 11.5,
+                marginTop: 8,
+                marginBottom: 16,
+              }}
+            >
+              {newHasReminder
+                ? alarmHint
+                : 'No alarm for this task.'}
+            </Text>
 
             {/* NOTES */}
 
@@ -1274,4 +1361,4 @@ export default function AddTaskModal({
 
 
   );
-}
+}

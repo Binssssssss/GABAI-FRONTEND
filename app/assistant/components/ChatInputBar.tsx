@@ -35,7 +35,7 @@ export function ChatInputBar({
           styles.inputField,
           { backgroundColor: inputBg, color: textPrimary, borderColor: borderCol },
         ]}
-        placeholder="Ask about classes, tasks, spending..."
+        placeholder="Message Gab…"
         placeholderTextColor={textSecondary}
         value={inputVal}
         onChangeText={onChangeText}

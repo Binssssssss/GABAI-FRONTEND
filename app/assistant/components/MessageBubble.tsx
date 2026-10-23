@@ -5,6 +5,7 @@ import { Message } from '../types';
 import { assistantStyles as styles } from '../styles';
 import { FocusSessionWidget } from './FocusSessionWidget';
 import { SummaryCard } from './SummaryCard';
+import { GabAvatar } from './GabAvatar';
 
 function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
   const [fadeAnim] = useState(() => new Animated.Value(0));
@@ -32,9 +33,17 @@ function AnimatedMessageItem({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Hides Markdown bold markers (**text**) so messages show as clean text. */
-function cleanText(text: string): string {
-  return text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*\*/g, '');
+/** Shows **text** as bold and removes any leftover ** markers. */
+function renderRichText(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+      <Text key={index} style={{ fontWeight: '700' }}>
+        {part.slice(2, -2)}
+      </Text>
+    ) : (
+      part.replace(/\*\*/g, '')
+    ),
+  );
 }
 
 interface MessageBubbleProps {
@@ -70,8 +79,8 @@ export function MessageBubble({
     return (
       <AnimatedMessageItem>
         <View style={[styles.messageContainer, { alignSelf: 'stretch', maxWidth: '100%' }]}>
-          <View style={[styles.avatarSymbol, { backgroundColor: primaryBrown }]}>
-            <Feather name="zap" size={10} color="#FFF" />
+          <View style={{ marginRight: 8, marginTop: 4 }}>
+            <GabAvatar size={28} />
           </View>
           <View
             style={[
@@ -100,8 +109,8 @@ export function MessageBubble({
     <AnimatedMessageItem>
       <View style={[styles.messageContainer, { alignSelf }]}>
         {!isUser && (
-          <View style={[styles.avatarSymbol, { backgroundColor: primaryBrown }]}>
-            <Feather name="zap" size={10} color="#FFF" />
+          <View style={{ marginRight: 8, marginTop: 4 }}>
+            <GabAvatar size={28} />
           </View>
         )}
 
@@ -121,7 +130,7 @@ export function MessageBubble({
                 isUser ? styles.userMessageText : { color: textPrimary },
               ]}
             >
-              {cleanText(item.text)}
+              {renderRichText(item.text)}
             </Text>
 
             {item.customWidget === 'focus' && (
@@ -169,4 +178,4 @@ export function MessageBubble({
       </View>
     </AnimatedMessageItem>
   );
-}
+}
